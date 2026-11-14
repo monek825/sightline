@@ -6,11 +6,14 @@ const TREK = 'https://trek.nasa.gov/tiles/Mars/EQ/';
 const TILE_PATH = '/1.0.0/default/default028mm/{z}/{y}/{x}.png';
 const AFRAME_SRC = 'https://aframe.io/releases/1.6.0/aframe.min.js';
 const TERRAIN_SRC = 'lib/terrain.js';
+const MODELS_SRC = 'lib/models.js';
+const MODEL_SCALE = 30; // rover/habitat drawn 30x real size so they read from km away (labelled on screen)
+const ROVER_PARK_M = [14, 6]; // support rover parked beside the habitat [east, south], model metres
 const EXAGGERATE = 2;
 const ASTRO_R = 25, BEACON_H = 400, LIFT_M = 15, ROUTE_R = 10, STEP_M = 60;
 const PITCH_MIN = 0.08, PITCH_MAX = 1.5, CAM_CLEARANCE_M = 40;
-// 3D look (visual only): warm tint over the greyscale CTX texture, sun placed from local solar time, slow idle orbit.
-const TERRAIN_TINT = '#f0b483', SUN_DIST = 30000, IDLE_MS = 5000, IDLE_YAW_PER_S = 0.035;
+// 3D look (visual only; terrain tint + ground grain live in lib/terrain.js): sun placed from local solar time, slow idle orbit.
+const SUN_DIST = 30000, IDLE_MS = 5000, IDLE_YAW_PER_S = 0.035;
 const ZENITH_CLEAR = [128, 86, 62], LANDMARK_H = 180;
 const PICK_SLOP_PX = 6, PICK_INSET_DEG = 1e-5; // 3D click-vs-drag threshold; keep picks just inside the bounds
 const COLORS = { blind: [248, 81, 73, 120], homeHidden: [210, 153, 34, 32] };
@@ -302,7 +305,7 @@ function sunPosition(ltst) {
 
 function createView3D(data, onPickTarget) {
   const host = $('view3d'), msg = $('v3-msg');
-  $('v3-note').textContent = `Vertical scale ×${EXAGGERATE}`;
+  $('v3-note').textContent = `Vertical scale ×${EXAGGERATE} · rover and habitat ×${MODEL_SCALE} size`;
   let s = null, starting = null, terrain = null, last = null, lastHome, lastOut, lastRadius = -1, lastTau = null, lastSun = null;
   const say = text => { msg.textContent = text; msg.hidden = !text; };
 
@@ -344,6 +347,7 @@ function createView3D(data, onPickTarget) {
     try {
       if (!window.AFRAME) await loadScript(AFRAME_SRC);
       await loadScript(TERRAIN_SRC);
+      await loadScript(MODELS_SRC);
     } catch (err) { say(`3D view unavailable: ${err.message}`); starting = null; return; }
     registerOrbit();
     s = buildScene();
@@ -351,7 +355,15 @@ function createView3D(data, onPickTarget) {
       terrain = e.detail;
       say('');
       s.home.object3D.position.set(0, terrain.heightAt(0, 0) + BEACON_H / 2, 0);
-      terrain.material?.color.set(TERRAIN_TINT);
+      const h0 = terrain.heightAt(0, 0);
+      mk('a-entity', { 'mars-habitat': `scale: ${MODEL_SCALE}`, position: `0 ${h0} 0` }, s.scene);
+      const [rx, rz] = ROVER_PARK_M.map(v => v * MODEL_SCALE);
+      mk('a-entity', { 'mars-rover': `scale: ${MODEL_SCALE}`, position: `${rx} ${terrain.heightAt(rx, rz)} ${rz}`, rotation: '0 -30 0' }, s.scene);
+      const end = data.traverse?.at?.(-1); // Perseverance's latest position on its real traverse
+      if (end) {
+        const q = terrain.toWorld(end[0] ?? end.lat, end[1] ?? end.lon);
+        if (Number.isFinite(q.y)) mk('a-entity', { 'mars-rover': `scale: ${MODEL_SCALE}`, position: `${q.x} ${q.y} ${q.z}`, rotation: '0 70 0' }, s.scene);
+      }
       for (const lm of data.landmarks ?? []) {
         if (lm.id === 'home') continue;
         const q = terrain.toWorld(lm.lat, lm.lon);

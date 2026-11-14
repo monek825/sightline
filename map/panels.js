@@ -194,7 +194,8 @@ export function createPanels(data, { setInputs, usingStubs }) {
     lastSig = sig;
     const sorted = [...bdg.factors].sort((a, b) => SEVERITY[a.level] - SEVERITY[b.level]);
     for (const list of document.querySelectorAll('.factors[data-group]')) {
-      list.replaceChildren(...sorted.filter(f => groupOf(f) === list.dataset.group).map(f => factorItem(f, data.constantsByKey)));
+      // ponytail: tabs show only AMBER/RED (what needs attention); all factors stay in the Details drawer
+      list.replaceChildren(...sorted.filter(f => groupOf(f) === list.dataset.group && f.level !== 'GREEN').map(f => factorItem(f, data.constantsByKey)));
     }
     const all = sorted.map(f => factorItem(f, data.constantsByKey));
     for (const w of derived.warnings) {

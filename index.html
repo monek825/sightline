@@ -40,6 +40,20 @@
       </div>
 
       <div id="banner" class="banner" role="alert" hidden></div>
+      <p id="caption" class="caption frost" aria-live="polite" hidden></p>
+      <section id="welcome" class="welcome frost" aria-labelledby="welcome-h" hidden>
+        <h2 id="welcome-h">Can this astronaut still get home?</h2>
+        <p>Mars has no GPS. Sightline shows where an astronaut on a spacewalk in Jezero Crater can still find the way back, using NASA terrain, dust and radiation data.</p>
+        <ul class="welcome-keys">
+          <li><i class="sw sw-red"></i>Red: no landmark in sight, easy to get lost</li>
+          <li><i class="sw sw-ring"></i>Ring: how far the astronaut can see in the dust</li>
+          <li><b class="status-chip">GO</b>The status panel answers the question, live</li>
+        </ul>
+        <div class="welcome-ctl">
+          <button type="button" id="w-play" class="btn btn-accent">Play the 100-second story</button>
+          <button type="button" id="w-close" class="btn">Explore the map</button>
+        </div>
+      </section>
 
       <div class="legend frost" id="legend">
         <span><i class="sw sw-red"></i>No landmark in sight</span>
