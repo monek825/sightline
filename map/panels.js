@@ -32,7 +32,7 @@ const GROUPS = [
 const groupOf = f => GROUPS.find(([, re]) => re.test(f.id))[0];
 const SEVERITY = { RED: 0, AMBER: 1, GREEN: 2 };
 
-const EVENT_LABELS = { eva_start: 'EVA start', sep_onset: 'Solar storm', skyline_fix: 'Skyline fix', eva_end: 'EVA end' };
+const EVENT_LABELS = { eva_start: 'EVA start', sep_onset: 'Solar storm', skyline_fix: 'Horizon match', eva_end: 'EVA end' };
 const eventLabel = ev => (ev.type === 'tau' ? `Dust τ ${ev.value}` : EVENT_LABELS[ev.type] ?? ev.type);
 
 function buildTimeline(events) {

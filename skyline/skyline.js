@@ -1,5 +1,5 @@
 // Written with AI assistance (Claude / GitHub Copilot)
-// LOCATE — Skyline Fix panel. Turn 360° → search heat map → fix. Data: data/skyline/<site>.json (Sean's scripts/skyline.py).
+// LOCATE — Horizon Match panel. Turn 360° → search heat map → fix. Data: data/skyline/<site>.json (Sean's scripts/skyline.py).
 // UI only: the one state write is setInputs() from a click/handler, never from a subscriber.
 
 import { R } from '../lib/geo.js';
@@ -51,7 +51,7 @@ function buildDialog() {
   const dlg = el('dialog', 'skyfix frost');
   dlg.setAttribute('aria-labelledby', 'sky-h');
   const head = el('div', 'skyfix-head');
-  const h = el('h2', null, 'Skyline Fix');
+  const h = el('h2', null, 'Horizon Match');
   h.id = 'sky-h';
   const close = el('button', 'btn', 'Close');
   close.type = 'button';

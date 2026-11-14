@@ -18,12 +18,12 @@ Every hazard feeds that one answer — dust, radiation, a body weakened by the t
 | Part | What it does | Folder |
 |---|---|---|
 | **SEE** | Map of where the astronaut **cannot see home or any landmark** ("blind zones"). On real Jezero terrain, home is hidden from ~75% of the ground within 3 km. Dust shrinks visibility → blind zones grow live. Routes that stay in sight. | `map/`, `route/`, `scripts/` |
-| **LOCATE** | **Skyline Fix**: astronaut turns 360°, helmet camera skyline is matched against skylines computed from NASA elevation data → position estimate + uncertainty circle. No GPS needed. | `skyline/`, `scripts/` |
+| **LOCATE** | **Horizon Match**: astronaut turns 360°, helmet camera skyline is matched against skylines computed from NASA elevation data → position estimate + uncertainty circle. No GPS needed. | `skyline/`, `scripts/` |
 | **CREW** | Body + suit model on NASA numbers: radiation (Curiosity RAD + DONKI solar storms), weakness after landing, vision changes (SANS), suit time, suit cooling vs air pressure (MEDA), cold, dust devils, dust storms, body-clock drift → one **Walk Budget** with GREEN / AMBER / RED. | `crew/`, `data/` |
 | **+ Helmet view** | 3D first-person view from the real terrain with an arrow/beacon to home and the walk budget as a HUD (AR concept for future helmets). | `helmet/` |
 
 ### Demo story (this is what the 30-second video shows)
-EVA on sol 12 → a solar storm hits (replay of the real May 2024 event that Curiosity measured) → walk budget turns RED "shelter now" → dust optical depth rises → far landmarks disappear → blind zones grow on the map → route planner gives a new way home along close landmarks → astronaut does a 360° turn → Skyline Fix confirms position → helmet view shows the arrow home.
+EVA on sol 12 → a solar storm hits (replay of the real May 2024 event that Curiosity measured) → walk budget turns RED "shelter now" → dust optical depth rises → far landmarks disappear → blind zones grow on the map → route planner gives a new way home along close landmarks → astronaut does a 360° turn → Horizon Match confirms position → helmet view shows the arrow home.
 
 ---
 
@@ -70,7 +70,7 @@ Then open http://localhost:8000 (main app) and http://localhost:8000/helmet/ (he
 /map/                 2D map, blind zones, panels, scenario player (Brayden)   → map/README.md
 /route/               route planner (Jojo)                                   → route/README.md
 /crew/                crew model + walk budget + alerts (Jojo)               → crew/README.md
-/skyline/             Skyline Fix UI (Brayden + Sean)                        → skyline/README.md
+/skyline/             Horizon Match UI (Brayden + Sean)                        → skyline/README.md
 /helmet/              A-Frame helmet view (Edward)                           → helmet/README.md
 /scripts/             Python precompute (Brayden + Sean)                     → scripts/README.md
 /data/                all data files + sources (Sean)                        → data/README.md
@@ -209,7 +209,7 @@ Raw response of the NASA DONKI SEP API for May 2024 (see `data/README.md`).
   "maxSlopeDeg": 9.5, "blindFraction": 0.12, "etaMin": 74 }
 ```
 
-### `data/skyline/<site>.json` (Skyline Fix results, produced by `scripts/skyline.py`)
+### `data/skyline/<site>.json` (Horizon Match results, produced by `scripts/skyline.py`)
 See `skyline/README.md`.
 
 ---
@@ -230,9 +230,9 @@ Summary (the full contract, function signatures and rules live in ARCHITECTURE.m
 |---|---|
 | HiRISE 25 cm orthomosaic of Jezero (Mars Trek WMTS) | Base map (close zoom) |
 | CTX 6 m orthomosaic of Jezero (Mars Trek WMTS) | Base map (wide) |
-| CTX 20 m DTM (Mars 2020 TRN product, USGS Astrogeology) | Terrain, slopes, viewsheds, Skyline Fix, 3D helmet terrain |
+| CTX 20 m DTM (Mars 2020 TRN product, USGS Astrogeology) | Terrain, slopes, viewsheds, Horizon Match, 3D helmet terrain |
 | Perseverance waypoints (`M20_waypoints.json`, mars.nasa.gov MMGIS) | Real traverse, science targets |
-| Perseverance raw Navcam images (mars.nasa.gov raw images API) | Skyline Fix real-photo check (stretch) |
+| Perseverance raw Navcam images (mars.nasa.gov raw images API) | Horizon Match real-photo check (stretch) |
 | Curiosity RAD (Hassler et al. 2014; May 2024 event) | Radiation dose rates |
 | DONKI SEP API (api.nasa.gov) | Solar storm replay |
 | Perseverance MEDA (PDS Atmospheres node) | Pressure, temperature |
@@ -252,7 +252,7 @@ Tile URLs (Leaflet, `L.CRS.EPSG4326`, `{z}/{y}/{x}`):
 - 23:59 checkpoint: every part shows *something* on the one page, even ugly.
 
 **Sunday 15 Nov**
-- Morning: wire the demo story (scenario player), Skyline Fix panel, alerts, helmet linked.
+- Morning: wire the demo story (scenario player), Horizon Match panel, alerts, helmet linked.
 - 16:00 **feature freeze** → deploy, test in incognito, record video.
 - 21:00 first Submit for Judging → fixes → final re-submit by 23:00.
 

@@ -43,7 +43,7 @@ Save the raw JSON to `data/donki_sep_may2024.json` (14 events expected). Pick th
 
 Context for the UI: Curiosity's RAD measured **8,100 µGy** at Gale crater during that event (NASA/JPL, June 2024). DONKI events are observed near Earth — we use them as a **replay trigger**, and say so.
 
-### Raw Navcam images (stretch, for Skyline Fix real-photo check)
+### Raw Navcam images (stretch, for Horizon Match real-photo check)
 ```
 https://mars.nasa.gov/rss/api/?feed=raw_images&category=mars2020&feedtype=json&num=50&search=NAVCAM_LEFT
 ```
@@ -52,7 +52,7 @@ Each image has `extended.mastAz`, `extended.mastEl`, `camera.camera_vector`, `im
 ## `data/scenario_demo.json`
 Use the shape in root README section 6. Suggested timeline (sol 12 → crew still recovering, short slope limit — good drama):
 - t=0 EVA start at home, LTST 9:00, target `three_forks` (~2.5 km WNW).
-- t=60 τ 0.5. t=120 SEP onset (DONKI id). t=135 τ 2.0. t=150 Skyline Fix at site `landing` (or whichever skyline site exists). t=200 EVA end.
+- t=60 τ 0.5. t=120 SEP onset (DONKI id). t=135 τ 2.0. t=150 Horizon Match at site `landing` (or whichever skyline site exists). t=200 EVA end.
 Brayden may tune the times for the video.
 
 ## `data/crew_constants.json` — already filled in

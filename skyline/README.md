@@ -1,4 +1,4 @@
-# Feature: LOCATE — Skyline Fix (find your position from the horizon)
+# Feature: LOCATE — Horizon Match (find your position from the horizon)
 
 **Owners:** Brayden (UI) + Sean (precompute) · **Paste into Claude together with the root `README.md`.**
 

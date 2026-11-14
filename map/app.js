@@ -19,7 +19,7 @@ const CAPTIONS = {
   tau: e => e.value >= TAU_STORM
     ? `Dust storm (τ ${e.value}). Visibility drops and the red no-landmark zones grow.`
     : `Dust is rising (τ ${e.value}). Red areas: no landmark in sight, so it's easy to get lost there.`,
-  skyline_fix: () => 'Lost without GPS? Skyline Fix finds the position by matching the horizon to NASA terrain.',
+  skyline_fix: () => 'Lost without GPS? Horizon Match finds the position by matching the horizon to NASA terrain.',
   sep_onset: () => 'Solar storm (a replay of May 2024). Radiation means: turn back to shelter now.',
   eva_end: () => 'Back at the habitat. The walk budget kept the astronaut safe.'
 };
@@ -121,7 +121,7 @@ function setupScenario(data, M, sky) {
     last = now;
     apply();
     const fix = fixEvents.find(e => prevT < e.tMin && e.tMin <= t);
-    if (fix) { // pause, play the Skyline Fix, resume when the panel closes
+    if (fix) { // pause, play the Horizon Match, resume when the panel closes
       stop();
       sky.skyline.openSkylineFix(fix.site, sky.map, { applyFix: false, onClose: start });
       return;
@@ -242,7 +242,7 @@ function setupSkyline(map, mod, results) {
     const site = mod && nearestSite(results, getStore().inputs.astronaut);
     if (site) { mod.openSkylineFix(site, map).catch(err => console.error(err)); return; }
     const banner = document.getElementById('banner');
-    banner.textContent = 'Skyline Fix panel is not built yet (skyline/skyline.js).';
+    banner.textContent = 'Horizon Match panel is not built yet (skyline/skyline.js).';
     banner.hidden = false;
     setTimeout(() => { banner.hidden = !getStore().inputs.sepActive; }, 3000);
   });

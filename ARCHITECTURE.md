@@ -57,7 +57,7 @@ flowchart LR
 | Model | `map/visibility.js` | Brayden | pure + cache | `visibilityArrays(visKm)` from viewshed PNGs |
 | Model | `map/scenario.js` | Brayden | pure | `stateAt(t)` → inputs for the demo |
 | View | `map/map.js`, `map/panels.js` | Brayden | render | Leaflet layers, budget card, alerts, controls, sources modal |
-| View | `skyline/skyline.js` | Brayden + Sean | render | Skyline Fix panel (reads precomputed results) |
+| View | `skyline/skyline.js` | Brayden + Sean | render | Horizon Match panel (reads precomputed results) |
 | View | `helmet/*` | Edward | render | 3D view in an iframe, receives state by message |
 
 **Rule:** only the owner edits a module. Everyone else uses its exported functions exactly as written in section 5.
@@ -69,7 +69,7 @@ flowchart LR
 ```js
 store = {
   data:    { meta, grid, landmarks, targets, traverse, constants, scenario, skyline, viewsheds, status },  // loaded once, read-only
-  inputs:  { ... },   // written ONLY by setInputs() (controls, scenario player, skyline fix)
+  inputs:  { ... },   // written ONLY by setInputs() (controls, scenario player, horizon match)
   derived: { ... }    // written ONLY by lib/pipeline.js
 }
 ```
@@ -82,7 +82,7 @@ store = {
 | `evaMin` | **Earth** minutes since EVA start | Mars hour = 61.65 Earth min |
 | `astronaut` | `{lat, lon, headingDeg}` | the position the crew **believes** (best estimate) |
 | `distSinceFixM` | metres walked since the last position fix | drives uncertainty growth |
-| `fixUncertaintyM` | metres | uncertainty right after the last fix (30 m at home, Skyline Fix result later) |
+| `fixUncertaintyM` | metres | uncertainty right after the last fix (30 m at home, Horizon Match result later) |
 | `tau` | dust optical depth, 0.1–10 | |
 | `sepActive` | boolean | solar particle event |
 | `pressurePa`, `tempC` | Pa, °C | |
@@ -157,7 +157,7 @@ export function subscribe(fn)      // fn(store) — read-only
 export function getStore()         // returns the current frozen snapshot
 ```
 - State objects are **replaced, never mutated** (`inputs = {...inputs, ...patch}`); snapshots are `Object.freeze`d.
-- Calling `setInputs` **while subscribers are being notified throws** an error ("renderers must not write state"). Renderers that need to react (e.g. auto-open Skyline Fix) do it through a user action or the scenario, not inside a subscriber.
+- Calling `setInputs` **while subscribers are being notified throws** an error ("renderers must not write state"). Renderers that need to react (e.g. auto-open Horizon Match) do it through a user action or the scenario, not inside a subscriber.
 - `setInputs` rejects unknown keys and out-of-range values (`tau` 0.1–10, `ltst` 0–24, `sol` 0–1000, lat/lon inside `meta.bounds`) — it clamps numbers and logs a warning.
 
 ---
@@ -224,7 +224,7 @@ For each file: try `data/<file>` → if 404/invalid, try the mock (`map/mock/<fi
   - parent replies to `hello` immediately with the current state, so the helmet never misses the first update.
 - **No `innerHTML` with data.** All text from JSON is inserted with `textContent`. Source links are rendered only if they start with `https://`, with `rel="noopener noreferrer"`.
 - **Pinned dependencies:** Leaflet 1.9.4 (cdnjs), A-Frame 1.6.0. No `@latest`.
-- **Honest claims:** Skyline Fix results always carry their `method` text ("simulated skyline"). Budget factors always show NASA data / Estimate tags.
+- **Honest claims:** Horizon Match results always carry their `method` text ("simulated skyline"). Budget factors always show NASA data / Estimate tags.
 
 ---
 
@@ -243,7 +243,7 @@ For each file: try `data/<file>` → if 404/invalid, try the mock (`map/mock/<fi
 | 9 | Mock fallback was silent | mock data could appear in the judged demo as NASA data | MOCK DATA badge + zero-mock gate (§7) |
 | 10 | Mixed `[lon,lat]` (GeoJSON) and `[lat,lon]` (Leaflet) | points in the wrong place | one convention, converted only in `fetch_nasa.py` (§7) |
 | 11 | Earth minutes vs Mars hours mixed | wrong LTST → wrong dust-devil/cold alerts | units table (§7) |
-| 12 | Astronaut shown as an exact point | contradicts "no GPS" | believed position + uncertainty that grows with distance, reset by Skyline Fix (§4, §6) |
+| 12 | Astronaut shown as an exact point | contradicts "no GPS" | believed position + uncertainty that grows with distance, reset by Horizon Match (§4, §6) |
 | 13 | Demo built by accumulating ticks | scrubbing back breaks; video not reproducible | `stateAt(t)` pure (§6) |
 | 14 | Runtime dependence on NASA APIs (DEMO_KEY rate limits, CORS) | demo fails while judges watch | everything pre-fetched (§1) |
 | 15 | Map tiles are an external dependency | blank map if Trek is down | local hillshade basemap (§8) |
