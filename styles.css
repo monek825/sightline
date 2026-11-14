@@ -240,21 +240,38 @@ h1, h2 { margin: 0; font-weight: 600; }
 .cp.current .cp-dot { transform: scale(1.5); border-color: var(--cream); }
 .cp.current .cp-label { color: var(--cream); font-weight: 600; }
 
+/* details sheet: verdict sentence, what limits the walk, what-if controls, sources */
 .more {
-  display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: var(--s6);
-  padding: var(--s4) var(--s6) var(--s5); max-height: 42vh; overflow-y: auto; border-top: 1px solid var(--line);
+  display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: var(--s4) var(--s6); align-content: start;
+  padding: var(--s5) var(--s6); max-height: 42vh; overflow-y: auto; overscroll-behavior: contain; border: 0;
 }
-.more h2 { font-size: 15px; margin-bottom: var(--s3); }
+.more > * { min-width: 0; }
+.more h2 { font-size: 16px; margin: 0 0 var(--s3); }
 .mock-badge { grid-column: 1 / -1; margin: 0; background: #3a2605; color: #ffd27a; border-radius: var(--r-sm); padding: var(--s2) var(--s3); font: 12px/1.4 var(--mono); }
 .mock-badge strong { color: var(--cream); margin-right: 4px; }
-.stat { margin: var(--s3) 0 0; color: var(--muted); font-size: 13px; }
-.controls { display: grid; gap: var(--s2); align-content: start; }
-.controls label { display: grid; grid-template-columns: 1fr auto; gap: 2px var(--s2); font-size: 13px; color: var(--muted); align-items: center; }
+.verdict { grid-column: 1 / -1; margin: 0; font: 600 20px/1.3 var(--display); color: var(--text); text-wrap: balance; }
+.verdict[data-status="GREEN"] { color: var(--green); }
+.verdict[data-status="AMBER"] { color: var(--amber); }
+.verdict[data-status="RED"] { color: var(--red); }
+.stat { margin: 0; color: var(--muted); font-size: 13px; }
+.alerts .keynum { font: 12px var(--mono); color: var(--cream); margin-left: var(--s2); white-space: nowrap; }
+.alerts li.none { display: block; cursor: default; color: var(--muted); }
+.alerts li.none:hover { background: rgba(0, 0, 0, .22); transform: none; }
+.alerts li.also { display: block; padding: 0; background: none; cursor: default; }
+.alerts li.also:hover { background: none; transform: none; }
+.alerts li.also summary { cursor: pointer; font-size: 13px; color: var(--muted); padding: var(--s2) 0; }
+.alerts li.also .alerts { margin-top: var(--s2); }
+.controls { display: grid; gap: var(--s3); align-content: start; }
+.controls label { display: grid; grid-template-columns: 1fr auto; gap: 2px var(--s2); font-size: 14px; color: var(--text); align-items: center; }
 .controls label[hidden] { display: none; }
-.controls label > input[type=range] { grid-column: 1 / -1; width: 100%; height: 36px; margin: 0; accent-color: var(--accent); }
-.controls output { color: var(--text); }
-.controls .check { display: flex; gap: 10px; color: var(--text); min-height: 36px; }
+.controls label > input[type=range] { grid-column: 1 / -1; width: 100%; height: 28px; margin: 0; accent-color: var(--accent); }
+.controls .sub { grid-column: 1 / -1; font-size: 12px; color: var(--muted); }
+.controls output { color: var(--cream); font-size: 13px; }
+.controls .check { display: flex; gap: 10px; min-height: 36px; }
 .controls input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--accent); }
+.more-foot { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2) var(--s4); }
+.more-foot .credit { flex: 1 1 320px; font-size: 12px; }
+.more-foot .stat:empty { display: none; }
 
 /* map markers */
 .astro-icon svg { overflow: visible; }
@@ -322,6 +339,7 @@ body.video :is(.bar-left, .view-toggle, .leaflet-control-container) { display: n
   .cp-label, .cp:nth-child(even) .cp-label { display: none; }
   .cp.current .cp-label { display: block; top: 16px; }
   .more { grid-template-columns: 1fr; padding: var(--s4); }
+  .verdict { font-size: 18px; }
 }
 /* narrow phones: the brand bar wraps to two lines (~73 px), so everything below it moves down to clear it */
 @media (max-width: 440px) {
@@ -551,7 +569,7 @@ h1, h2, .brand, .tab-title, .skyfix-head h2, .more h2 { font-family: var(--displ
 .more {
   position: absolute; left: var(--s4); bottom: calc(var(--notch-d) + var(--s3)); z-index: 1055;
   width: min(760px, calc(100% - var(--panel-w) - 56px)); max-height: calc(100% - var(--notch-d) - 96px);
-  border-top: 0; border-radius: var(--r-lg); background: var(--frost-strong);
+  border-radius: var(--r-lg); background: var(--frost-strong); backdrop-filter: var(--blur); -webkit-backdrop-filter: var(--blur);
 }
 
 /* panel stops above the bar; its tab bar now lives in the right bar */

@@ -165,27 +165,34 @@
         </nav>
       </div>
 
-      <div class="more frost" id="drawer-more" hidden>
-        <section aria-labelledby="why-h">
-          <h2 id="why-h">Every factor</h2>
+      <div class="more frost" id="drawer-more" hidden role="region" aria-label="Details">
+        <p id="verdict" class="verdict" role="status"></p>
+        <section class="why" aria-labelledby="why-h">
+          <h2 id="why-h">What's limiting the walk</h2>
           <ul id="alerts" class="alerts"></ul>
-          <p id="vis-stat" class="stat"></p>
-          <p class="stat credit">Map imagery: CTX mosaic NASA/JPL-Caltech/MSSS, HiRISE mosaic NASA/JPL-Caltech/UArizona, via NASA Mars Trek. Map library: Leaflet.</p>
         </section>
         <section class="controls" aria-labelledby="cond-h">
-          <h2 id="cond-h">Change conditions</h2>
-          <label>Simulation speed <output id="o-speed"></output>
-            <input type="range" id="c-speed" min="1" max="10" step="1" value="1"></label>
-          <label>Sols since landing <output id="o-sol"></output>
-            <input type="range" id="c-sol" min="0" max="60" step="1"></label>
-          <label>Local solar time <output id="o-ltst"></output>
-            <input type="range" id="c-ltst" min="6" max="19" step="0.25"></label>
-          <label>Dust optical depth τ <output id="o-tau"></output>
-            <input type="range" id="c-tau" min="0.2" max="10" step="0.1"></label>
-          <label class="check"><input type="checkbox" id="c-sep"> Solar particle event during the run</label>
+          <h2 id="cond-h">What if…</h2>
+          <label>Dust (τ) <output id="o-tau"></output>
+            <input type="range" id="c-tau" min="0.2" max="10" step="0.1">
+            <span class="sub" data-hint="c-tau"></span></label>
+          <label>Time of day <output id="o-ltst"></output>
+            <input type="range" id="c-ltst" min="6" max="19" step="0.25">
+            <span class="sub" data-hint="c-ltst"></span></label>
+          <label>Days on Mars <output id="o-sol"></output>
+            <input type="range" id="c-sol" min="0" max="60" step="1">
+            <span class="sub" data-hint="c-sol"></span></label>
+          <label class="check"><input type="checkbox" id="c-sep"> Solar storm during the run</label>
           <label class="check"><input type="checkbox" id="c-sans"> Vision changes (SANS)</label>
-          <button type="button" id="btn-sources" class="btn wide">How we know: every number and its source</button>
+          <label>Simulation speed <output id="o-speed"></output>
+            <input type="range" id="c-speed" min="1" max="10" step="1" value="1">
+            <span class="sub" data-hint="c-speed"></span></label>
         </section>
+        <footer class="more-foot">
+          <button type="button" id="btn-sources" class="btn">How we know: every number and its source</button>
+          <p id="vis-stat" class="stat"></p>
+          <p class="stat credit">Map imagery: CTX mosaic NASA/JPL-Caltech/MSSS, HiRISE mosaic NASA/JPL-Caltech/UArizona, via NASA Mars Trek. Map library: Leaflet.</p>
+        </footer>
       </div>
     </section>
   </main>
