@@ -123,3 +123,10 @@ python scripts/skyline_real.py --dev                  # development set, both po
 python scripts/skyline_real.py --heldout              # selects the two held-out positions (ascending-sol rule) and runs each once
 python scripts/skyline_real.py --pano 33 4752 --set held-out   # one position by hand
 ```
+
+
+### 9. `scripts/skyline_dust.py` → `data/skyline_dust.json` — Horizon Match in dust (read by `skyline/skyline.js`)
+Same horizon and grid search as `skyline.py`, with terrain beyond the visibility hidden for the observed skyline and every candidate, a 15% "fade" rule (a direction whose highest visible point is at the edge of visibility is not scored), 5 sites × 4 true positions (0–50 m off-grid) × 10 visibilities (15 km → 0.3 km) × 2 edge-noise levels (0.15°, 0.30°). Self-check rule fixed before the run: FIX only if ≥ 30 scored directions, uncertainty ≤ 500 m and RMS ≤ 3 × noise; false fix = error > max(300 m, 2 × claimed uncertainty). Result: no false fix down to 1.5 km (`noFalseFixMinVisKm`), false fixes from 1 km down; median error 38–50 m down to 0.6 km. The pre-set "≥ 80% fixes claimed" criterion was never met (the check is conservative), so `reliableMinVisKm` is null and the app's switch rule uses the false-fix criterion only (stated in the JSON). Simulated, not real photos. Run: `python scripts/skyline_dust.py` (~8 min, seeded).
+
+### 10. `scripts/make_hirise_patch.py` → `data/hirise_home.jpg`, `data/hirise_three_forks.jpg`, `data/hirise_patches.json`
+HiRISE orthomosaic (Mars Trek, zoom 16 ≈ 0.7 m/px) for 3 km boxes around home and Three Forks; one gain + offset fitted to the CTX mosaic at CTX resolution. `make_texture.py` also writes `data/terrain_texture_3k.jpg` (half size) for the Low graphics level.

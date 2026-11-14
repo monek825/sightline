@@ -148,6 +148,23 @@ def check_scenario(target_ids):
             fail(f"scenario_demo.json: skyline site '{e.get('site')}' has no data/skyline file")
 
 
+def check_skyline_dust():
+    """data/skyline_dust.json (scripts/skyline_dust.py): Horizon Match in dust, read by skyline/skyline.js."""
+    p = DATA / "skyline_dust.json"
+    if not p.exists():
+        return
+    s = load("skyline_dust.json")
+    if not s:
+        return
+    v = s.get("noFalseFixMinVisKm")
+    if v is not None and not isinstance(v, (int, float)):
+        fail("skyline_dust.json: noFalseFixMinVisKm must be a number or null")
+    if not s.get("summary") or not s.get("cases"):
+        fail("skyline_dust.json: summary and cases are required")
+    if "simulated" not in s.get("method", "").lower():
+        fail("skyline_dust.json: 'method' must say the skylines are simulated")
+
+
 def check_skyline():
     for p in sorted((DATA / "skyline").glob("*.json")):
         if p.name == "offgrid_summary.json":  # summary of the --offgrid run, not a site file
@@ -204,6 +221,7 @@ def main():
     check_constants()
     check_scenario(target_ids)
     check_skyline()
+    check_skyline_dust()
     check_secrets()
 
     for w in warnings:

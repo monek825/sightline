@@ -290,6 +290,13 @@ function nearestSite(results, at) {
 }
 
 function setupSkyline(map, mod, results) {
+  // Lost in dust: the astronaut cannot see the hills (local dust the app's τ model does not know about)
+  document.getElementById('btn-lostdust')?.addEventListener('click', () => {
+    const site = mod && nearestSite(results, getStore().inputs.astronaut);
+    if (!site) return;
+    const restore = show2D();
+    mod.openSkylineFix(site, map, { onClose: restore, lost: true }).catch(err => console.error(err));
+  });
   document.getElementById('btn-skyline').addEventListener('click', () => {
     const site = mod && nearestSite(results, getStore().inputs.astronaut);
     if (site) { const restore = show2D(); mod.openSkylineFix(site, map, { onClose: restore }).catch(err => console.error(err)); return; }

@@ -6,12 +6,20 @@
 Mars has no GPS. If the astronaut is lost, they **turn slowly 360°**. A helmet camera traces the skyline (the line where ground meets sky). Every spot on the Jezero DTM has its own unique skyline, so we compare the observed skyline against skylines computed from NASA elevation data and find the best match → **position + uncertainty circle**.
 
 ### Why this is credible (say this in the pitch)
-- Perseverance's Lander Vision System matched camera images to an orbital map during landing (requirement < 40 m; achieved a few metres).
-- Today, rover **global localisation on Mars is still done partly by humans** matching images to orbital maps (JPL, ICRA 2024).
-- JPL reports horizon-matching methods at **~10–100 m** accuracy.
+- Perseverance's Lander Vision System matched downward camera images to an orbital map during landing (a few metres of error against a 40 m requirement). Related idea, not horizon matching.
+- Rover **global localisation on Mars is still done partly by humans**, who align the rover's 360° panorama with HiRISE maps (JPL, Nash et al., ICRA 2024); an onboard version first ran on Perseverance in Feb 2026.
+- JPL: horizon-matching methods are **typically ~100 m, at best ~10 m** (Nash et al. 2024), good for a coarse fix and heading, not for the rovers' 5 m needs. A 100 m fix is enough for our purpose: getting the astronaut back in sight of home.
 - Our test on the real Jezero DTM (simulated skylines + 0.15° noise): **0 m error at all 5 test sites with a full 360° turn**; with only a 96° camera view: 0 m to 1.1 km → that's why the procedure is a **full turn**.
 - Off-grid check (`python scripts/skyline.py --offgrid`: true position 0–50 m between search-grid nodes, same noise): full 360° turn error **5–23 m** across the 5 sites (uncertainty 50–141 m); the 96° view landed within 5–142 m in that run, but in another off-grid run with different starting guesses it was 2.9 km and 4.0 km off at two sites, so a single view is not reliable.
-- Honest limit: **not yet tested on real photos.** Real cameras + dust + rover/suit tilt will be worse. We show "coarse fix + confidence", never a precise dot.
+- **Real photos** (`scripts/skyline_real.py`, `data/skyline_real/`, details in `scripts/README.md` §8b): 5 Perseverance Navcam panoramas matched against CTX + MOLA: 4 of 5 positions within 51–143 m, one 2.8 km off; single 96° frames unreliable. Consistent with JPL's "~100 m typical". Five positions are not a failure-rate statistic.
+- **So the app never claims better than ±100 m** (`horizon_fix_min_uncertainty_m`) and **only applies a fix that agrees with dead reckoning** (match within the step-count circle + the fix circle); otherwise it warns and keeps the old position.
+
+### Dust and "Lost in dust" (`scripts/skyline_dust.py` → `data/skyline_dust.json`, `skyline/lostdust.js`)
+- Dust-aware matching: terrain farther than the visibility is hidden for both the observed skyline and every candidate; a direction whose highest visible point is in the outer 15% of the visibility is not scored (that "edge" is dust fading out, not a hill). 5 sites × 4 true positions × 10 visibilities × 2 edge-noise levels, simulated on the CTX DTM.
+- Result: median error stays 38–50 m down to 600 m visibility, but single cases can be 1–4 km off from 6 km down. A self-check fixed before the run (≥ 30 scored directions, uncertainty ≤ 500 m, RMS ≤ 3 × edge noise) **never claimed a wrong fix down to 1.5 km**; at 1 km and below it did. It is conservative (claims a fix in only 55–80% of clear-air cases).
+- App rule: visibility ≥ 1.5 km → dust-aware Horizon Match (may answer "no reliable match"); below 1.5 km, or no reliable match, or the astronaut presses **"Can't see the hills (dust)"** → **Lost in dust**: stop; nearest spot where home or a landmark comes into view at that visibility (from the viewsheds); how long you can wait on suit time; walk home on dead reckoning with the arrival uncertainty, and a warning when that exceeds what you can see; try again when the hills return.
+- Why the manual button: the app's visibility comes from column τ (Koschmieder, 10.5 km scale height); dust settling near the ground can be far worse (Curiosity measured 2.7 km at Gale in 2018 where the model gives ~5 km), and a passing dust devil or storm front is invisible to that model.
+- No published study measures skyline-matching error against Martian dust opacity; this is our own simulation, labelled as such.
 
 ## Part A — precompute: `scripts/skyline.py` → `data/skyline/<site>.json`
 
@@ -63,7 +71,7 @@ Panel (modal or right-side drawer), in this order:
 1. **"Turn 360°"** animation (~4 s): a compass ring sweeps around; below it a wide chart draws the **observed skyline** left→right (x = azimuth 0–360°, y = elevation angle, exaggerate y so a 2° horizon is visible).
 2. **Search**: the candidate heat map fades onto the Leaflet map (`L.imageOverlay` built from `grid.rmsDeg`: low RMS = bright, high = transparent).
 3. **Fix**: the best-match skyline is drawn over the observed one in the chart; map shows the estimate marker + uncertainty circle; `setState({ astronaut: {...estimate}, posUncertaintyM: uncertaintyM })`.
-4. Result card: "Position fixed — error X m (simulated test). With only a 96° camera view: Y m. Real-camera accuracy expected ~10–100 m (JPL)." plus a "How it works" link (3 short lines + the credibility bullets above).
+4. Result card: "Position fixed — error X m (simulated test). With only a 96° camera view: Y m. Real-camera accuracy typically ~100 m (JPL)." plus a "How it works" link (3 short lines + the credibility bullets above).
 
 Chart: plain `<canvas>` or inline SVG, no chart library. Colours: observed = white, best match = amber, mismatch area shaded.
 

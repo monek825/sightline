@@ -110,6 +110,21 @@ h1, h2 { margin: 0; font-weight: 600; }
 }
 .v3-note { left: var(--s4); bottom: calc(var(--notch-d) + var(--s4)); }
 .v3-msg { left: 50%; top: 50%; transform: translate(-50%, -50%); max-width: 80%; text-align: center; font-size: 14px; }
+/* graphics level picker (lib/gfx.js): under the brand bar on desktop, bottom-right of the 3D view on phones */
+.v3-gfx {
+  position: absolute; z-index: 3; left: var(--s4); top: 84px; display: flex; align-items: center; gap: var(--s2);
+  padding: 4px 6px 4px 10px; border-radius: var(--r-sm); font-size: 12px; color: var(--muted);
+}
+.v3-gfx select {
+  font: 600 12px var(--font); color: var(--text); background: rgba(255, 255, 255, .08); border: 0; border-radius: 6px;
+  padding: 4px 6px; min-height: 28px; cursor: pointer;
+}
+.v3-gfx select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.v3-gfx-info { font: 11px var(--mono); color: var(--muted); max-width: 22ch; }
+.v3-gfx-info:empty { display: none; }
+@media (max-width: 1023px) {
+  .v3-gfx { left: auto; top: auto; right: var(--s3); bottom: var(--s3); }
+}
 
 /* category panel */
 .panel {
@@ -384,6 +399,16 @@ body.video :is(.bar-left, .view-toggle, .leaflet-control-container) { display: n
 .skyfix-note { color: #f3c66c !important; }
 .skyfix-how summary { cursor: pointer; font-size: 13px; color: var(--accent); }
 .skyfix-how p { margin: var(--s2) 0 0; font-size: 13px; color: var(--muted); }
+.skyfix-warn { color: #ff9b8f !important; font-weight: 600; }
+/* Lost in dust (skyline/lostdust.js) */
+.skyfix [hidden] { display: none !important; }
+.lost-box { display: grid; gap: var(--s3); }
+.lost-q { font-size: 13px; color: var(--text); margin-right: var(--s2); align-self: center; }
+.lost-steps { margin: 0; padding-left: 1.4em; display: grid; gap: var(--s2); font-size: 13px; color: var(--muted); }
+.lost-steps li::marker { color: #f3c66c; font-weight: 600; }
+.lost-steps strong { color: var(--text); margin-right: 4px; }
+.skyfix.lost .skyfix-lead { color: var(--text); }
+#btn-lostdust { margin-top: var(--s2); }
 @media (max-width: 1023px) { .skyfix { left: var(--s2); right: var(--s2); top: 112px; width: auto; max-height: calc(62vh - 120px); } }
 
 /* type: Clash Display headers, Switzer text, Geist Mono numbers */

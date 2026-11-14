@@ -11,6 +11,7 @@ import { initVisibility, visibilityArrays } from '../map/visibility.js';
 import { createPipeline } from '../lib/pipeline.js';
 import { initStore, setInputs, getStore } from '../lib/store.js';
 import { prepareScenario, stateAt } from '../map/scenario.js';
+import { lostInDustPlan, nearestClear, compass8 } from '../skyline/lostdust.js';
 
 const MAX_DERIVE_MS = 50;
 const STATUSES = ['GREEN', 'AMBER', 'RED'];
@@ -233,6 +234,25 @@ section('crew extremes');
       if (!ok && !gridBad) gridBad = JSON.stringify({ ...i, km });
     }
   check(`crew grid (${cases} combinations): finite, no negative minutes, headline matches status`, !gridBad && performance.now() - t0 < 2000, gridBad);
+}
+
+// ---------- Lost in dust (skyline/lostdust.js) ----------
+{
+  // 3 x 3 grid over a small box; only the centre-right cell is clear
+  const grid = { w: 3, h: 3 }, bounds = { latMin: 0, latMax: 0.03, lonMin: 0, lonMax: 0.03 };
+  const flag = Uint8Array.from([1, 1, 1, 1, 1, 0, 1, 1, 1]);
+  const at = { lat: 0.015, lon: 0.005 };                       // centre-left cell
+  const n = nearestClear(flag, grid, bounds, at);
+  check('lost in dust: nearest clear cell is due east', n && Math.abs(n.bearingDeg - 90) < 1 && n.distM > 1000 && compass8(n.bearingDeg) === 'E', JSON.stringify(n));
+  check('lost in dust: no clear cell -> null', nearestClear(new Uint8Array(9).fill(1), grid, bounds, at) === null);
+  const p = lostInDustPlan({ astronaut: at, visKm: 0.3, vis: { blind: flag, homeHidden: new Uint8Array(9).fill(1) }, grid, bounds,
+    posUncertaintyM: 120, driftPct: 3, routeHomeKm: 8, budget: { suitMinLeft: 200, returnMin: 90 }, reason: 'manual' });
+  check('lost in dust: end uncertainty = now + 3% of the walk home', Math.abs(p.endUncertaintyM - (120 + 0.03 * 8000)) < 1e-9);
+  check('lost in dust: may miss the habitat when arrival uncertainty > visibility', p.mayMissHabitat === true && p.uncertaintyExceedsVisibility === false);
+  check('lost in dust: spare wait time = suit time - walk home', p.spareMin === 110 && p.sightHome === null && p.sightAny !== null);
+  const q = lostInDustPlan({ astronaut: at, visKm: 5, vis: null, grid, bounds, posUncertaintyM: 50, driftPct: 3, routeHomeKm: null,
+    budget: { suitMinLeft: 30, returnMin: 60 }, reason: 'visibility' });
+  check('lost in dust: no route / no grid / no spare time are handled', q.endUncertaintyM === null && q.mayMissHabitat === false && q.spareMin === 0 && q.sightAny === null);
 }
 
 console.log(`\ntest_demo: ${passed} passed, ${failures.length} failed`);

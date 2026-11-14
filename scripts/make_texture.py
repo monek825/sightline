@@ -98,6 +98,10 @@ def main() -> None:
     img.save(out, "JPEG", quality=85)
     print(f"mosaic crop {right - left}x{bottom - top} px, size on disk {out.stat().st_size / 1e6:.2f} MB")
     print(f"wrote {out}  {img.width}x{img.height}  tiles={len(coords)}  missing={missing}")
+    # half-size copy for the Low graphics level (phones: fits a 4096 px GPU texture limit, ~1/4 of the memory)
+    low = DATA / "terrain_texture_3k.jpg"
+    img.resize((3072, round(img.height * 3072 / img.width)), Image.LANCZOS).save(low, "JPEG", quality=85, optimize=True)
+    print(f"wrote {low}  (Low graphics level)")
 
 
 if __name__ == "__main__":

@@ -2,6 +2,7 @@
 // Helmet view: overlays on top of the shared terrain (lib/terrain.js). Reads state only; never computes science.
 // World: x = east m, z = south m, y = up, home = (0,0,0). All lat/lon placement goes through terrain.toWorld.
 import { deg2rad, bearingDeg, distM } from '../lib/geo.js';
+import { GFX_KEY, gfxChoice as readGfxChoice, setGfxChoice, autoStartLevel } from '../lib/gfx.js';
 
 const $ = (id) => document.getElementById(id);
 const STATE_V = 1;
@@ -58,10 +59,9 @@ const QUALITY = {
 // and re-placing thousands of them every frame was the main cause of the walking stutter.
 const FAST_PEBBLES_MS = 8, FAST_ROCKS_MS = 25;
 const AUTO_WARMUP_MS = 2500, AUTO_PROBE_MS = 3000, AUTO_SLOW_MS = 30;
-const GFX_KEY = 'sightline-gfx';
-let gfxChoice = 'auto', gfxAuto = 'medium', q = QUALITY.medium, autoT0 = -1, autoSum = 0, autoN = 0;
+// One choice shared with the main 3D view (lib/gfx.js, same localStorage key). Auto starts Low on phones.
+let gfxChoice = readGfxChoice(), gfxAuto = autoStartLevel(), q = QUALITY.medium, autoT0 = -1, autoSum = 0, autoN = 0;
 let camPrev = null, camSpeed = 0;
-try { gfxChoice = localStorage.getItem(GFX_KEY) || 'auto'; } catch { /* storage blocked: Auto */ }
 
 const inIframe = window.parent !== window;
 const params = new URLSearchParams(location.search);
@@ -602,7 +602,16 @@ function applyQuality() {
 function setupGfx() {
   for (const b of document.querySelectorAll('#gfx [data-q]')) b.addEventListener('click', () => {
     gfxChoice = b.dataset.q;
-    try { localStorage.setItem(GFX_KEY, gfxChoice); } catch { /* fine */ }
+    setGfxChoice(gfxChoice);
+    if (gfxChoice === 'auto') gfxAuto = autoStartLevel();
+    autoT0 = -1;
+    applyQuality();
+  });
+  // changed in the main page's 3D view (this view is its iframe; same-origin storage event)
+  addEventListener('storage', (e) => {
+    if (e.key !== GFX_KEY) return;
+    gfxChoice = readGfxChoice();
+    if (gfxChoice === 'auto') gfxAuto = autoStartLevel();
     autoT0 = -1;
     applyQuality();
   });
@@ -1168,8 +1177,11 @@ async function boot() {
     if (rocks) rocks.setDensity(t.roughnessAt);
     shadowDirty = true;
   });
-  el.setAttribute('heightgrid-terrain', { src: '../data/heightgrid.json', meta: '../data/meta.json', texture: '../data/terrain_texture.jpg',
-    patches: '../data/hirise_patches.json' });
+  // Low (chosen, or Auto on a phone / low-memory device): half-size image and no HiRISE images, chosen at load (lib/gfx.js)
+  const lowLoad = (gfxChoice === 'auto' ? autoStartLevel() : gfxChoice) === 'low';
+  el.setAttribute('heightgrid-terrain', { src: '../data/heightgrid.json', meta: '../data/meta.json',
+    texture: lowLoad ? '../data/terrain_texture_3k.jpg' : '../data/terrain_texture.jpg',
+    patches: lowLoad ? '' : '../data/hirise_patches.json' });
 
   // optional files: failure is shown as a note, not fatal
   constP = fetchJSON('../data/crew_constants.json')
