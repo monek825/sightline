@@ -9,6 +9,7 @@ import { prepareScenario, stateAt } from './scenario.js';
 import { createMapView } from './map.js';
 import { createPanels } from './panels.js';
 import * as stubs from './stubs.js';
+import { initMotion } from './motion.js';
 
 const SPEED_MIN_PER_SEC = 2; // demo clock: 1 real second = 2 EVA minutes
 
@@ -59,6 +60,7 @@ async function boot() {
   const skyline = await optionalModule('../skyline/skyline.js');
   const skyIds = (data.targets ?? []).map(t => t.id);
   const skyResults = skyline ? await skyline.loadSkylineResults(skyIds) : {};
+  initMotion();
   retarget = setupScenario(data, M, { skyline, skyResults, map: view.map });
   setupHelmet(data);
   setupSkyline(view.map, skyline, skyResults);

@@ -13,6 +13,9 @@
 | Skyline Fix maths `scripts/skyline.py` | Sean | ✅ done → `data/skyline/` for all 5 sites |
 | Missing sources (3 constants) | Sean | ✅ done. `terrain_shielding_pct` is now 4 (paper says 4%, not 5%); `walkback_pad` is an estimate (no source found) |
 | `python3 scripts/check_data.py` | all | ✅ 0 problems |
+| Demo integrity + edge-case test `node scripts/test_demo.mjs` | Brayden | ✅ 78 checks pass (demo stepped every minute, 61 edge cases); no bugs found in crew, route, pipeline or store |
+| Integration check `bash scripts/check_all.sh` | Brayden | ✅ pull + data check + demo test + both `*.test.html` in headless Chrome, one table |
+| Skyline off-grid honesty run | Brayden | ✅ `data/skyline/offgrid_summary.json`: median error 32.0 m, max 44.6 m with truth off the 100 m grid |
 | Skyline Fix panel `skyline/skyline.js` | Brayden | ✅ done: button picks nearest site; demo pauses at t=55 and plays it |
 | Helmet overlays (beacon, HUD, walk) | Edward | ⏳ `helmet/` only has the README |
 | Landmark names on Mars Trek | Sean | ⏳ gazetteer check found no match; still needs a look on Trek by eye (`peak_02` may be Kodiak butte) |
@@ -24,7 +27,18 @@
 2. **Edward:** helmet overlays on `lib/terrain.js`.
 3. **Sean:** Resources tab → `sources.md` (needed for Global Award eligibility), then the Mars Trek name check.
 4. **Jojo:** check the crew tests against `terrain_shielding_pct` = 4.
-5. **Team decision:** Skyline Fix test positions sit exactly on the 100 m search grid, so the 0 m errors are partly by construction (off-grid would be up to ~70 m). Say so in the pitch or re-run off-grid.
+5. ~~Skyline off-grid~~ done: re-run with truth 0-50 m off the grid gives median 32 m, max 45 m error (the matcher finds the nearest 100 m grid node every time). Say "within about 50 m" in the pitch, not "0 m".
+
+## Known issues (Sat evening)
+**Fixed**
+- HiRISE tiles outside the mosaic gave 404s in the console at zoom 15+. The layer is now limited to its real coverage.
+- Skyline Fix 0 m errors were partly by construction. Off-grid numbers are in `data/skyline/offgrid_summary.json`.
+
+**Left**
+- Route replan on a storm or SEP event takes 20-60 ms on a quiet laptop and up to ~500 ms when the machine is busy. The test allows 300 ms (ARCHITECTURE §5). If `test_demo` fails only on "replan derive", re-run it with nothing else running.
+- Skyline Fix accuracy is limited by the 100 m search grid (about 50 m worst case). A finer grid would need a `scripts/skyline.py` change by Sean.
+- The edge-case test does not cover NaN inputs passed straight to `computeLimits`/`computeBudget`; the store clamps inputs before they get there.
+- Helmet overlays, landmark names and `sources.md` resources list: see the status table.
 
 ## How to decide what to work on next
 When you finish something, pick the **first** item that is true:
@@ -48,6 +62,7 @@ Everyone builds their own piece **in parallel**, in their own folder, on top of 
 **Gate:** each feature passes its own README acceptance checklist **before** it's called done.
 
 ### Phase 2: Integrate (Sat 18:00 → 23:59)
+- After every teammate push run **`bash scripts/check_all.sh`** (pulls, runs the data check, the demo test and both feature test pages, prints one pass/fail table; `--no-pull` skips the pull). Fix any FAIL row before merging the next thing.
 - Brayden pulls everything and runs the full demo after **every** merge.
 - MOCK DATA badge must be gone (no placeholders left).
 - `python3 scripts/check_data.py` → 0 problems.

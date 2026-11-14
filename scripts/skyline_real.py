@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import json
 import math
+import sys
 import urllib.request
 
 import numpy as np
@@ -22,14 +23,30 @@ from PIL import Image
 import skyline as sk
 from dtm import DATA, EW_M, PX_M, ROOT, LAT_MAX, LAT_MIN, LON_MAX, LON_MIN, latlon_to_px, load_dtm, px_to_latlon
 
-SOL = 204                                   # chosen BEFORE looking at any match: earliest sol with a single traverse waypoint
-IMAGE_ID = "NLG_0204_0685053395_488ECM_N0071716NCAM00518_00_2I4J"   # middle frame of the 21-frame sol-204 horizon strip
+CASES = {
+    # Test 1 (legacy): chosen by rule before any matching: earliest sol with a single traverse.json waypoint; middle frame of a 21-frame strip.
+    "sol204": dict(sol=204, imageId="NLG_0204_0685053395_488ECM_N0071716NCAM00518_00_2I4J", legacy=True,
+                   tries={"frames": 1, "edge_settings": 1}),
+    # Test 2 (geometry-screened, see assumptions in the JSON): rank 7 of the screening list, first rank with a usable frame.
+    "sol1946": dict(sol=1946, imageId="NLG_1946_0839690905_667ECM_N0905110NCAM00500_00_2I4J", legacy=False,
+                    tries={"frames": 1, "edge_settings": 1}, candidatesTried=7, windowDeg=(232, 328), skipped=[
+                        "1 sol 1175 (window 62-158): horizon strips exist but their true azimuths (72, 144) are 34-38 deg from the window centre; other frames are tilted (mastEl +25 or <-3) or half-field",
+                        "2 sol 1117 (124-220): only horizon strip points at true azimuth 355",
+                        "3 sol 1101 (130-226): only half-width (2576 px) horizon strips at azimuths 21, 67, 287, 333",
+                        "4 sol 1063 (132-228): no horizon strip (all frames mastEl < -25)",
+                        "5 sol 1814 (76-172): no single full-width frame near mastEl 0 (only 2576 px half-field tiles)",
+                        "6 sol 1102 (130-226): only horizon strip points at true azimuth 355",
+                        "7 sol 1946 (232-328): full-width strip at true azimuth 288, LTST 11:12, mastEl -3.7 -> used"]),
+}
 API = "https://mars.nasa.gov/rss/api/?feed=raw_images&category=mars2020&feedtype=json&id="
 RAW = ROOT / "raw" / "navcam"
 OUT = DATA / "skyline_real"
 SEED = 2021
 EDGE_SIGMA_PX, EDGE_THRESH = 1.5, 4.0       # edge detector settings (see assumptions: number of settings tried)
-TRIES = {"frames": 1, "edge_settings": 1}   # keep in sync with what was actually tried (printed + written to JSON)
+CONVENTION = "rover_to_site"                # attitude quaternion rotates rover-frame vectors into the site (north-east-down) frame
+CONVENTION_EVIDENCE = ("bearing test on the traverse: for 20 sols where traverse.json shows a drive >60 m since the previous waypoint, the yaw of the last frame's quaternion "
+                       "read as rover->site matched the drive bearing better than the opposite reading in 15 of 20 sols (in 5 sols it was within 12 deg of the drive bearing while the opposite reading was off by 110-157 deg), "
+                       "i.e. the rover mostly drives forward along its heading; no skyline data involved (one-off check run outside this script on 20 sols).")
 HDG_SHIFTS = np.arange(-5, 6)               # +-10 deg in 2 deg steps
 FIT_AZ = np.arange(-10, 10.01, 0.25)        # fine azimuth shift for the fit at the waypoint (deg)
 
@@ -110,14 +127,59 @@ def clean_trace(rows: np.ndarray):
     return ok
 
 
+MARGIN_M, MAX_TERRAIN_KM = 1000.0, 14.0
+
+
+def horizon_terrain(z: np.ndarray, lat: float, lon: float):
+    """Screening only: per 2 deg azimuth -> (horizon elevation deg, terrain forming it is >= 1 km inside the DTM and <= 14 km away)."""
+    H, W = z.shape
+    dist = np.arange(40.0, 15000.0 + 1, 40.0)
+    curv = dist ** 2 / (2 * sk.R_MARS)
+    r0, c0 = latlon_to_px(lat, lon, z.shape)
+    r = np.rint(r0 - np.cos(sk.AZ)[:, None] * dist[None] / PX_M).astype(int)
+    c = np.rint(c0 + np.sin(sk.AZ)[:, None] * dist[None] / EW_M).astype(int)
+    ok = (r >= 0) & (r < H) & (c >= 0) & (c < W)
+    zz = z[np.clip(r, 0, H - 1), np.clip(c, 0, W - 1)].astype(np.float64)
+    eye = z[int(round(r0)), int(round(c0))] + sk.EYE_M
+    ang = np.where(ok, np.degrees(np.arctan((zz - curv[None] - eye) / dist[None])), -np.inf)
+    k = ang.argmax(1)
+    ix = np.arange(sk.NAZ)
+    mr, mc = MARGIN_M / PX_M, MARGIN_M / EW_M
+    inside = (r[ix, k] >= mr) & (r[ix, k] < H - mr) & (c[ix, k] >= mc) & (c[ix, k] < W - mc) & (dist[k] <= MAX_TERRAIN_KM * 1000)
+    return ang[ix, k], inside
+
+
+def screen(z: np.ndarray, top: int = 10):
+    """Geometry-only ranking of traverse waypoints x 96 deg azimuth windows (no images, no matching involved).
+    Rule: a window is good where the horizon is 0.5-8 deg (visible in a horizon strip at mastEl ~0) and its terrain is inside the DTM.
+    Rank: single-waypoint sols first, then fraction of good azimuths (rounded to 0.01), then std of horizon elevation (relief to match)."""
+    trav = json.loads((DATA / "traverse.json").read_text(encoding="utf-8"))
+    cnt = {}
+    for t in trav:
+        cnt[t["sol"]] = cnt.get(t["sol"], 0) + 1
+    rows = []
+    for t in trav:
+        el, inside = horizon_terrain(z, t["lat"], t["lon"])
+        good = (el >= 0.5) & (el <= 8.0) & inside
+        best = max(((good[(w + np.arange(48)) % 180].mean(), el[(w + np.arange(48)) % 180].std(), w * 2) for w in range(180)),
+                   key=lambda x: (round(x[0], 2), x[1]))
+        rows.append((cnt[t["sol"]] > 1, -round(best[0], 2), -best[1], t["sol"], best[2], t["lat"], t["lon"]))
+    rows.sort()
+    for i, r in enumerate(rows[:top], 1):
+        print(f"{i:2d}  sol {r[3]}  window {r[4]}-{r[4] + 96}  good fraction {-r[1]:.2f}  relief {-r[2]:.2f}  waypoints in sol {'>1' if r[0] else '1'}")
+
+
 def rms(a, b):
     return float(np.sqrt(np.mean((a - b) ** 2)))
 
 
-def main() -> None:
+def run_case(case: dict) -> None:
+    SOL, IMAGE_ID, TRIES = case["sol"], case["imageId"], case["tries"]
+    legacy = case["legacy"]
+    cid = f"sol{SOL}"
     RAW.mkdir(parents=True, exist_ok=True)
     OUT.mkdir(parents=True, exist_ok=True)
-    meta_p = RAW / "frame.json"
+    meta_p = RAW / f"{cid}.json"
     if not meta_p.exists():
         meta_p.write_bytes(urllib.request.urlopen(urllib.request.Request(API + IMAGE_ID, headers={"User-Agent": "Mozilla/5.0"}), timeout=60).read())
     im = json.loads(meta_p.read_text(encoding="utf-8"))
@@ -126,7 +188,7 @@ def main() -> None:
     assert im["imageid"] == IMAGE_ID and im["sol"] == SOL
     ext = im["extended"]
     url = im["image_files"]["full_res"]
-    png = fetch(url, RAW / "frame.png")
+    png = fetch(url, RAW / f"{cid}.png")
     img = Image.open(png).convert("L")
     g = np.asarray(img, dtype=np.float64)
     H, W = g.shape
@@ -259,17 +321,20 @@ def main() -> None:
 
     # Quaternion convention: the two possible readings give boresight azimuths ~170 deg apart; the one whose fitted RMS
     # at the waypoint is lower is used (this is a 2-way choice made on the data; both are written to the JSON).
-    primary = min(out_results, key=lambda k: out_results[k]["r_fit"])
+    primary = min(out_results, key=lambda k: out_results[k]["r_fit"]) if legacy else CONVENTION
     R = out_results[primary]
     other = [k for k in out_results if k != primary][0]
 
     def rl(a):
         return [round(float(v), 3) for v in np.asarray(a).ravel()]
 
+    inside_frac = float(horizon_terrain(z, lat, lon)[1][R["kidx"]].mean())
     far_note = (f"Diagnostic: DTM horizon computed out to 40 km (instead of 15 km) over the same azimuths peaks at {R['far_max']:+.2f} deg, "
                 f"while the traced skyline is {R['obs_min']:+.2f} to {R['obs_max']:+.2f} deg - the terrain forming the skyline in this frame is not inside the DTM "
                 f"(the DTM covers roughly 30 x 30 km and this waypoint is ~15 km from its eastern edge), so a match is not possible by construction at this heading.")
     big = R["err"] > 500 or R["r_fit"] > 1.0
+    conv_note = (f"Convention fixed independently of any skyline fit: {CONVENTION_EVIDENCE} Other reading shown side by side: boresight azimuth "
+                 f"{centre_az[other]:.0f} deg -> fitted RMS {out_results[other]['r_fit']:.2f} deg, grid error {out_results[other]['err']:.0f} m / uncertainty {out_results[other]['unc']:.0f} m.")
     verdict = (f"{'POOR match' if big else 'Reasonable match'}: at the waypoint the traced skyline differs from the DTM horizon by "
                f"{R['r_fit']:.2f} deg RMS after fitting a {R['off_fit']:+.2f} deg elevation offset and {R['sh_fit']:+.2f} deg azimuth shift "
                f"({R['raw']:.2f} deg with no fitting). Grid search with the heading limited to +-10 deg lands {R['err']:.0f} m from the waypoint "
@@ -278,6 +343,22 @@ def main() -> None:
                + ("This single real frame does NOT support the claim that a position fix of tens of metres is achievable from one photo with this DTM. "
                   if big else "This single frame is consistent with the method, but it is one image, a hand-tuned edge detector and a waypoint that is itself uncertain. ")
                + "Not a statistical result.")
+    assumptions_new = [
+        "SELECTION RULE (geometry only, fixed before any image was traced or matched): for every traverse.json waypoint compute the DTM horizon (40 m steps, 2 deg azimuth, as skyline.py) and, per azimuth, where the horizon-forming terrain lies. "
+        "An azimuth is 'good' if the horizon is 0.5-8 deg above level (visible in a horizon strip with mastEl near 0) AND the forming terrain is >= 1 km inside the DTM bounds AND <= 14 km away (inside the 15 km range the matcher uses). "
+        "Every 96 deg window is scored by its fraction of good azimuths; ranked: single-waypoint sols first, then fraction (0.01), then std of the DTM horizon elevation (more relief = more to match). Code: screen() in this script.",
+        f"Frame rule: first candidate in rank order with one full-width (5120 px) frame, mastEl within +-8 deg, LTST 9-16 h, true azimuth (rover heading from the attitude quaternion + camera_vector) within +-15 deg of the window centre; earliest frame at that pointing. Candidates examined: {case.get('candidatesTried')}; skipped: " + " | ".join(case.get("skipped", [])) + ".",
+        f"Frames tried: {TRIES['frames']}. Edge-detector settings tried: {TRIES['edge_settings']} (sigma {EDGE_SIGMA_PX} px, step threshold {EDGE_THRESH} grey levels/px), identical to test 1; no tuning.",
+        f"Frame is a full-width strip: subframeRect {ext['subframeRect']} of the 5120x3840 detector, scaleFactor {ext['scaleFactor']}, delivered as {W}x{H} px; horizon band only. Overlay checked once: the trace follows the visible skyline along its whole length; rover hardware appears only at the bottom edge, far from the skyline.",
+        f"Optics from the frame's own CAHVORE model (fisheye type, radial terms R used, entrance-pupil term E ignored): principal point hc={cam.hc:.0f}, vc={cam.vc:.0f} in the delivered strip's pixel coordinates, focal ~{cam.hs:.0f} px; field across the strip {fov_h:.0f} deg wide.",
+        "Rover tilt is included through the attitude quaternion; camera_vector/mastAz are rover-frame, so true azimuth = rover heading + mastAz.",
+        conv_note,
+        "Position truth = traverse.json waypoint for this sol (sol-level, not the exact imaging position; accuracy tens of metres or worse).",
+        "Grid search: same 61x61 / 100 m grid and RMS/uncertainty rules as skyline.py, centred on a seeded prior 1-2 km from the waypoint; heading free only within +-10 deg of the nominal azimuth; no elevation offset allowed (a free-offset variant is also reported).",
+        f"Fraction of the traced azimuths whose DTM-horizon terrain is >= 1 km inside the DTM and <= 14 km away: {inside_frac:.2f}.",
+        "DTM is 20 m CTX; it cannot contain metre-scale rocks and ridges near the rover, which appear in the photo's skyline.",
+        "Skyline = first strong bright-to-dark step from the top; columns without an edge or deviating >12 px from a running median are dropped; 5-px median smoothing; resampled onto the 2 deg azimuth grid.",
+    ]
     assumptions = [
         f"One frame, chosen by rule before any matching (earliest sol with a single traverse.json waypoint; middle frame of a 21-frame horizon strip at mastEl ~0.4 deg). Frames tried: {TRIES['frames']}. Edge-detector settings tried: {TRIES['edge_settings']} (sigma {EDGE_SIGMA_PX} px, step threshold {EDGE_THRESH} grey levels/px) - no tuning against the match.",
         f"Frame is a full-width strip: subframeRect {ext['subframeRect']} of the 5120x3840 detector, scaleFactor {ext['scaleFactor']}, delivered as {W}x{H} px. Not the whole 96x73 deg field vertically: only the horizon band.",
@@ -290,6 +371,15 @@ def main() -> None:
         far_note,
         "Skyline = first strong bright-to-dark step from the top; columns without an edge or deviating >12 px from a running median are dropped; 5-px median smoothing; resampled onto the 2 deg azimuth grid.",
     ]
+    if not legacy:
+        assumptions = assumptions_new
+        big_txt = ("POOR match" if big else "Reasonable match")
+        verdict = (f"{big_txt}: unfitted RMS at the waypoint {R['raw']:.2f} deg; fitted RMS {R['r_fit']:.2f} deg with elevation offset {R['off_fit']:+.2f} deg and azimuth shift {R['sh_fit']:+.2f} deg. "
+                   f"Grid search (+-3 km, 100 m, heading +-10 deg): {R['err']:.0f} m from the waypoint, uncertainty radius {R['unc']:.0f} m; with a free elevation offset {R['err2']:.0f} m / {R['unc2']:.0f} m. "
+                   f"{inside_frac:.0%} of the traced azimuths have their DTM-horizon terrain inside the DTM. "
+                   + ("This frame does NOT support the claim that a position fix of tens of metres is achievable from a single real photo. " if big else
+                      "This frame is consistent with the method, but it is a single image, a fixed hand-tuned edge detector and a sol-level waypoint. ")
+                   + "Not a statistical result. " + conv_note)
     result = {
         "id": f"sol{SOL}", "sol": SOL, "imageId": IMAGE_ID, "imageUrl": url, "credit": im.get("credit", "NASA/JPL-Caltech"),
         "mastAzDeg": mast_az, "mastElDeg": mast_el, "fovDeg": round(fov_h, 1),
@@ -307,6 +397,7 @@ def main() -> None:
         "observed": rl(R["obs"]), "dtmAtTruth": rl(R["dtm"]), "dtmAtBest": rl(R["dtm_best"]),
         "imageFile": f"data/skyline_real/sol{SOL}.jpg", "imageSizePx": [W, H],
         "traceXY": [[int(c), round(float(sm[c]), 1)] for c in range(0, W, 8) if np.isfinite(sm[c])],
+        **({} if legacy else {"terrainInsideDtmFraction": round(inside_frac, 3)}),
         "assumptions": assumptions,
         "method": "Real Navcam frame (NASA/JPL-Caltech raw image), skyline traced and matched against the CTX DTM horizon; single image, hand-tuned edge detection; not simulated.",
         "verdict": verdict,
@@ -315,6 +406,16 @@ def main() -> None:
     img.convert("L").save(OUT / f"sol{SOL}.jpg", quality=85, optimize=True)
     print(f"wrote data/skyline_real/sol{SOL}.json and .jpg ({(OUT / f'sol{SOL}.jpg').stat().st_size / 1024:.0f} kB)")
     print("VERDICT:", verdict)
+
+
+def main() -> None:
+    args = sys.argv[1:]
+    if "--screen" in args:
+        screen(load_dtm(), 10)
+        return
+    for name, case in CASES.items():
+        if not args or name in args:
+            run_case(case)
 
 
 if __name__ == "__main__":
