@@ -214,7 +214,9 @@ function addLayers(map, data, box, onPickTarget) {
 
 // ---------- 3D (A-Frame, lazy) ----------
 
-const loadScript = src => new Promise((resolve, reject) => {
+const loaded = new Map();   // each script once, even when the 3D view is rebuilt after the helmet
+const loadScript = src => { if (!loaded.has(src)) loaded.set(src, loadScriptOnce(src).catch(e => { loaded.delete(src); throw e; })); return loaded.get(src); };
+const loadScriptOnce = src => new Promise((resolve, reject) => {
   const s = document.createElement('script');
   s.src = src; s.onload = resolve;
   s.onerror = () => reject(new Error(`could not load ${src}`));
@@ -475,7 +477,7 @@ function addDustVeil(host) {
 function createView3D(data, onPickTarget, devils) {
   const host = $('view3d'), msg = $('v3-msg');
   let s = null, starting = null, terrain = null, last = null, lastHome, lastOut, lastRadius = -1, lastTau = null, lastSun = null, lastVis = null, blind3d = null;
-  let pinK = -1, routeK = 1, retried = false, groundU = null, rocks = null, wasPlaying = false;
+  let releasing = false, savedOrbit = null, pinK = -1, routeK = 1, retried = false, groundU = null, rocks = null, wasPlaying = false;
   const say = text => { msg.textContent = text; msg.hidden = !text; };
   const noteBase = `Vertical scale ×${EXAGGERATE} (true). Rover and habitat are true size. The habitat is a concept, not a NASA design. The far rover is Perseverance at its latest traverse position.`;
   let noteDevils = null, dv3 = null, dvAff = null, dvT0 = performance.now();
@@ -671,7 +673,8 @@ function createView3D(data, onPickTarget, devils) {
   }
 
   async function init() {
-    addDustVeil(host);
+    releasing = false;
+    if (!host.querySelector('.dust-veil')) addDustVeil(host);
     say('Loading 3D terrain…');
     try {
       if (!window.AFRAME) await loadScript(AFRAME_SRC);
@@ -711,6 +714,7 @@ function createView3D(data, onPickTarget, devils) {
       lastTau = null;   // re-run the sky pass so the columns pick up the current colour
       const orbit = s.cam.components['orbit-camera'];
       if (orbit) orbit.onTick = onZoom;
+      if (orbit && savedOrbit) { Object.assign(orbit.o, savedOrbit); orbit.distT = null; savedOrbit = null; }   // rebuilt after the helmet: same camera
       applyGfx();
       const addLabel = (name, q, h, kind) => {
         const el = document.createElement('span');
@@ -782,12 +786,12 @@ function createView3D(data, onPickTarget, devils) {
       update();
       // GPU ran out of memory or the driver reset: fall back to the 2D map instead of a dead white screen
       s.scene.canvas?.addEventListener('webglcontextlost', e => {
+        if (releasing) return;      // we freed it on purpose (helmet open)
         e.preventDefault();
-        if (gfxChoice() !== 'low') setGfxChoice('low');   // next load uses the small texture and no HiRISE images
         $('v-2d').click();
-        say('3D view stopped (out of graphics memory). Showing the 2D map. Graphics are now set to Low. Reload to try 3D again.');
+        say('3D view stopped (out of graphics memory). Showing the 2D map. Reload to try 3D again, or pick Low under 3D graphics.');
         const b = $('banner');
-        b.textContent = '3D view stopped on this device, so the 2D map is shown. Graphics are now set to Low: reload to try 3D again.';
+        b.textContent = '3D view stopped on this device, so the 2D map is shown. Reload to try 3D again.';
         b.hidden = false;
         setTimeout(() => { b.hidden = true; }, 6000);
       }, { once: true });
@@ -803,7 +807,22 @@ function createView3D(data, onPickTarget, devils) {
     },
     hide() { host.hidden = true; if (s?.scene.hasLoaded) { s.scene.pause(); s.scene.renderer?.setAnimationLoop(null); } },   // pause() alone leaves three's loop drawing
     render(store) { last = store; update(); },
-    setLayer(id, on) { show[id] = on; applyLayers(); }
+    setLayer(id, on) { show[id] = on; applyLayers(); },
+    // Helmet open: free this scene's GPU memory entirely (two live WebGL scenes made the helmet 4x slower).
+    // show() rebuilds it afterwards from the browser cache, with the same camera.
+    release() {
+      if (!s?.scene.hasLoaded) return;
+      const orbit = s.cam.components['orbit-camera'];
+      if (orbit) savedOrbit = { ...orbit.o };
+      releasing = true;
+      const r = s.scene.renderer;
+      s.scene.pause(); r?.setAnimationLoop(null);
+      s.scene.remove();
+      try { r?.dispose(); r?.forceContextLoss(); } catch { /* already gone */ }
+      labelBox.replaceChildren(); labels.length = 0;
+      s = null; starting = null; terrain = null; blind3d = null; groundU = null; rocks = null; dv3 = null;
+      lastHome = lastOut = undefined; lastRadius = -1; lastTau = lastSun = lastVis = null; pinK = -1; routeK = 1; retried = false;
+    }
   };
 }
 
@@ -911,5 +930,5 @@ export function createMapView(data, { onPickTarget }) {
     setRouteOut(derived.routeOut?.ok ? fromHere(derived.routeOut.points, a) : []);
     view3d.render(store);
   }
-  return { map, render };
+  return { map, render, release3D: () => view3d.release(), show3D: () => { if (!$('view3d').hidden) view3d.show(); } };
 }

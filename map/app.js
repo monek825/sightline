@@ -3,7 +3,7 @@
 
 import { loadAll } from '../lib/data.js';
 import { createPipeline } from '../lib/pipeline.js';
-import { initStore, setInputs, subscribe, getStore } from '../lib/store.js';
+import { initStore, setInputs, subscribe, getStore, DEFAULT_INPUTS } from '../lib/store.js';
 import { initVisibility, visibilityArrays } from './visibility.js';
 import { prepareScenario, stateAt, pathUpTo, editScenario } from './scenario.js';
 import { createMapView } from './map.js';
@@ -80,7 +80,7 @@ async function boot() {
   initMotion();
   ({ retarget = null, setCondition = null, runHasSep = null, runEvents = null, setSpeed = null, getSpeed = null } = setupScenario(data, M, { skyline, skyResults, map: view.map }) ?? {});
   renderPanels(getStore()); // the run setting is known now: show it (a re-render, no state written)
-  setupHelmet(data);
+  setupHelmet(data, view);
   setupSkyline(view.map, skyline, skyResults);
   setupWelcome();
   document.addEventListener('keydown', e => {
@@ -148,8 +148,16 @@ function setupScenario(data, M, sky) {
   document.getElementById('t-reset').addEventListener('click', () => {
     stop();
     sky.skyline?.closeFix();   // an open Horizon Match panel belongs to the run being reset
-    const sc = editScenario(scenario, t, 'returnHome', false);
-    if (sc === scenario || !swap(sc, prep.target, prep.custom ? getStore().inputs.routeMode : 'safest', 'zero')) { t = 0; apply(); }
+    // Reset = the original story again: scripted events, story target, default route and speed, default crew settings
+    scenario = data.scenario; prep = prepareScenario(scenario, data, M); fixEvents = fixesOf(prep);
+    scrub.max = prep.endT; speed = 1; t = 0;
+    const d = DEFAULT_INPUTS;
+    setInputs({ sol: d.sol, sansAffected: d.sansAffected, routeMode: d.routeMode, target: null });
+    for (const [id, v] of [['c-mode', d.routeMode], ['c-sans', d.sansAffected], ['c-sep', false], ['c-speed', 1]]) {
+      const el = document.getElementById(id);
+      if (el) { if (el.type === 'checkbox') el.checked = v; else el.value = v; el.dispatchEvent(new Event('input')); }
+    }
+    apply();
   });
   scrub.addEventListener('input', () => { stop(); t = Number(scrub.value); apply(); });
   document.addEventListener('visibilitychange', () => { if (document.hidden) stop(); });
@@ -240,14 +248,10 @@ function setupWelcome() {
   document.getElementById('w-play').focus({ preventScroll: true });
 }
 
-function setupHelmet(data) {
+function setupHelmet(data, view) {
   const dlg = document.getElementById('dlg-helmet');
-  // the main 3D map is hidden behind the helmet window: stop drawing it (one WebGL scene at a time)
-  const pauseMain3D = paused => {
-    const sc = document.querySelector('#view3d a-scene');
-    if (!sc?.renderer) return;
-    sc.renderer.setAnimationLoop(paused || document.getElementById('view3d').hidden ? null : sc.render);   // stays stopped while the 2D map is shown
-  };
+  // the main 3D map is hidden behind the helmet window: free it completely (rebuilt on close)
+  const pauseMain3D = paused => (paused ? view.release3D() : view.show3D());
   dlg.addEventListener('close', () => pauseMain3D(false));
   const frame = document.getElementById('helmet-frame');
   const msg = () => {
