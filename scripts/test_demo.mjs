@@ -146,7 +146,7 @@ check('t>=60: RETURN NOW or AT SHELTER throughout', sepBad.length === 0, sepBad.
 check('t=60: radiation factor RED (SEP)', at(60).d.budget.factors.find(f => f.id === 'radiation')?.level === 'RED');
 check('visibilityKm(75) < visibilityKm(74)', at(75).d.budget.visibilityKm < at(74).d.budget.visibilityKm,
   `${at(74).d.budget.visibilityKm} -> ${at(75).d.budget.visibilityKm}`);
-check('skyline fix at t=55 lowers position uncertainty vs t=54', at(55).d.posUncertaintyM < at(54).d.posUncertaintyM || !skyResults.three_forks,
+check('horizon match at t=55 lowers position uncertainty vs t=54', at(55).d.posUncertaintyM < at(54).d.posUncertaintyM || !skyResults.three_forks,
   `${at(54).d.posUncertaintyM} -> ${at(55).d.posUncertaintyM}`);
 
 // --- edge cases ---

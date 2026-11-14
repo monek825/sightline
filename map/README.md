@@ -4,7 +4,7 @@
 **Paste into Claude together with the root `README.md`.**
 
 ## Purpose
-This is the screen judges see. It shows the Jezero map and the astronaut's position, and answers **"can this astronaut still get home?"** at a glance. It hosts every other feature: the walk budget panel (`crew/`), routes (`route/`), Skyline Fix (`skyline/`) and the helmet view (`helmet/`, in an iframe).
+This is the screen judges see. It shows the Jezero map and the astronaut's position, and answers **"can this astronaut still get home?"** at a glance. It hosts every other feature: the walk budget panel (`crew/`), routes (`route/`), Horizon Match (`skyline/`) and the helmet view (`helmet/`, in an iframe).
 
 ## Files to create
 ```
@@ -79,13 +79,13 @@ Implementation:
 - **Alerts list**: `budget.factors` sorted RED → AMBER → GREEN. Each row: icon, message, and a small "NASA data" or "Estimate" tag. Clicking a row opens the sources modal at that constant.
 - **Controls** (for judges to play): sol since landing slider (0–60), LTST slider (6–19), dust τ slider (0.2–5), "Solar storm" toggle, "Vision changes (SANS)" toggle, route mode (shortest / safest / keep home in sight).
 - **"How we know" modal**: table of every row in `data/crew_constants.json` — label, value, unit, NASA data / estimate, source link. This is our Validity proof — make it look good.
-- **Skyline Fix** button → opens the panel from `skyline/`.
+- **Horizon Match** button → opens the panel from `skyline/`.
 
 ## Demo player (map/scenario.js)
 Plays `data/scenario_demo.json` using the deterministic `stateAt(scenario, t, data)` (ARCHITECTURE.md §6) — the player only sets `scenarioT`; positions/events are rebuilt from `t`, so scrubbing works both ways:
 - Clock: 1 real second = 2 EVA minutes (configurable). Play / pause / scrub / restart.
 - Moves the astronaut along `state.route.points` at the walk speed from the budget.
-- Event effects (inside `stateAt`): `tau` → `tau`; `sep_onset` → `sepActive: true` and show a full-width red banner "Solar particle event — replay of May 2024 storm measured by Curiosity. Return to shelter."; `skyline_fix` → open Skyline Fix panel with that site's result; `eva_end` → stop.
+- Event effects (inside `stateAt`): `tau` → `tau`; `sep_onset` → `sepActive: true` and show a full-width red banner "Solar particle event — replay of May 2024 storm measured by Curiosity. Return to shelter."; `skyline_fix` → open Horizon Match panel with that site's result; `eva_end` → stop.
 - On `sep_onset` the return leg (position at that moment → home, mode `safest`) is planned once and cached, so the new route home appears.
 - Each frame: `setInputs(stateAt(scenario, t, data))` → includes `evaMin = t`, `ltst = startLtst + t / 61.65` (one Mars "hour" = 61.65 Earth minutes), `astronaut`, `distSinceFixM`. The pipeline re-derives the budget — nothing subscribes and writes back.
 - A "Video mode" key (`v`) hides controls for clean screen recording.

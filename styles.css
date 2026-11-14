@@ -322,7 +322,7 @@ body.video :is(.bar-left, .view-toggle, .leaflet-control-container) { display: n
 /* Chrome leaves hairline gaps between transformed tiles; the transparent outline closes them */
 .leaflet-tile-container img.leaflet-tile { outline: 1px solid transparent; }
 
-/* Skyline Fix: non-modal card over the map so the search heat map stays visible */
+/* Horizon Match: non-modal card over the map so the search heat map stays visible */
 .skyfix {
   position: absolute; left: var(--s4); top: 76px; z-index: 1050; margin: 0; padding: var(--s4) var(--s5) var(--s5);
   width: min(460px, calc(100% - var(--panel-w) - 56px)); max-height: calc(100% - 76px - var(--notch-d) - var(--s4)); overflow-y: auto;
@@ -460,7 +460,7 @@ h1, h2, .brand, .tab-title, .skyfix-head h2, .more h2 { font-family: var(--displ
   .welcome { width: calc(100% - 24px); top: 50%; padding: var(--s5); }
 }
 
-/* Skyline Fix, plain-language layout */
+/* Horizon Match, plain-language layout */
 .skyfix-lead { margin: 0; font-size: 14px; color: var(--muted); }
 .skyfix-prog { display: grid; gap: var(--s2); min-width: 0; }
 .skyfix-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }

@@ -1,6 +1,6 @@
 # Feature: Python precompute scripts
 
-**Owners:** Sean (terrain + data) and Brayden (viewsheds + Skyline Fix) · **Paste into Claude together with the root `README.md`.**
+**Owners:** Sean (terrain + data) and Brayden (viewsheds + Horizon Match) · **Paste into Claude together with the root `README.md`.**
 
 ## Purpose
 The website has no server, so all heavy maths runs **once, offline, in Python**, and the results are saved into `data/` as small JSON/PNG files the browser loads. Each script is run by hand: `python3 scripts/<name>.py`.

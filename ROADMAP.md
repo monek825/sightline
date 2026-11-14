@@ -10,20 +10,20 @@
 | Main app UI v2 + 3D terrain engine (`lib/terrain.js`) | Brayden | ✅ done |
 | Crew model `crew/budget.js` | Jojo | ✅ merged with tests (app loads it instead of the stub) |
 | Route planner `route/route.js` | Jojo | ✅ merged with tests (A*, three modes) |
-| Skyline Fix maths `scripts/skyline.py` | Sean | ✅ done → `data/skyline/` for all 5 sites |
+| Horizon Match maths `scripts/skyline.py` | Sean | ✅ done → `data/skyline/` for all 5 sites |
 | Missing sources (3 constants) | Sean | ✅ done. `terrain_shielding_pct` is now 4 (paper says 4%, not 5%); `walkback_pad` is an estimate (no source found) |
 | `python3 scripts/check_data.py` | all | ✅ 0 problems |
 | Demo integrity + edge-case test `node scripts/test_demo.mjs` | Brayden | ✅ 78 checks pass (demo stepped every minute, 61 edge cases); no bugs found in crew, route, pipeline or store |
 | Integration check `bash scripts/check_all.sh` | Brayden | ✅ pull + data check + demo test + both `*.test.html` in headless Chrome, one table |
 | Skyline off-grid honesty run | Brayden | ✅ `data/skyline/offgrid_summary.json`: median error 32.0 m, max 44.6 m with truth off the 100 m grid |
-| Skyline Fix panel `skyline/skyline.js` | Brayden | ✅ done: button picks nearest site; demo pauses at t=55 and plays it |
+| Horizon Match panel `skyline/skyline.js` | Brayden | ✅ done: button picks nearest site; demo pauses at t=55 and plays it |
 | Helmet overlays (beacon, HUD, walk) | Edward | ⏳ `helmet/` only has the README |
 | Landmark names on Mars Trek | Sean | ⏳ gazetteer check found no match; still needs a look on Trek by eye (`peak_02` may be Kodiak butte) |
 | `sources.md` "Challenge resources used" | Sean | ⏳ copy the list from the challenge Resources tab |
 | Video + submission page | Brayden + Sean | ⏳ Sunday |
 
 ### Next up (in this order)
-1. **Brayden:** `skyline/skyline.js`. It is the only demo-path feature with no code yet, and the "Run Skyline Fix" button currently shows "not built yet".
+1. **Brayden:** `skyline/skyline.js`. It is the only demo-path feature with no code yet, and the "Run Horizon Match" button currently shows "not built yet".
 2. **Edward:** helmet overlays on `lib/terrain.js`.
 3. **Sean:** Resources tab → `sources.md` (needed for Global Award eligibility), then the Mars Trek name check.
 4. **Jojo:** check the crew tests against `terrain_shielding_pct` = 4.
@@ -32,11 +32,11 @@
 ## Known issues (Sat evening)
 **Fixed**
 - HiRISE tiles outside the mosaic gave 404s in the console at zoom 15+. The layer is now limited to its real coverage.
-- Skyline Fix 0 m errors were partly by construction. Off-grid numbers are in `data/skyline/offgrid_summary.json`.
+- Horizon Match 0 m errors were partly by construction. Off-grid numbers are in `data/skyline/offgrid_summary.json`.
 
 **Left**
 - Route replan on a storm or SEP event takes 20-60 ms on a quiet laptop and up to ~500 ms when the machine is busy. The test allows 300 ms (ARCHITECTURE §5). If `test_demo` fails only on "replan derive", re-run it with nothing else running.
-- Skyline Fix accuracy is limited by the 100 m search grid (about 50 m worst case). A finer grid would need a `scripts/skyline.py` change by Sean.
+- Horizon Match accuracy is limited by the 100 m search grid (about 50 m worst case). A finer grid would need a `scripts/skyline.py` change by Sean.
 - The edge-case test does not cover NaN inputs passed straight to `computeLimits`/`computeBudget`; the store clamps inputs before they get there.
 - Helmet overlays, landmark names and `sources.md` resources list: see the status table.
 
@@ -71,7 +71,7 @@ Everyone builds their own piece **in parallel**, in their own folder, on top of 
 ### Phase 3: Fix + polish (Sun 07:00 → 14:00)
 In this order, no skipping:
 1. **Bugs** that break or confuse the demo.
-2. **UX on the demo path:** what the judge sees in the video (answer card, storm moment, blind zones growing, new route, Skyline Fix, helmet).
+2. **UX on the demo path:** what the judge sees in the video (answer card, storm moment, blind zones growing, new route, Horizon Match, helmet).
 3. Mobile check (375 px), keyboard focus, reduced motion.
 4. Stretch (beacon placement, real Navcam skyline check), only if 1–3 are done.
 
