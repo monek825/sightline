@@ -95,9 +95,10 @@ function setupScenario(data, M, sky) {
   const play = document.getElementById('t-play');
   const scrub = document.getElementById('t-scrub');
   const label = document.getElementById('t-label');
-  const homeBtn = document.getElementById('t-home');
+  const homeBtn = document.getElementById('t-turnback');
   scrub.max = prep.endT;
   let t = 0, playing = false, last = 0, raf = 0;
+  let pauseId = 0; // bumped by every start/stop: a Horizon Match pause only resumes if nothing happened since
   let speed = 1; // playback multiplier 1-10: player state, not model state (never in the store)
 
   const fixesOf = p => (p.scenario.events ?? []).filter(e => e.type === 'skyline_fix' && sky.skyResults[e.site]);
@@ -126,8 +127,8 @@ function setupScenario(data, M, sky) {
     const fix = fixEvents.find(e => prevT < e.tMin && e.tMin <= t);
     if (fix) { // pause, play the Horizon Match, resume when the panel closes
       stop();
-      const restore = show2D();
-      sky.skyline.openSkylineFix(fix.site, sky.map, { applyFix: false, onClose: () => { restore(); start(); } });
+      const restore = show2D(), id = pauseId;
+      sky.skyline.openSkylineFix(fix.site, sky.map, { applyFix: false, onClose: () => { restore(); if (id === pauseId) start(); } });
       return;
     }
     if (t >= prep.endT) { stop(); return; }
@@ -135,17 +136,18 @@ function setupScenario(data, M, sky) {
   };
   const start = () => {
     if (t >= prep.endT) t = 0;
-    playing = true; last = performance.now();
+    pauseId++; playing = true; last = performance.now();
     play.dataset.state = 'playing'; play.setAttribute('aria-label', 'Pause demo');
     raf = requestAnimationFrame(frame);
   };
   function stop() {
-    playing = false; cancelAnimationFrame(raf);
+    pauseId++; playing = false; cancelAnimationFrame(raf);
     play.dataset.state = 'paused'; play.setAttribute('aria-label', 'Play demo');
   }
   play.addEventListener('click', () => (playing ? stop() : start()));
   document.getElementById('t-reset').addEventListener('click', () => {
     stop();
+    sky.skyline?.closeFix();   // an open Horizon Match panel belongs to the run being reset
     const sc = editScenario(scenario, t, 'returnHome', false);
     if (sc === scenario || !swap(sc, prep.target, prep.custom ? getStore().inputs.routeMode : 'safest', 'zero')) { t = 0; apply(); }
   });
@@ -244,7 +246,7 @@ function setupHelmet(data) {
   const pauseMain3D = paused => {
     const sc = document.querySelector('#view3d a-scene');
     if (!sc?.renderer) return;
-    sc.renderer.setAnimationLoop(paused ? null : sc.render);
+    sc.renderer.setAnimationLoop(paused || document.getElementById('view3d').hidden ? null : sc.render);   // stays stopped while the 2D map is shown
   };
   dlg.addEventListener('close', () => pauseMain3D(false));
   const frame = document.getElementById('helmet-frame');
