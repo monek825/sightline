@@ -13,7 +13,7 @@
 | Skyline Fix maths `scripts/skyline.py` | Sean | ✅ done → `data/skyline/` for all 5 sites |
 | Missing sources (3 constants) | Sean | ✅ done. `terrain_shielding_pct` is now 4 (paper says 4%, not 5%); `walkback_pad` is an estimate (no source found) |
 | `python3 scripts/check_data.py` | all | ✅ 0 problems |
-| Skyline Fix panel `skyline/skyline.js` | Brayden | ⏳ not started. Real data is ready, no mock needed |
+| Skyline Fix panel `skyline/skyline.js` | Brayden | ✅ done: button picks nearest site; demo pauses at t=55 and plays it |
 | Helmet overlays (beacon, HUD, walk) | Edward | ⏳ `helmet/` only has the README |
 | Landmark names on Mars Trek | Sean | ⏳ gazetteer check found no match; still needs a look on Trek by eye (`peak_02` may be Kodiak butte) |
 | `sources.md` "Challenge resources used" | Sean | ⏳ copy the list from the challenge Resources tab |
