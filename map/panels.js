@@ -166,7 +166,7 @@ function wireDrawer() {
   });
 }
 
-export function createPanels(data, { setInputs, usingStubs }) {
+export function createPanels(data, { setInputs, usingStubs, onCondition }) {
   buildSources(data);
   dataBadge(data, usingStubs);
   const checkpoints = buildTimeline(data);
@@ -180,10 +180,12 @@ export function createPanels(data, { setInputs, usingStubs }) {
     ['c-ltst', 'o-ltst', 'ltst', fmtLtst],
     ['c-tau', 'o-tau', 'tau', v => Number(v).toFixed(1)]
   ];
+  // with a running demo the edit goes through onCondition (it re-prepares the walk); otherwise straight to the store
+  const setCond = (key, value) => { if (!onCondition?.(key, value)) setInputs({ [key]: value }); };
   for (const [id, , key] of sliders) {
-    $(id).addEventListener('input', e => setInputs({ [key]: Number(e.target.value) }));
+    $(id).addEventListener('input', e => setCond(key, Number(e.target.value)));
   }
-  $('c-sep').addEventListener('change', e => setInputs({ sepActive: e.target.checked }));
+  $('c-sep').addEventListener('change', e => setCond('sepActive', e.target.checked));
   $('c-sans').addEventListener('change', e => setInputs({ sansAffected: e.target.checked }));
   $('c-mode').addEventListener('change', e => setInputs({ routeMode: e.target.value }));
 
@@ -280,7 +282,6 @@ export function createPanels(data, { setInputs, usingStubs }) {
   }
 
   return function render({ inputs, derived }) {
-    const scenarioOn = inputs.scenarioT !== null;
     $('clk-sol').textContent = inputs.sol;
     $('clk-ltst').textContent = fmtLtst(inputs.ltst);
     $('clk-eva').textContent = `${Math.round(inputs.evaMin)} min`;
@@ -298,9 +299,8 @@ export function createPanels(data, { setInputs, usingStubs }) {
     for (const [id, out, key, fmt] of sliders) {
       $(id).value = inputs[key];
       $(out).textContent = fmt(inputs[key]);
-      $(id).disabled = scenarioOn;
     }
-    $('c-sep').checked = inputs.sepActive; $('c-sep').disabled = scenarioOn;
+    $('c-sep').checked = inputs.sepActive;
     $('c-sans').checked = inputs.sansAffected;
     $('c-mode').value = inputs.routeMode;
   };
