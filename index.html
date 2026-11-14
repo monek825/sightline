@@ -15,9 +15,27 @@
   <link rel="icon" href="assets/logo.svg" type="image/svg+xml">
   <link rel="stylesheet" href="styles.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js" defer></script>
+  <script type="module" src="map/intro.js"></script>
   <script type="module" src="map/app.js"></script>
 </head>
-<body>
+<body class="intro-on">
+  <div id="intro" class="intro" aria-hidden="true">
+    <svg class="intro-eye" viewBox="0 0 100 100" preserveAspectRatio="none">
+      <defs><filter id="eye-blur" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="2.5"/></filter></defs>
+      <mask id="eye-mask">
+        <rect width="100" height="100" fill="#fff"/>
+        <ellipse class="intro-pupil" cx="50" cy="50" rx="70" ry="60" fill="#000" filter="url(#eye-blur)"/>
+      </mask>
+      <rect class="intro-lid" width="100" height="100" mask="url(#eye-mask)"/>
+    </svg>
+    <div class="intro-mark">
+      <svg viewBox="0 0 240 160">
+        <line class="intro-base" x1="10" y1="150" x2="228.7" y2="150"/>
+        <line class="intro-arm" x1="10" y1="150" x2="217" y2="150"/>
+      </svg>
+      <span class="intro-logo"><img src="assets/logo.svg" alt="" width="675" height="675"></span>
+    </div>
+  </div>
   <main class="stage">
     <section class="map-wrap" aria-label="Jezero Crater map">
       <div id="map"></div>

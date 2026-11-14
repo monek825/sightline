@@ -269,4 +269,6 @@ function setupSkyline(map, mod, results) {
   });
 }
 
-boot().catch(err => { console.error(err); fatal(`Sightline failed to start: ${err.message}`); });
+// the intro holds on the logo until this fires (or a timeout)
+const announceReady = () => { window.sightlineReady = true; window.dispatchEvent(new Event('sightline:ready')); };
+boot().then(announceReady, err => { announceReady(); console.error(err); fatal(`Sightline failed to start: ${err.message}`); });

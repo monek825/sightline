@@ -282,6 +282,12 @@ h1, h2 { margin: 0; font-weight: 600; }
 .dlg-full { width: 96vw; height: 92vh; max-height: 92vh; }
 .dlg-full[open] { display: grid; grid-template-rows: auto 1fr; }
 .dlg-full iframe { width: 100%; height: 100%; border: 0; background: #000; }
+/* phone held sideways: give the helmet view the height (slim header, nearly full screen) */
+@media (max-height: 520px) and (orientation: landscape) {
+  .dlg-full { width: 98vw; height: 96vh; max-height: 96vh; }
+  .dlg-full .dlg-head { padding: var(--s1) var(--s4); }
+  .dlg-full .dlg-head h2 { font-size: 17px; margin: 0; }
+}
 .fatal { padding: var(--s4); background: var(--red); color: var(--accent-ink); font-weight: 600; }
 
 /* video mode: clean screen recording */
@@ -316,6 +322,12 @@ body.video :is(.bar-left, .view-toggle, .leaflet-control-container) { display: n
   .cp-label, .cp:nth-child(even) .cp-label { display: none; }
   .cp.current .cp-label { display: block; top: 16px; }
   .more { grid-template-columns: 1fr; padding: var(--s4); }
+}
+/* narrow phones: the brand bar wraps to two lines (~73 px), so everything below it moves down to clear it */
+@media (max-width: 440px) {
+  .view-toggle, .leaflet-top.leaflet-right { top: 96px; }
+  .banner { top: 148px; }
+  .leaflet-top.leaflet-left { top: 152px; }
 }
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; animation: none !important; }
@@ -550,6 +562,8 @@ h1, h2, .brand, .tab-title, .skyfix-head h2, .more h2 { font-family: var(--displ
   .stage { padding: var(--s3); }
   .map-wrap { display: flex; flex-direction: column; border-radius: 0; overflow: visible; }
   #map, .view3d { border-radius: var(--r-lg); overflow: hidden; }
+  /* 3D mode hides #map, so the 3D view must hold the map's slot itself (else the panels slide up over it) */
+  .map-wrap:has(#map[hidden]) .view3d { position: relative; }
   .bar { position: relative; height: auto; min-height: 60px; width: auto; clip-path: none; padding: var(--s2) var(--s3); border-radius: var(--r-lg); margin-top: var(--s3); }
   .bar::before { left: 0; right: 0; transform: none; border-radius: var(--r-lg); }
   .bar-left { order: 2; }
@@ -559,3 +573,29 @@ h1, h2, .brand, .tab-title, .skyfix-head h2, .more h2 { font-family: var(--displ
   .more { position: relative; order: 5; left: auto; bottom: auto; width: auto; max-height: none; margin-top: var(--s3); }
   .player #t-label { display: none; }
 }
+
+/* ---------- intro: line → 30° wedge → SL logo → eye-blink reveal ---------- */
+body.intro-on { overflow: hidden; }
+.intro { position: fixed; inset: 0; z-index: 12000; pointer-events: all; transition: opacity 180ms ease; }
+.intro.is-gone { opacity: 0; pointer-events: none; }
+.intro-eye { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.intro-lid { fill: var(--bg); }
+.intro-pupil { transform-box: fill-box; transform-origin: center; transform: scaleY(0); transition: transform 500ms cubic-bezier(.7, 0, .2, 1) 250ms; }
+.intro.is-open .intro-pupil { transform: scaleY(1); }
+.intro-mark { position: absolute; left: 50%; top: 50%; width: 240px; height: 160px; --mark-scale: 1.8; transform: translate(-50%, -55%) scale(var(--mark-scale)); transition: opacity 250ms ease, transform 500ms var(--ease-out); }
+.intro.is-open .intro-mark { opacity: 0; transform: translate(-50%, -55%) scale(calc(var(--mark-scale) * 1.06)); }
+.intro-mark svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.intro-mark line { stroke: #fff; stroke-width: 1.6; stroke-linecap: square; }
+/* 1. baseline draws left → right */
+.intro-base { stroke-dasharray: 220; stroke-dashoffset: 220; transition: stroke-dashoffset 500ms cubic-bezier(.5, 1, .89, 1); }
+.intro.is-line .intro-base { stroke-dashoffset: 0; }
+/* 2. the arm lies on the baseline, then swings up to 30° around the left end (quadratic ease-out) */
+.intro-arm { opacity: 0; transform-box: view-box; transform-origin: 10px 150px; transform: rotate(0deg); transition: transform 600ms cubic-bezier(.5, 1, .89, 1), opacity 1ms; }
+.intro.is-angle .intro-arm { opacity: 1; transform: rotate(-30.09deg); } /* the logo's own slant, measured */
+/* 3. SL logo fills the wedge: its slanted top sits on the arm (measured slope 30.09°, apex = top of the L),
+   its foot on the baseline. Logo units (of 1500): bounds x 532-976, y 639-871; wedge vertex x 490. Scale 0.45 px/unit. */
+.intro-logo { position: absolute; left: 28.9px; top: 45.6px; width: 200px; height: 104.4px; overflow: hidden; clip-path: inset(0 100% 0 0); transition: clip-path 650ms cubic-bezier(.5, 1, .89, 1); }
+.intro-logo img { position: absolute; left: -239.4px; top: -287.55px; width: 675px; height: 675px; max-width: none; }
+.intro.is-logo .intro-logo { clip-path: inset(0 0 0 0); }
+@media (max-width: 600px) { .intro-mark { --mark-scale: 1.2; } }
+@media (prefers-reduced-motion: reduce) { .intro { display: none; } }
