@@ -86,10 +86,10 @@ def run_site(z: np.ndarray, t: dict, k: int) -> dict:
     rng = np.random.default_rng(SEED + k)
     lat, lon = t["lat"], t["lon"]
     tr, tc = latlon_to_px(lat, lon, z.shape)
-    # prior = truth offset 1-2 km in a random direction (snapped to the 100 m grid step)
+    # prior = truth offset 1-2 km in a random direction, NOT snapped: the truth is generally between grid nodes
     dist, ang = rng.uniform(1000, 2000), rng.uniform(0, 2 * math.pi)
-    off_n = round(dist * math.cos(ang) / GRID_STEP) * GRID_STEP
-    off_e = round(dist * math.sin(ang) / GRID_STEP) * GRID_STEP
+    off_n = dist * math.cos(ang)
+    off_e = dist * math.sin(ang)
     pr, pc = tr - off_n / PX_M, tc + off_e / EW_M
     prior_lat, prior_lon = px_to_latlon(pr, pc, z.shape)
 
@@ -131,6 +131,7 @@ def run_site(z: np.ndarray, t: dict, k: int) -> dict:
     rms96, arg96 = match(cand, obs[:FOV96_N])
     b96, bi96, bj96, err96 = locate(rms96, arg96)
     unc96 = uncertainty(rms96.reshape(n, n), bi96, bj96)
+    est96_lat, est96_lon = px_to_latlon(rows[b96], cols[b96], z.shape)
 
     return {
         "site": t["id"], "name": t["name"],
@@ -142,7 +143,8 @@ def run_site(z: np.ndarray, t: dict, k: int) -> dict:
         "observed": r3(obs), "best": r3(best_prof),
         "grid": {"centerLat": round(prior_lat, 5), "centerLon": round(prior_lon, 5),
                  "stepM": GRID_STEP, "n": n, "rmsDeg": r3(rms2)},
-        "fov96": {"errorM": round(err96), "uncertaintyM": round(unc96)},
+        "fov96": {"errorM": round(err96), "uncertaintyM": round(unc96),
+                  "estimate": {"lat": round(est96_lat, 5), "lon": round(est96_lon, 5)}},
         "method": "Simulated skyline from CTX DTM + 0.15° noise; not a real photo.",
     }, (round(float(rms.min()), 3), hdg_err(int(arg96[b96])), round(math.hypot(off_n, off_e)))
 
