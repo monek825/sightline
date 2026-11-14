@@ -7,12 +7,13 @@ import { setInputs, getStore } from '../lib/store.js';
 
 const SWEEP_MS = 4000;
 const SEARCH_MS = 1200;
+const MORPH_MS = 400; // 360° <-> 96° circle change
 const M_PER_DEG = 2 * Math.PI * R / 360;
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const CHART = { w: 720, h: 150, pad: 8 };
 
 const cache = new Map();
-let ui = null; // { dlg, overlay, timers, onClose }
+let ui = null; // { dlg, overlay, timers, onClose, cmp: {circle, marker} | null, raf }
 
 async function loadSite(siteId) {
   if (!/^[a-z_]+$/.test(siteId)) throw new Error('bad site id');
@@ -82,6 +83,8 @@ function buildDialog() {
 
   dlg.append(head, el('div', 'skyfix-top', null), chart, legend, result, how);
   dlg.querySelector('.skyfix-top').append(compass, step);
+  const css = el('style', null, '.skyfix-toggle{display:flex;flex-wrap:wrap;gap:var(--s2);margin:0 0 var(--s2)}.skyfix-toggle .btn[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);font-weight:600}');
+  document.head.append(css);
   document.querySelector('.map-wrap').append(dlg);
   close.addEventListener('click', () => closeFix());
   dlg.addEventListener('keydown', e => { if (e.key === 'Escape') { e.preventDefault(); closeFix(); } });
@@ -121,19 +124,85 @@ function gridBounds(g) {
   return [[g.centerLat - dLat, g.centerLon - dLon], [g.centerLat + dLat, g.centerLon + dLon]];
 }
 
-function showResult(box, s) {
+const isLL = p => Number.isFinite(p?.lat) && Number.isFinite(p?.lon);
+
+/** Comparison view only: draws the 360° or 96° result on the map; never touches app state. */
+function setCompareView(map, to, reduced) {
+  if (!ui.cmp) {
+    const style = { color: '#f3c66c', interactive: false };
+    ui.cmp = {
+      circle: L.circle([to.est.lat, to.est.lon], { ...style, radius: to.unc, weight: 2, dashArray: '5 5', fillColor: '#f3c66c', fillOpacity: 0.1 }).addTo(map),
+      marker: L.circleMarker([to.est.lat, to.est.lon], { ...style, radius: 6, weight: 2, fillOpacity: 0.9 }).addTo(map)
+    };
+    return;
+  }
+  const { circle, marker } = ui.cmp;
+  cancelAnimationFrame(ui.raf);
+  const from = circle.getLatLng(), r0 = circle.getRadius(), t0 = performance.now();
+  const apply = f => {
+    const lat = from.lat + (to.est.lat - from.lat) * f, lon = from.lng + (to.est.lon - from.lng) * f;
+    circle.setLatLng([lat, lon]).setRadius(r0 + (to.unc - r0) * f);
+    marker.setLatLng([lat, lon]);
+  };
+  if (reduced) { apply(1); return; }
+  const tick = now => {
+    if (!ui?.cmp) return;
+    const f = Math.min(1, (now - t0) / MORPH_MS);
+    apply(f * (2 - f)); // ease-out
+    if (f < 1) ui.raf = requestAnimationFrame(tick);
+  };
+  ui.raf = requestAnimationFrame(tick);
+}
+
+function showResult(box, s, map, reduced) {
   box.replaceChildren();
+  const full = { est: s.estimate, err: s.errorM, unc: s.uncertaintyM };
+  const hasEst96 = isLL(s.fov96?.estimate);
+  const v96 = Number.isFinite(s.fov96?.errorM) && Number.isFinite(s.fov96?.uncertaintyM)
+    ? { est: hasEst96 ? s.fov96.estimate : s.estimate, err: s.fov96.errorM, unc: s.fov96.uncertaintyM } : null;
+  const same = !!v96 && Math.round(v96.err) === Math.round(full.err) && Math.round(v96.unc) === Math.round(full.unc)
+    && (!hasEst96 || (Math.abs(v96.est.lat - full.est.lat) < 1e-5 && Math.abs(v96.est.lon - full.est.lon) < 1e-5));
+
+  const strong = el('strong');
+  const what = el('span');
   const big = el('p', 'skyfix-big');
-  big.append(el('strong', null, `± ${Math.round(s.uncertaintyM)} m`), el('span', null, ` position fixed · error ${Math.round(s.errorM)} m`));
-  box.append(big,
-    el('p', null, `With only a 96° camera view: error ${Math.round(s.fov96?.errorM ?? NaN)} m, ± ${Math.round(s.fov96?.uncertaintyM ?? NaN)} m. That's why the astronaut turns a full circle.`),
-    el('p', 'skyfix-note', `Simulated skyline (${s.noiseDeg}° noise) on NASA terrain, not a real photo. Real cameras: expect about 10–100 m (JPL).`));
+  big.append(strong, what);
+  const explain = el('p', 'skyfix-explain');
+  explain.setAttribute('role', 'status');
+  const note = el('p', 'skyfix-note', `Simulated skyline (${s.noiseDeg}° noise) on NASA terrain, not a real photo. Real cameras: expect about 10–100 m (JPL).`);
+  box.append(big);
+
+  let btns = [];
+  const show = mode => {
+    const is96 = mode === 96;
+    const v = is96 ? v96 : full;
+    strong.textContent = `± ${Math.round(v.unc)} m`;
+    what.textContent = is96 ? ` 96° view only · error ${Math.round(v.err)} m (simulated)` : ` position fixed · error ${Math.round(v.err)} m (simulated)`;
+    btns.forEach(([b, m]) => b.setAttribute('aria-pressed', String(m === mode)));
+    if (!is96) explain.textContent = v96 ? 'The whole horizon is compared with the terrain. Switch to the 96° view to see what one camera view gives.' : '';
+    else if (same) explain.textContent = 'At this site the 96° view gives the same simulated result as the full turn. The full turn is still the procedure because other sites differ.';
+    else explain.textContent = `A single camera view sees too little of the horizon — that's why the procedure is a full turn.${hasEst96 ? '' : ' (The 96° position is not stored, so the marker stays put; the circle shows its uncertainty.)'}`;
+    setCompareView(map, v, reduced);
+  };
+
+  if (v96) {
+    const group = el('div', 'skyfix-toggle');
+    group.setAttribute('role', 'group');
+    group.setAttribute('aria-label', 'Compare camera coverage (simulated)');
+    btns = [[el('button', 'btn', 'Full 360° turn'), 360], [el('button', 'btn', '96° camera view only'), 96]];
+    for (const [b, m] of btns) { b.type = 'button'; b.addEventListener('click', () => show(m)); group.append(b); }
+    box.append(group);
+  }
+  box.append(explain, note);
+  show(360);
 }
 
 export function closeFix() {
   if (!ui) return;
   ui.timers.forEach(clearTimeout);
   ui.timers = [];
+  cancelAnimationFrame(ui.raf);
+  if (ui.cmp) { ui.cmp.circle.remove(); ui.cmp.marker.remove(); ui.cmp = null; }
   if (ui.overlay) { ui.overlay.remove(); ui.overlay = null; }
   if (ui.dlg.open) ui.dlg.close();
   const cb = ui.onClose; ui.onClose = null;
@@ -147,7 +216,7 @@ export function closeFix() {
  */
 export async function openSkylineFix(siteId, map, opts = {}) {
   const s = await loadSite(siteId);
-  if (!ui) ui = { ...buildDialog(), timers: [], overlay: null, onClose: null };
+  if (!ui) ui = { ...buildDialog(), timers: [], overlay: null, onClose: null, cmp: null, raf: 0 };
   closeFix();
   ui.onClose = opts.onClose ?? null;
   const { dlg, step, compass, chart, result } = ui;
@@ -194,7 +263,7 @@ export async function openSkylineFix(siteId, map, opts = {}) {
   later(SWEEP_MS + SEARCH_MS, () => {
     step.textContent = '3 · Best match found.';
     best.setAttribute('points', points(s.best, sc));
-    showResult(result, s);
+    showResult(result, s, map, reduced);
     if (opts.applyFix !== false) {
       const cur = getStore().inputs.astronaut;
       setInputs({ astronaut: { ...cur, lat: s.estimate.lat, lon: s.estimate.lon }, distSinceFixM: 0, fixUncertaintyM: s.uncertaintyM });

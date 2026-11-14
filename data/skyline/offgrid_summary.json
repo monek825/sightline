@@ -1,0 +1,47 @@
+{
+ "note": "Simulated skyline (CTX DTM + 0.15 deg noise), not a real photo. True position moved a seeded random 0-50 m so it sits between the 100 m search-grid nodes; prior 1-2 km away as in the default run.",
+ "seed": 4040,
+ "noiseDeg": 0.15,
+ "sites": {
+  "landing": {
+   "errorM": 7,
+   "uncertaintyM": 141,
+   "fov96": {
+    "errorM": 142,
+    "uncertaintyM": 500
+   }
+  },
+  "three_forks": {
+   "errorM": 20,
+   "uncertaintyM": 50,
+   "fov96": {
+    "errorM": 20,
+    "uncertaintyM": 50
+   }
+  },
+  "cheyava_falls": {
+   "errorM": 5,
+   "uncertaintyM": 50,
+   "fov96": {
+    "errorM": 5,
+    "uncertaintyM": 50
+   }
+  },
+  "delta_top": {
+   "errorM": 13,
+   "uncertaintyM": 50,
+   "fov96": {
+    "errorM": 13,
+    "uncertaintyM": 50
+   }
+  },
+  "crater_rim": {
+   "errorM": 23,
+   "uncertaintyM": 50,
+   "fov96": {
+    "errorM": 23,
+    "uncertaintyM": 50
+   }
+  }
+ }
+}
