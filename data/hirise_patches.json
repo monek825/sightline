@@ -1,0 +1,28 @@
+[
+  {
+    "id": "home",
+    "name": "Habitat (Octavia E. Butler Landing)",
+    "file": "data/hirise_home.jpg",
+    "latMin": 18.4193941,
+    "latMax": 18.4700059,
+    "lonMin": 77.4241237,
+    "lonMax": 77.4774763,
+    "mPerPx": 0.732,
+    "missingTiles": 0,
+    "noDataPct": 0.0,
+    "source": "HiRISE orthomosaic NASA/JPL-Caltech/UArizona via NASA Mars Trek (JEZ_hirise_soc_006, 25 cm, fetched at zoom 16)"
+  },
+  {
+    "id": "three_forks",
+    "name": "Three Forks sample depot (approx.)",
+    "file": "data/hirise_three_forks.jpg",
+    "latMin": 18.4272141,
+    "latMax": 18.4778259,
+    "lonMin": 77.3805225,
+    "lonMax": 77.4338775,
+    "mPerPx": 0.732,
+    "missingTiles": 0,
+    "noDataPct": 0.0,
+    "source": "HiRISE orthomosaic NASA/JPL-Caltech/UArizona via NASA Mars Trek (JEZ_hirise_soc_006, 25 cm, fetched at zoom 16)"
+  }
+]

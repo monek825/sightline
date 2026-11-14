@@ -13,9 +13,9 @@ const TERRAIN_DATA = 'data/heightgrid40.json', TERRAIN_FALLBACK = 'data/heightgr
 const MIN_DIST_M = 25;  // closest zoom: about standing height above the astronaut's area
 // Close-up rocks (lib/ground.js), hidden once the camera is high enough that they would be sub-pixel.
 const MAP_ROCK_LAYERS = [
-  { count: 5000, radius: 30, cell: 1.2, min: 0.02, max: 0.1, rescatter: 8, detail: 0, color: 0x7d5f4c, sandAvoid: 0.6, clumpM: 6, maxCamH: 70, clearHome: 11 },
-  { count: 2000, radius: 110, cell: 5, min: 0.1, max: 0.6, rescatter: 25, detail: 1, color: 0x6f5444, sandAvoid: 0.85, clumpM: 25, maxCamH: 450, clearHome: 11 },
-  { count: 400, radius: 450, cell: 30, min: 0.5, max: 2.8, rescatter: 90, detail: 1, color: 0x6a4f40, sandAvoid: 0.9, clumpM: 90, maxCamH: 2500, clearHome: 14 }
+  { count: 5000, radius: 30, cell: 1.2, min: 0.02, max: 0.1, rescatter: 8, detail: 0, color: 0x7d5f4c, clumpM: 6, maxCamH: 70, clearHome: 11 },
+  { count: 2000, radius: 110, cell: 5, min: 0.1, max: 0.6, rescatter: 25, detail: 1, color: 0x6f5444, clumpM: 25, maxCamH: 450, clearHome: 11 },
+  { count: 400, radius: 450, cell: 30, min: 0.5, max: 2.8, rescatter: 90, detail: 1, color: 0x6a4f40, clumpM: 90, maxCamH: 2500, clearHome: 14 }
 ];
 const ROVER_PARK_M = [12, 6]; // support rover parked beside the habitat [east, south], real metres
 const EXAGGERATE = 1;  // true vertical scale
@@ -242,7 +242,8 @@ function mk(tag, attrs, parent) {
 }
 
 // tint #fff = image shown untinted (as on the 2D map)
-const terrainAttr = src => `src: ${src}; exaggerate: ${EXAGGERATE}; tint: #ffffff`;
+// patches: HiRISE close-up images (~0.7 m/px) near home and Three Forks, blended into the CTX ground (lib/terrain.js)
+const terrainAttr = src => `src: ${src}; exaggerate: ${EXAGGERATE}; tint: #ffffff; patches: data/hirise_patches.json`;
 
 function buildScene() {
   const scene = document.createElement('a-scene');
@@ -472,6 +473,11 @@ function createView3D(data, onPickTarget) {
       if (p?.id === e.pointerId) { press = null; if (Math.hypot(e.clientX - p.x, e.clientY - p.y) < PICK_SLOP_PX) pick(e); }
     });
     s.scene.addEventListener('pointercancel', e => { down.delete(e.pointerId); press = null; });
+    s.terrain.addEventListener('patches-loaded', e => {
+      const maxA = s.scene.renderer?.capabilities.getMaxAnisotropy() ?? 8;
+      for (const p of e.detail.patches) { p.tex.anisotropy = maxA; p.tex.needsUpdate = true; }
+      rocks?.setDensity(e.detail.roughnessAt);
+    });
     s.terrain.addEventListener('terrain-error', e => {
       if (!retried && !s.terrain.components['heightgrid-terrain']?.ready) {   // 40 m grid missing: retry once with the 20 m grid
         retried = true;

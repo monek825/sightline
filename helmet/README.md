@@ -47,7 +47,8 @@ Schema: `src`, `meta`, `texture` (paths relative to the page), `step` (use `2` i
 - Camera: at the astronaut position, y = ground height there + 1.7 m. Use `look-controls` (mouse/touch drag) and `wasd-controls` with acceleration tuned to walking speed. Keep the camera glued to the ground (raycast down or sample the grid each tick).
 
 ### Realism layer (visual only, no science)
-- **Ground** (`lib/ground.js`, shared with the main 3D view): world-space detail on the terrain material — grain, sandy patches with wind ripples, rocky patches — fading out by ~400 m. Three instanced rock layers (gravel to 24 m, rocks to 75 m, boulders to 280 m), clumped, sparse on the sand patches, re-scattered around the view.
+- **Ground image = real data.** CTX mosaic (~5 m/px) everywhere; within 1.5 km of home and of Three Forks, the HiRISE orthomosaic (~0.7 m/px, `data/hirise_*.jpg`, `lib/terrain.js` `patches`) blended into the same terrain surface. Sand ripple fields, fractured rock and small craters you see there are real.
+- **Below the image resolution** (`lib/ground.js`, shared with the main 3D view): sub-metre grain near the camera (a few % brightness, no shapes), and three instanced rock layers (gravel to 24 m, rocks to 75 m, boulders to 280 m). Inside a HiRISE patch, rock density follows the image (local contrast at ~6 m: smooth sand few rocks, broken ground many); outside, illustrative clumps. Individual rock positions are not real.
 - **Models** at true size: 8 m habitat dome on a 20 m pad (1.8 m airlock door), 3 m rovers. Start views stand 30 m from the habitat.
 - **Zoom** (binoculars): mouse wheel, pinch, `+` / `-`, `0` resets. Up to ~24×; drag-to-look slows down with zoom.
 - **Sun**: 0.35° disc (Mars sees it 2/3 the size of Earth's), dimmed by `exp(-tau / sin(elevation))`, with a dust halo that turns blue near sunset.

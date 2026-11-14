@@ -8,6 +8,7 @@ _Sean: copy the exact names from the challenge "Resources" tab here and say how 
 
 ## NASA data
 - NASA Mars Trek WMTS — Jezero HiRISE 25 cm orthomosaic (`JEZ_hirise_soc_006_orthoMosaic_25cm_Eqc_latTs0_lon0_first_dd`) and CTX 6 m orthomosaic (`JEZ_ctx_B_soc_008_orthoMosaic_6m_Eqc_latTs0_lon0`). https://trek.nasa.gov/mars/
+  - HiRISE orthomosaic NASA/JPL-Caltech/UArizona via NASA Mars Trek: `data/hirise_home.jpg` and `data/hirise_three_forks.jpg` (3 km × 3 km around the habitat and Three Forks, fetched at zoom 16 ≈ 0.7 m/px by `scripts/make_hirise_patch.py`; one brightness gain + offset fitted to the CTX mosaic at CTX resolution, no other edits). Shown in both 3D views when zoomed in.
 - Mars 2020 TRN CTX DTM, 20 m (USGS Astrogeology / NASA). https://asc-pds-services.s3.us-west-2.amazonaws.com/mosaic/mars2020_trn/CTX/JEZ_ctx_B_soc_008_DTM_MOLAtopography_DeltaGeoid_20m_Eqc_latTs0_lon0.tif
 - MGS MOLA MEGDR 128 px/deg topography (`megt44n000hb.img`), PDS Geosciences Node — far-field terrain for the real-photo skyline tests. https://pds-geosciences.wustl.edu/mgs/mgs-m-mola-5-megdr-l3-v1/mgsl_300x/meg128/
 - Perseverance waypoints (MMGIS). https://mars.nasa.gov/mmgis-maps/M20/Layers/json/M20_waypoints.json
