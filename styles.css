@@ -357,7 +357,10 @@ body.video :is(.bar-left, .view-toggle, .leaflet-control-container) { display: n
 
 /* type: Clash Display headers, Switzer text, Geist Mono numbers */
 h1, h2, .brand, .tab-title, .skyfix-head h2, .more h2 { font-family: var(--display); font-weight: 600; letter-spacing: 0; }
-.brand { font-size: 20px; }
+.brand { font-size: 20px; display: flex; align-items: center; gap: var(--s2); }
+/* logo file has a big transparent margin: crop to the mark (bounds 532-976 x 639-871 of 1500) */
+.logo { position: relative; display: block; width: 42px; height: 22px; overflow: hidden; flex: none; }
+.logo img { position: absolute; left: -50.4px; top: -60.6px; width: 142px; height: 142px; max-width: none; }
 .tab-title { font-size: 22px; }
 .skyfix-head h2 { font-size: 18px; }
 .more h2 { font-size: 15px; }
@@ -481,28 +484,18 @@ h1, h2, .brand, .tab-title, .skyfix-head h2, .more h2 { font-family: var(--displ
 .cmp-nums { grid-column: 2; display: flex; flex-wrap: wrap; gap: 0 var(--s3); font: 12px var(--mono); color: var(--muted); }
 .cmp-note { margin: 0; font-size: 13px; color: var(--text); }
 
-/* ---------- glass bottom bar: two slanted glass pieces; the gap between them is the notch ---------- */
-.bar {
-  position: absolute; bottom: 0; height: var(--notch-d); z-index: 1001; display: flex; align-items: center;
-  background: rgba(24, 14, 9, .5); backdrop-filter: var(--blur); -webkit-backdrop-filter: var(--blur);
+/* ---------- glass bottom bar: two glass pieces with slanted, rounded inner ends; the gap is the half-hexagon notch ----------
+   ponytail: the slant is a skewed ::before (backdrop-filter isn't clipped by clip-path in Chrome, so no clip-path here) */
+.bar { position: absolute; bottom: 0; height: var(--notch-d); z-index: 1001; display: flex; align-items: center; isolation: isolate; }
+.bar::before {
+  content: ""; position: absolute; top: 0; bottom: 0; z-index: -1;
+  background: rgba(24, 14, 9, .66); backdrop-filter: var(--blur); -webkit-backdrop-filter: var(--blur);
+  transform-origin: 50% 100%;
 }
-.bar-left {
-  left: 0; width: calc(50% - var(--notch-w) / 2 + var(--notch-s)); gap: var(--s3);
-  padding: 0 calc(var(--notch-s) + var(--s3)) 0 var(--s4);
-  clip-path: polygon(0 0, calc(100% - var(--notch-s)) 0, 100% 100%, 0 100%);
-}
-.bar-right {
-  right: 0; width: calc(50% - var(--notch-w) / 2 + var(--notch-s)); justify-content: flex-end;
-  padding: 0 var(--s4) 0 calc(var(--notch-s) + var(--s3));
-  clip-path: polygon(0 0, 100% 0, 100% 100%, var(--notch-s) 100%);
-}
-/* the selected tab may lift above the bar, so the right bar must not clip it */
-.bar-right { clip-path: none; background: none; backdrop-filter: none; -webkit-backdrop-filter: none; }
-.bar-right::before {
-  content: ""; position: absolute; inset: 0; z-index: -1; background: rgba(24, 14, 9, .5);
-  backdrop-filter: var(--blur); -webkit-backdrop-filter: var(--blur);
-  clip-path: polygon(0 0, 100% 0, 100% 100%, var(--notch-s) 100%);
-}
+.bar-left { left: 0; width: calc(50% - var(--notch-w) / 2 + var(--notch-s)); gap: var(--s3); padding: 0 calc(var(--notch-s) + var(--s4)) 0 var(--s4); }
+.bar-left::before { left: -80px; right: 0; border-top-right-radius: 18px; transform: skewX(atan2(var(--notch-s), var(--notch-d))); }
+.bar-right { right: 0; width: calc(50% - var(--notch-w) / 2 + var(--notch-s)); justify-content: flex-end; padding: 0 var(--s4) 0 calc(var(--notch-s) + var(--s4)); }
+.bar-right::before { left: 0; right: -80px; border-top-left-radius: 18px; transform: skewX(calc(-1 * atan2(var(--notch-s), var(--notch-d)))); }
 .bar-right .tabbar { margin: 0; width: min(var(--panel-w), 100%); justify-content: space-around; }
 
 /* compact player */
@@ -556,7 +549,7 @@ h1, h2, .brand, .tab-title, .skyfix-head h2, .more h2 { font-family: var(--displ
   .map-wrap { display: flex; flex-direction: column; border-radius: 0; overflow: visible; }
   #map, .view3d { border-radius: var(--r-lg); overflow: hidden; }
   .bar { position: relative; height: auto; min-height: 60px; width: auto; clip-path: none; padding: var(--s2) var(--s3); border-radius: var(--r-lg); margin-top: var(--s3); }
-  .bar-right::before { clip-path: none; border-radius: var(--r-lg); }
+  .bar::before { left: 0; right: 0; transform: none; border-radius: var(--r-lg); }
   .bar-left { order: 2; }
   .caption { order: 1; position: relative; left: auto; bottom: auto; transform: none; width: auto; max-width: none; margin: var(--s3) 0 0; }
   .panel { order: 3; bottom: auto; }
