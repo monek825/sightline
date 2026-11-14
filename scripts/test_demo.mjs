@@ -139,13 +139,15 @@ const b0 = at(0).d.budget;
 check('t=0: GO / GREEN', b0.headline === 'GO' && b0.status === 'GREEN', `${b0.headline}/${b0.status}`);
 const dust = t => at(t).d.budget.factors.find(f => f.id === 'dust');
 check('tau 0.5 at t=30 keeps dust factor GREEN', dust(30).level === 'GREEN', dust(30).level);
-check('tau 6 at t=75: dust factor RED, message cites tau 6.0', dust(75).level === 'RED' && dust(75).message.includes('6.0'), `${dust(75).level}: ${dust(75).message}`);
-check('t=75: dust is the worst factor or ties for it (status RED)', at(75).d.budget.status === 'RED');
+const tS = 75 + 20; // storm event at t=75, fully arrived after the 20 min ramp (scenario.js DUST_RAMP_MIN)
+check('tau 6 reached by t=95: dust factor RED, message cites tau 6.0', dust(tS).level === 'RED' && dust(tS).message.includes('6.0'), `${dust(tS).level}: ${dust(tS).message}`);
+check('t=95: dust is the worst factor or ties for it (status RED)', at(tS).d.budget.status === 'RED');
+check('dust rises gradually: tau(80) between tau(74) and tau(95)', at(80).inputs.tau > at(74).inputs.tau && at(80).inputs.tau < at(tS).inputs.tau, `${at(74).inputs.tau} -> ${at(80).inputs.tau} -> ${at(tS).inputs.tau}`);
 const sepBad = steps.filter(s => s.t >= 60 && !['RETURN NOW', 'AT SHELTER'].includes(s.d.budget.headline));
 check('t>=60: RETURN NOW or AT SHELTER throughout', sepBad.length === 0, sepBad.slice(0, 3).map(s => `t=${s.t} ${s.d.budget.headline}`).join(', '));
 check('t=60: radiation factor RED (SEP)', at(60).d.budget.factors.find(f => f.id === 'radiation')?.level === 'RED');
-check('visibilityKm(75) < visibilityKm(74)', at(75).d.budget.visibilityKm < at(74).d.budget.visibilityKm,
-  `${at(74).d.budget.visibilityKm} -> ${at(75).d.budget.visibilityKm}`);
+check('visibilityKm(95) < visibilityKm(74)', at(tS).d.budget.visibilityKm < at(74).d.budget.visibilityKm,
+  `${at(74).d.budget.visibilityKm} -> ${at(tS).d.budget.visibilityKm}`);
 check('horizon match at t=55 lowers position uncertainty vs t=54', at(55).d.posUncertaintyM < at(54).d.posUncertaintyM || !skyResults.three_forks,
   `${at(54).d.posUncertaintyM} -> ${at(55).d.posUncertaintyM}`);
 

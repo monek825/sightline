@@ -58,7 +58,8 @@ export function editScenario(scenario, t, key, value, hourMin, original = scenar
   const evs = scenario.events ?? [];
   const sorted = list => list.map((e, i) => [e, i]).sort((a, b) => a[0].tMin - b[0].tMin || a[1] - b[1]).map(x => x[0]);
   const withEvents = list => ({ ...scenario, events: sorted(list) });
-  if (key === 'tau') return withEvents([...evs.filter(e => e.type !== 'tau' || e.tMin < t), { tMin: t, type: 'tau', value }]);
+  if (key === 'tau') return withEvents([...evs.filter(e => e.type !== 'tau' || e.tMin < t), { tMin: t, type: 'tau', value, rampMin: 0 }]); // slider: at once
+  if (key === 'tauRamp') return withEvents([...evs.filter(e => e.type !== 'tau' || e.tMin < t), { tMin: t, type: 'tau', value }]); // storm arrives gradually
   if (key === 'sepAt') { // a solar particle event starting at t (replaces any other), keeping the scripted event's citation
     const cite = (original.events ?? []).find(e => e.type === 'sep_onset') ?? { type: 'sep_onset' };
     return withEvents([...evs.filter(e => e.type !== 'sep_onset' && e.type !== 'sep_end'), { ...cite, tMin: t }]);
@@ -144,6 +145,25 @@ export function prepareScenario(scenario, data, M, targetOverride = null, outMod
   });
 }
 
+// Dust arrives gradually, not in one step (real storms build over sols: Gale 2018 went 0.6 -> 8.5 in ~12 sols,
+// Jezero Jan 2022 0.3 -> 0.8 in 2 sols; Guzewich 2019, Lemmon 2022). The demo compresses that into DUST_RAMP_MIN of EVA time,
+// with gusty bursts on the way up (Perseverance saw 21 dust-lifting gusts in 25 min). Visual pacing, not a forecast.
+// An event with rampMin: 0 (e.g. the dust slider) applies at once.
+export const DUST_RAMP_MIN = 20;
+const GUST = 0.18; // up to ±18 % gust bursts while the dust is rising
+function tauWithRamp(scenario, tt, base) {
+  let tau = base;
+  for (const e of eventsUpTo(scenario, tt)) {
+    if (e.type !== 'tau') continue;
+    const ramp = e.rampMin ?? DUST_RAMP_MIN;
+    const f = ramp > 0 ? Math.min(1, (tt - e.tMin) / ramp) : 1;
+    const s = f * f * (3 - 2 * f);                                       // smooth start and finish
+    const gust = f < 1 && e.value > tau ? GUST * Math.sin(Math.PI * f) * (Math.sin(tt * 1.7) * 0.6 + Math.sin(tt * 4.3 + 1) * 0.4) : 0;
+    tau = (tau + (e.value - tau) * s) * (1 + gust);
+  }
+  return Math.round(tau * 100) / 100;
+}
+
 /** Pure: inputs patch for scenario time t (Earth minutes). */
 export function stateAt(prep, t, skylineResults = {}) {
   const { scenario, mPerMin, outPts, outLen, back, backLen, sepT } = prep;
@@ -153,9 +173,9 @@ export function stateAt(prep, t, skylineResults = {}) {
     ltst: scenario.startLtst + tt / prep.hourMin,
     tau: DEFAULT_INPUTS.tau, sepActive: false, fixUncertaintyM: DEFAULT_INPUTS.fixUncertaintyM
   };
+  patch.tau = tauWithRamp(scenario, tt, DEFAULT_INPUTS.tau);
   let fixT = 0;
   for (const e of eventsUpTo(scenario, tt)) {
-    if (e.type === 'tau') patch.tau = e.value;
     if (e.type === 'sep_onset') patch.sepActive = true;
     if (e.type === 'sep_end') patch.sepActive = false; // user ticked the storm off: movement is unchanged
     if (e.type === 'skyline_fix') {

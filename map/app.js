@@ -17,7 +17,7 @@ const TAU_STORM = 3; // a tau event at or above this is captioned as a dust stor
 const CAPTIONS = {
   eva_start: () => 'The astronaut walks out to the Three Forks sample depot. Green means plenty of time to get home.',
   tau: e => e.value >= TAU_STORM
-    ? `Dust storm (τ ${e.value}). Visibility drops and the red no-landmark zones grow.`
+    ? `Dust storm rolling in (τ rising to ${e.value}, sped up: real storms build over days). Visibility drops, red no-landmark zones grow.`
     : `Dust is rising (τ ${e.value}). Red areas: no landmark in sight, so it's easy to get lost there.`,
   skyline_fix: () => 'Lost without GPS? Horizon Match finds the position by matching the horizon to NASA terrain.',
   sep_onset: () => 'Solar storm (a replay of May 2024). Radiation means: turn back to shelter now.',
@@ -206,8 +206,10 @@ function setupScenario(data, M, sky) {
     return evs;
   };
   const triggerEvent = kind => {
-    if (kind === 'dust') return setCondition('tau', 6);
-    if (kind === 'clear') return setCondition('tau', 0.4);
+    if (kind === 'dust' || kind === 'clear') {   // storms build up (and clear) gradually, with gusts
+      swap(editScenario(scenario, t, 'tauRamp', kind === 'dust' ? 6 : 0.4, prep.hourMin, data.scenario), prep.target, mode0(), 'keep');
+      return apply();
+    }
     if (kind === 'solar') { swap(editScenario(scenario, Math.max(t, 1), 'sepAt', true, prep.hourMin, data.scenario), prep.target, mode0(), 'keep'); return apply(); }
     if (kind === 'lost') { stop(); document.getElementById('btn-skyline').click(); return; }
     const list = kind === 'random' ? randomEvents() : kind === 'calm' ? fixed(data.scenario.events) : data.scenario.events;
