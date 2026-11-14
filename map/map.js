@@ -26,7 +26,7 @@ const PITCH_MIN = 0.08, PITCH_MAX = 1.5, CAM_CLEARANCE_M = 40;
 const SUN_DIST = 30000, IDLE_MS = 5000, IDLE_YAW_PER_S = 0.035;
 // Opening shot: close on the habitat so the base reads in detail; when the story plays, ease out to see the walk.
 const START_DIST_M = 140, START_PITCH = 0.32, PLAY_DIST_M = 2600, ZOOM_EASE_S = 1.6;
-const ZENITH_CLEAR = [128, 86, 62], LANDMARK_H = 180;
+const ZENITH_CLEAR = [128, 86, 62], LANDMARK_H = 180, SITE_H = 90;
 const PICK_SLOP_PX = 6, PICK_INSET_DEG = 1e-5; // 3D click-vs-drag threshold; keep picks just inside the bounds
 const COLORS = { blind: [248, 81, 73, 120], homeHidden: [210, 153, 34, 32] };
 const CREAM = '#fff4e0', INK = '#1a110c', ACCENT = '#ff8a3d', DUST = '#c98a55';
@@ -190,7 +190,13 @@ function addLayers(map, data, box, onPickTarget) {
   }).bindTooltip(data.meta.home.name).addTo(map);
 
   L.control.scale({ metric: true, imperial: false }).addTo(map);
-  return { blindLayer, hirise, traverse, landmarkLayer, targetLayer };
+  // names on: always-on labels; off: name on hover only
+  const setNames = on => [landmarkLayer, targetLayer].forEach(g => g.eachLayer(m => {
+    const t = m.getTooltip(), txt = t?.getContent();
+    if (!txt) return;
+    m.unbindTooltip().bindTooltip(txt, on ? { permanent: true, direction: 'right', offset: [8, 0], className: 'lm-name' } : {});
+  }));
+  return { blindLayer, hirise, traverse, landmarkLayer, targetLayer, setNames };
 }
 
 // ---------- 3D (A-Frame, lazy) ----------
@@ -287,7 +293,7 @@ function buildScene() {
   mk('a-cone', { 'radius-bottom': 0, 'radius-top': ASTRO_R, height: ASTRO_R * 2.4, position: `0 ${ASTRO_R * 1.2} 0`, material: flat(ACCENT) }, astro);
   mk('a-sphere', { radius: ASTRO_R * 0.9, position: `0 ${ASTRO_R * 3} 0`, material: flat(ACCENT) }, astro);
   return {
-    scene, hemi, sun, sky, landmarks: mk('a-entity', {}, scene),
+    scene, hemi, sun, sky, landmarks: mk('a-entity', {}, scene), sites: mk('a-entity', {}, scene),
     terrain: mk('a-entity', { 'heightgrid-terrain': terrainAttr(TERRAIN_DATA) }, scene),
     cam: mk('a-entity', { camera: 'fov: 55; near: 0.5; far: 80000', 'orbit-camera': '' }, scene),
     home: mk('a-cylinder', { radius: 6, height: BEACON_H, material: flat(CREAM) }, scene),
@@ -494,6 +500,26 @@ function createView3D(data, onPickTarget, devils) {
     const o = s.cam.components['orbit-camera'].o;
     if (rocks) rocks.update(o.x, o.z, 0, 0, camH);
     updateDevils3D(cx, cy, cz);
+    placeLabels(cam);
+  }
+  // place-name labels: HTML spans projected from 3D each frame (only transforms written)
+  const labelBox = document.createElement('div'), labels = [];
+  labelBox.className = 'v3-labels'; labelBox.setAttribute('aria-hidden', 'true');
+  host.append(labelBox);
+  let tmpL = null;
+  function placeLabels(cam) {
+    if (!cam || !labels.length) return;
+    const on = vis('names');
+    labelBox.hidden = !on;
+    if (!on) return;
+    tmpL ??= new AFRAME.THREE.Vector3();
+    const w = host.clientWidth, h = host.clientHeight;
+    for (const L of labels) {
+      tmpL.copy(L.p).project(cam);
+      const show = vis(L.kind) && tmpL.z < 1 && Math.abs(tmpL.x) < 1.05 && Math.abs(tmpL.y) < 1.05;
+      if (L.el.hidden !== !show) L.el.hidden = !show;
+      if (show) L.el.style.transform = `translate(${((tmpL.x + 1) / 2 * w).toFixed(0)}px, ${((1 - tmpL.y) / 2 * h).toFixed(0)}px) translate(-50%, -100%)`;
+    }
   }
 
   // Blind zones draped on the terrain: a second mesh sharing the terrain geometry, transparent, drawn on top.
@@ -524,6 +550,7 @@ function createView3D(data, onPickTarget, devils) {
     s.routes.object3D.visible = vis('routes');
     s.ring.object3D.visible = vis('ring');
     s.landmarks.object3D.visible = vis('landmarks');
+    s.sites.object3D.visible = vis('sites');
     host.classList.toggle('no-dust', !vis('dust'));
   }
   function update() {
@@ -612,12 +639,27 @@ function createView3D(data, onPickTarget, devils) {
       lastTau = null;   // re-run the sky pass so the columns pick up the current colour
       const orbit = s.cam.components['orbit-camera'];
       if (orbit) orbit.onTick = onZoom;
+      const addLabel = (name, q, h, kind) => {
+        const el = document.createElement('span');
+        el.className = `v3-label ${kind}`; el.textContent = name;
+        labelBox.append(el);
+        labels.push({ el, kind, p: new AFRAME.THREE.Vector3(q.x, q.y + h, q.z) });
+      };
       for (const lm of data.landmarks ?? []) {
         if (lm.id === 'home') continue;
         const q = terrain.toWorld(lm.lat, lm.lon);
         const pin = mk('a-entity', { position: `${q.x} ${q.y} ${q.z}` }, s.landmarks);
         mk('a-cylinder', { radius: 3, height: LANDMARK_H, position: `0 ${LANDMARK_H / 2} 0`, material: 'color: #fff4e0; shader: flat' }, pin);
         mk('a-sphere', { radius: 14, position: `0 ${LANDMARK_H} 0`, material: 'color: #fff4e0; shader: flat' }, pin);
+        addLabel(lm.name, q, LANDMARK_H + 30, 'landmarks');
+      }
+      for (const t of data.targets ?? []) {   // Perseverance science sites: short orange pins
+        const q = terrain.toWorld(t.lat, t.lon);
+        if (!Number.isFinite(q.y)) continue;
+        const pin = mk('a-entity', { position: `${q.x} ${q.y} ${q.z}` }, s.sites);
+        mk('a-cylinder', { radius: 2, height: SITE_H, position: `0 ${SITE_H / 2} 0`, material: `color: ${ACCENT}; shader: flat` }, pin);
+        mk('a-sphere', { radius: 9, position: `0 ${SITE_H} 0`, material: `color: ${ACCENT}; shader: flat` }, pin);
+        addLabel(t.name, q, SITE_H + 20, 'sites');
       }
       update();
     });
@@ -688,10 +730,19 @@ function createView3D(data, onPickTarget, devils) {
   };
 }
 
-// Eye button: one list of layers for both views. Each item: on2 = 2D switch, setLayer(id, on) = 3D switch.
+// Small popover: button toggles it; outside click or Escape closes it.
+function popover(btnId, popId) {
+  const btn = $(btnId), pop = $(popId), wrap = btn.parentElement;
+  const open = on => { pop.hidden = !on; btn.setAttribute('aria-expanded', String(on)); };
+  btn.addEventListener('click', () => open(pop.hidden));
+  document.addEventListener('pointerdown', e => { if (!pop.hidden && !wrap.contains(e.target)) open(false); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && !pop.hidden) { open(false); btn.focus(); } });
+  return open;
+}
+
+// Eye: show / hide objects drawn on the map. Each item: on2 = 2D switch; setLayer(id, on) = 3D switch.
 function setupLayerMenu(items, setLayer3D) {
-  const btn = $('layers-btn'), list = $('layers-list');
-  if (!btn || !list) return;
+  const list = $('layers-list');
   for (const it of items) {
     const lab = document.createElement('label'), box = document.createElement('input');
     box.type = 'checkbox'; box.checked = true;
@@ -699,17 +750,17 @@ function setupLayerMenu(items, setLayer3D) {
     lab.append(box, document.createTextNode(it.label));
     list.append(lab);
   }
-  const open = on => { list.hidden = !on; btn.setAttribute('aria-expanded', String(on)); };
-  btn.addEventListener('click', () => open(list.hidden));
-  document.addEventListener('pointerdown', e => { if (!list.hidden && !$('layers').contains(e.target)) open(false); });
-  document.addEventListener('keydown', e => { if (e.key === 'Escape' && !list.hidden) { open(false); btn.focus(); } });
+  popover('layers-btn', 'layers-list');
 }
 
 function setupToggle(map, view3d) {
   const b2 = $('v-2d'), b3 = $('v-3d');
+  const openMenu = popover('view-btn', 'view-menu');
+  $('view-menu').addEventListener('click', e => { if (e.target.closest('button')) openMenu(false); });
   const set = is3d => {
     b2.setAttribute('aria-pressed', String(!is3d));
     b3.setAttribute('aria-pressed', String(is3d));
+    $('view-name').textContent = is3d ? '3D terrain' : '2D map';
     $('map').hidden = is3d;
     if (is3d) view3d.show(); else { view3d.hide(); map.invalidateSize(); }
   };
@@ -746,15 +797,17 @@ export function createMapView(data, { onPickTarget }) {
   for (const id of ['v-2d', 'v-3d']) $(id).addEventListener('click', () => devils.refresh()); // pause/resume the devil loop
   const g2 = (...ls) => on => ls.forEach(l => (on ? l.addTo(map) : l.remove()));
   setupLayerMenu([
-    { id: 'blind', label: 'Blind zones', on2: g2(blindLayer) },
-    { id: 'beacon', label: 'Home beacon (3D)' },
-    { id: 'routes', label: 'Routes', on2: g2(routesG) },
-    { id: 'ring', label: 'Visibility ring', on2: g2(seeRing, uncertainty) },
+    { id: 'beacon', label: 'Home beacon' },
     { id: 'landmarks', label: 'Landmarks', on2: g2(L2.landmarkLayer) },
-    { id: 'perseverance', label: 'Perseverance route and targets', on2: g2(L2.traverse, L2.targetLayer) },
-    { id: 'dust', label: 'Dust haze', on2: g2(haze) },
-    { id: 'hirise', label: 'HiRISE close-up (2D)', on2: g2(L2.hirise) }
+    { id: 'names', label: 'Place names', on2: on => L2.setNames(on) },
+    { id: 'sites', label: 'Science sites', on2: g2(L2.targetLayer) },
+    { id: 'perseverance', label: 'Perseverance route', on2: g2(L2.traverse) },
+    { id: 'routes', label: 'Walking routes', on2: g2(routesG) },
+    { id: 'blind', label: 'Blind zones', on2: g2(blindLayer) },
+    { id: 'ring', label: 'Visibility ring', on2: g2(seeRing, uncertainty) },
+    { id: 'dust', label: 'Dust haze', on2: g2(haze) }
   ], view3d.setLayer);
+  L2.setNames(true);
 
   let lastVisKey = null, lastHeading = null;
   function renderWeather({ inputs, derived }) {

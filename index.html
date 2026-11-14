@@ -54,16 +54,22 @@
         </dl>
       </header>
 
-      <div class="view-toggle frost" role="group" aria-label="Map view">
-        <button type="button" id="v-2d" aria-pressed="true">2D map</button>
-        <button type="button" id="v-3d" aria-pressed="false">3D terrain</button>
-      </div>
-
       <div class="layers" id="layers">
-        <button type="button" id="layers-btn" class="layers-btn frost" aria-expanded="false" aria-controls="layers-list" aria-label="Show or hide map layers" title="Show or hide map layers">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>
-        </button>
-        <fieldset id="layers-list" class="layers-list frost" hidden><legend>Show on map</legend></fieldset>
+        <div>
+          <button type="button" id="view-btn" class="view-btn frost" aria-expanded="false" aria-controls="view-menu" aria-label="Change view"><span id="view-name">3D terrain</span>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
+          <div id="view-menu" class="pop view-menu frost" role="group" aria-label="View" hidden>
+            <button type="button" id="v-2d" aria-pressed="false">2D map</button>
+            <button type="button" id="v-3d" aria-pressed="true">3D terrain</button>
+            <button type="button" id="btn-helmet" aria-pressed="false">Helmet view</button>
+          </div>
+        </div>
+        <div>
+          <button type="button" id="layers-btn" class="layers-btn frost" aria-expanded="false" aria-controls="layers-list" aria-label="Show or hide objects on the map" title="Show or hide objects">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+          <fieldset id="layers-list" class="pop layers-list frost" hidden><legend>Show</legend></fieldset>
+        </div>
       </div>
 
       <div id="banner" class="banner" role="alert" hidden></div>
@@ -139,7 +145,6 @@
               <p id="r-cmp-note" class="cmp-note"></p>
             </div>
             <p class="hint">Click the map or a science target to plan a walk there.</p>
-            <button type="button" id="btn-helmet" class="btn wide">Open helmet view</button>
             <ul class="factors" data-group="pos"></ul>
           </section>
         </div>
