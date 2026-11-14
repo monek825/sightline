@@ -26,6 +26,7 @@ _Sean: copy the exact names from the challenge "Resources" tab here and say how 
 - NASA's first weather report from Jezero Crater (surface pressure). https://www.nasa.gov/feature/nasa-s-first-weather-report-from-jezero-crater-on-mars
 - SwRI release, first radiation measurements on the surface of Mars (GCR dose, 180-day transit). https://www.swri.org/press-release/swri-scientists-publish-first-radiation-measurements-surface-mars
 - Apollo Lunar Surface Journal, Apollo 11 gaits (walk-back speeds). https://www.nasa.gov/wp-content/uploads/static/history/alsj/a11/a11.gaits.html
+- Bellcomm memo B70 10028, P. Benjamin, 13 Oct 1970, "Apollo 15 EVA Capability and Constraints Envelopes" (Case 320): walking 3.3 km/hr at 1200 BTU/hr, emergency walkback 3.3 km/hr at 1440 BTU/hr (20% pad), p. 1 assumptions 7–8 and p. 2. https://web.archive.org/web/2009/http://www.hq.nasa.gov/alsj/19790073512_1979073512.pdf (the nasa.gov ALSJ copy now returns 404)
 - Miller et al. 2018, Functional Task and Balance Performance in Bed Rest Subjects and Astronauts, Aerosp Med Hum Perform 89(9):805 (sensorimotor recovery ~6–16 days). https://pubmed.ncbi.nlm.nih.gov/30126513/
 - Ehresmann et al. 2021, Natural Radiation Shielding on Mars Measured With the MSL/RAD Instrument, JGR Planets 126(8), e2021JE006851 (4% lower dose rate beside Butte M12). https://doi.org/10.1029/2021JE006851
 - Guo et al. 2026, terrain-based radiation at Mars, JGR Planets. https://elib.dlr.de/224554/
