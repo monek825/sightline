@@ -212,6 +212,42 @@ export function createPanels(data, { setInputs, usingStubs }) {
     }
   }
 
+  // Route comparison: chosen mode first (solid sample), the other dashed. Rebuilt only when its numbers change.
+  let cmpSig = '';
+  function renderCompare(inputs, derived) {
+    const a = derived.routeOut, b = derived.routeAlt;
+    const show = !!(a?.ok && inputs.target);
+    $('r-cmp').hidden = !show;
+    const sig = show ? JSON.stringify([a.mode, a.etaMin, a.lengthKm, a.homeHiddenFraction, b?.ok && [b.mode, b.etaMin, b.lengthKm, b.homeHiddenFraction]]) : '';
+    if (sig === cmpSig) return;
+    cmpSig = sig;
+    if (!show) return;
+    const label = m => $('c-mode').querySelector(`option[value="${m}"]`)?.textContent.replace(/\s*\(.*\)/, '') ?? m;
+    const sight = r => Math.round((1 - r.homeHiddenFraction) * 100);
+    const row = (r, dashed) => {
+      const li = el('div', 'cmp-row');
+      const nums = el('span', 'cmp-nums');
+      nums.append(el('span', '', fmtMin(r.etaMin)), el('span', '', fmtKm(r.lengthKm)), el('span', '', `home in sight ${sight(r)}%`));
+      li.append(el('span', dashed ? 'cmp-line dashed' : 'cmp-line'), el('span', 'cmp-mode', label(r.mode)), nums);
+      return li;
+    };
+    const alt = b?.ok ? b : null;
+    $('r-cmp-rows').replaceChildren(row(a, false), ...(alt ? [row(alt, true)] : []));
+    let note = '';
+    if (alt) {
+      const same = Math.round(a.etaMin) === Math.round(alt.etaMin) && sight(a) === sight(alt);
+      const dMin = Math.round(a.etaMin) - Math.round(alt.etaMin), dSight = sight(a) - sight(alt);
+      const mins = n => `${n >= 0 ? '+' : '-'}${Math.abs(n)} min`;
+      if (same) note = `Same path as the ${label(alt.mode).toLowerCase()} route here.`;
+      else if (a.mode === 'shortest') // chosen is shortest: say what the safest route would cost and gain
+        note = `The safest route would be ${mins(-dMin)}, keeping home in sight ${sight(alt)}% of the way (${sight(a)}% on the shortest route).`;
+      else if (dMin > 0 && dSight > 0) note = `${mins(dMin)}, but home stays in sight ${sight(a)}% of the way (${sight(alt)}% on the shortest route).`;
+      else note = `${mins(dMin)} and home in sight ${sight(a)}% of the way (${sight(alt)}% on the shortest route).`;
+    }
+    $('r-cmp-note').textContent = note;
+    $('r-cmp-note').hidden = !note;
+  }
+
   function renderTabs(inputs, derived) {
     const bdg = derived.budget, C = data.C;
     document.querySelector('.panel').dataset.status = bdg.status;
@@ -240,6 +276,7 @@ export function createPanels(data, { setInputs, usingStubs }) {
     $('c-slope').textContent = fmtNum(derived.limits.maxSlopeDeg, 0, '°');
 
     $('r-km').textContent = fmtKm(derived.routeHomeKm);
+    renderCompare(inputs, derived);
   }
 
   return function render({ inputs, derived }) {

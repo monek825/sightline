@@ -1,0 +1,43 @@
+{
+  "ok": true,
+  "reason": null,
+  "mode": "safest",
+  "points": [
+    [
+      18.4447,
+      77.4508
+    ],
+    [
+      18.446541,
+      77.449965
+    ],
+    [
+      18.446541,
+      77.445916
+    ],
+    [
+      18.45059,
+      77.441867
+    ],
+    [
+      18.45059,
+      77.410825
+    ],
+    [
+      18.45194,
+      77.409476
+    ],
+    [
+      18.45252,
+      77.4072
+    ]
+  ],
+  "lengthKm": 2.676,
+  "etaMin": 50.4,
+  "maxSlopeDeg": 3.3,
+  "blindFraction": 0,
+  "homeHiddenFraction": 0.735,
+  "from": "home",
+  "to": "three_forks",
+  "generatedBy": "route/make_route_demo.mjs"
+}
