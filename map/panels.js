@@ -35,10 +35,9 @@ const SEVERITY = { RED: 0, AMBER: 1, GREEN: 2 };
 const EVENT_LABELS = { eva_start: 'EVA start', sep_onset: 'Solar storm', skyline_fix: 'Skyline fix', eva_end: 'EVA end' };
 const eventLabel = ev => (ev.type === 'tau' ? `Dust τ ${ev.value}` : EVENT_LABELS[ev.type] ?? ev.type);
 
-function buildTimeline(data) {
-  const events = data.scenario?.events ?? [];
-  if (!events.length) return [];
-  const end = events[events.length - 1].tMin;
+function buildTimeline(events) {
+  if (!events.length) { $('t-track').replaceChildren(); return []; }
+  const end = (events.find(e => e.type === 'eva_end') ?? events[events.length - 1]).tMin; // fixed end: markers do not jump
   const cps = events.map(ev => {
     const cp = el('li', 'cp');
     cp.style.left = `${end > 0 ? (ev.tMin / end) * 100 : 0}%`;
@@ -167,10 +166,16 @@ function wireDrawer() {
   });
 }
 
-export function createPanels(data, { setInputs, usingStubs, onCondition, runHasSep }) {
+export function createPanels(data, { setInputs, usingStubs, onCondition, runHasSep, runEvents, onSpeed, getSpeed, speedBase }) {
   buildSources(data);
   dataBadge(data, usingStubs);
-  const checkpoints = buildTimeline(data);
+  const eventsNow = () => runEvents?.() ?? data.scenario?.events ?? []; // the run's current events (condition edits replace them)
+  let builtFor = eventsNow(), checkpoints = buildTimeline(builtFor);
+  const speedLabel = $('c-speed').parentElement;
+  speedLabel.hidden = !data.scenario; // nothing to play without a scenario file
+  const showSpeed = k => { $('c-speed').value = k; $('o-speed').textContent = `${k}× (${(speedBase ?? 0) * k} min/s)`; };
+  // speed is not in the store, so no render follows a change while paused: update the label here too
+  $('c-speed').addEventListener('input', e => { onSpeed?.(Number(e.target.value)); showSpeed(getSpeed?.() ?? 1); });
   wireTabs();
   wireDrawer();
   wireFactorLists();
@@ -275,7 +280,7 @@ export function createPanels(data, { setInputs, usingStubs, onCondition, runHasS
     const recovering = inputs.sol < C.sensorimotor_recovery_days;
     $('c-sol-v').textContent = `Sol ${inputs.sol}`;
     $('c-state').textContent = `${recovering ? 'balance still recovering' : 'balance recovered'}${inputs.sansAffected ? ' · vision changes' : ''}`;
-    $('c-speed').textContent = fmtNum(derived.limits.speedKmh, 1, ' km/h');
+    $('c-walk').textContent = fmtNum(derived.limits.speedKmh, 1, ' km/h');
     $('c-slope').textContent = fmtNum(derived.limits.maxSlopeDeg, 0, '°');
 
     $('r-km').textContent = fmtKm(derived.routeHomeKm);
@@ -289,6 +294,8 @@ export function createPanels(data, { setInputs, usingStubs, onCondition, runHasS
 
     renderTabs(inputs, derived);
     renderFactors(derived.budget, derived);
+    const events = eventsNow();
+    if (events !== builtFor) { builtFor = events; checkpoints = buildTimeline(events); } // the run changed: rebuild the markers (DOM only)
     markCheckpoints(checkpoints, inputs.scenarioT);
 
     const banner = $('banner');
@@ -301,6 +308,7 @@ export function createPanels(data, { setInputs, usingStubs, onCondition, runHasS
       $(id).value = inputs[key];
       $(out).textContent = fmt(inputs[key]);
     }
+    showSpeed(getSpeed?.() ?? 1);
     $('c-sep').checked = runHasSep?.() ?? inputs.sepActive; // run setting with a scenario file, else the live value
     $('c-sans').checked = inputs.sansAffected;
     $('c-mode').value = inputs.routeMode;

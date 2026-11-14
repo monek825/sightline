@@ -63,7 +63,10 @@ async function boot() {
   let setCondition = null; // likewise: a condition control edits the scenario from the current demo time on
   let runHasSep = null; // likewise: does this run include the solar particle event? (null = no scenario file)
   const view = createMapView(data, { onPickTarget: target => { setInputs({ target }); retarget?.(target); } });
-  const renderPanels = createPanels(data, { setInputs, usingStubs, onCondition: (key, value) => setCondition ? setCondition(key, value) : false, runHasSep: () => runHasSep ? runHasSep() : null });
+  let runEvents = null; // likewise: the run's current events (the timeline markers follow them)
+  let setSpeed = null, getSpeed = null; // likewise: playback multiplier (player state, not model state)
+  const renderPanels = createPanels(data, { setInputs, usingStubs, onCondition: (key, value) => setCondition ? setCondition(key, value) : false, runHasSep: () => runHasSep ? runHasSep() : null,
+    runEvents: () => runEvents ? runEvents() : null, onSpeed: k => setSpeed?.(k), getSpeed: () => getSpeed ? getSpeed() : 1, speedBase: SPEED_MIN_PER_SEC });
 
   initStore(data, createPipeline(M), { astronaut: { ...data.meta.home, headingDeg: 0 } });
   for (const w of data.warnings) console.warn(w);
@@ -74,7 +77,7 @@ async function boot() {
   const skyIds = (data.targets ?? []).map(t => t.id);
   const skyResults = skyline ? await skyline.loadSkylineResults(skyIds) : {};
   initMotion();
-  ({ retarget = null, setCondition = null, runHasSep = null } = setupScenario(data, M, { skyline, skyResults, map: view.map }) ?? {});
+  ({ retarget = null, setCondition = null, runHasSep = null, runEvents = null, setSpeed = null, getSpeed = null } = setupScenario(data, M, { skyline, skyResults, map: view.map }) ?? {});
   renderPanels(getStore()); // the run setting is known now: show it (a re-render, no state written)
   setupHelmet(data);
   setupSkyline(view.map, skyline, skyResults);
@@ -93,6 +96,7 @@ function setupScenario(data, M, sky) {
   const label = document.getElementById('t-label');
   scrub.max = prep.endT;
   let t = 0, playing = false, last = 0, raf = 0;
+  let speed = 1; // playback multiplier 1-10: player state, not model state (never in the store)
 
   const fixesOf = p => (p.scenario.events ?? []).filter(e => e.type === 'skyline_fix' && sky.skyResults[e.site]);
   let fixEvents = fixesOf(prep);
@@ -113,7 +117,7 @@ function setupScenario(data, M, sky) {
   const frame = now => {
     if (!playing) return;
     const prevT = t;
-    t = Math.min(prep.endT, t + (now - last) / 1000 * SPEED_MIN_PER_SEC);
+    t = Math.min(prep.endT, t + (now - last) / 1000 * SPEED_MIN_PER_SEC * speed);
     last = now;
     apply();
     const fix = fixEvents.find(e => prevT < e.tMin && e.tMin <= t);
@@ -177,7 +181,8 @@ function setupScenario(data, M, sky) {
   };
   // changing the route mode after picking a target re-plans the walk too (value from the event, not listener order)
   document.getElementById('c-mode').addEventListener('change', e => { if (prep.custom) replan(prep.target, e.target.value); });
-  return { retarget: target => replan(target, getStore().inputs.routeMode), setCondition, runHasSep };
+  const setSpeed = k => { speed = Math.min(10, Math.max(1, Math.round(Number(k)) || 1)); }; // takes effect on the next frame; the clock does not jump
+  return { retarget: target => replan(target, getStore().inputs.routeMode), setCondition, runHasSep, runEvents: () => scenario.events, setSpeed, getSpeed: () => speed };
 }
 
 // First-visit card: what this is + one-click story. Shown once per browser session.
