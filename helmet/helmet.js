@@ -9,7 +9,7 @@ const STATE_V = 1;
 const FOG_NEAR_M = 200, FOG_FAR_MAX_M = 30000;
 const BEACON_H_M = 200, BEACON_R_M = 3, BEACON_LABEL_Y = 60;
 const LOS_STEP_M = 20;
-const ROUTE_STEP_M = 15, ROUTE_W_M = 5, ROUTE_W_STORM_M = 9, ROUTE_LIFT_M = 1, POST_EVERY_M = 75, MAX_ROUTE_PTS = 5000;
+const ROUTE_STEP_M = 15, ROUTE_W_M = 1.5, ROUTE_W_STORM_M = 2.5, ROUTE_LIFT_M = 0.25, POST_EVERY_M = 75, MAX_ROUTE_PTS = 5000;
 const OFFSCREEN_X = 0.92;
 
 const inIframe = window.parent !== window;
@@ -109,6 +109,9 @@ function makeLandmarks() {
   }
 }
 
+// landmark names end with their distance from home ("Butte NE 3.0 km"); the label shows distance from the astronaut instead
+const shortName = (n) => String(n).replace(/\s+\d+(\.\d+)?\s*km$/, '');
+
 // ---------- route on the ground ----------
 function clearRoute() {
   if (!routeHolder) return;
@@ -145,7 +148,7 @@ function buildRoute(points, storm) {
   g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
   g.setIndex(idx);
   const color = storm ? 0xff4d4d : 0xffb020;
-  const mat = new THREE.MeshBasicMaterial({ color, side: THREE.DoubleSide, fog: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
+  const mat = new THREE.MeshBasicMaterial({ color, side: THREE.DoubleSide, fog: false, transparent: true, opacity: 0.8, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
   const group = new THREE.Group();
   group.add(new THREE.Mesh(g, mat));
   // posts so the line stays readable at eye height (a flat strip is nearly edge-on from 1.7 m)
@@ -254,7 +257,7 @@ function landmarkVisibility(a, visKm) {
     e.km = d;
     e.show = d <= visKm;
     e.pole.setAttribute('visible', e.show);
-    e.label.textContent = e.lm.name + ' ' + d.toFixed(1) + ' km';
+    e.label.textContent = shortName(e.lm.name) + ' ' + d.toFixed(1) + ' km';
   }
 }
 
@@ -301,7 +304,7 @@ function frame() {
   for (const e of lmEls) {
     if (!e.show) { e.label.hidden = true; continue; }
     tmpV.set(e.pos.x, e.pos.y, e.pos.z).project(cam);
-    const name = e.lm.name + ' ' + e.km.toFixed(1) + ' km';
+    const name = shortName(e.lm.name) + ' ' + e.km.toFixed(1) + ' km';
     if (!placeMark(e.label, tmpV, 0, name, '')) e.label.hidden = true;
   }
 }
