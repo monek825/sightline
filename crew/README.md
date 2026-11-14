@@ -59,7 +59,7 @@ Export it: `export const REQUIRED_KEYS = [...]`.
 All numbers come from `C` (crew_constants.json). Names below are the `key`s.
 
 ### 1. Walking speed (base for everything)
-- `speed = walk_speed_kmh` (3.3 km/h, Apollo walk-back planning number — estimate for Mars).
+- `speed = walk_speed_kmh` (3.3 km/h, the Apollo 15 walk-back planning speed in Bellcomm memo B70 10028, 1970 — an estimate for Mars).
 - **Arrival weakness:** sensorimotor problems last about `sensorimotor_recovery_days` (7). Factor ramps linearly from `arrival_speed_factor_sol0` (0.6, estimate) on sol 0 to 1.0 on sol 7.
 - **Slope:** not applied here — the route planner applies the Tobler hiking factor per step, so the route length/time already carries it. `computeBudget` uses `routeHomeKm` at the flat speed (keep it simple; note it in the factor message).
 - `maxSlopeDeg` = `max_slope_early_deg` (10) before sol 7, else `max_slope_deg` (15). Both estimates. Route planner forbids steeper cells.
