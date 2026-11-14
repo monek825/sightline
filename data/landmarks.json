@@ -16,7 +16,7 @@
     "heightM": 0,
     "kind": "peak",
     "reliefM": 49,
-    "source": "auto-picked from CTX DTM (not yet checked on Mars Trek)"
+    "source": "auto-picked from CTX DTM (no IAU-named feature within 300 m in the USGS Gazetteer; Mars Trek check still to do)"
   },
   {
     "id": "peak_02",
@@ -26,7 +26,7 @@
     "heightM": 0,
     "kind": "peak",
     "reliefM": 75,
-    "source": "auto-picked from CTX DTM (not yet checked on Mars Trek)"
+    "source": "auto-picked from CTX DTM (no IAU-named feature within 300 m in the USGS Gazetteer; Mars Trek check still to do; possibly the informal \"Kodiak\" butte, unconfirmed)"
   },
   {
     "id": "peak_03",
@@ -36,7 +36,7 @@
     "heightM": 0,
     "kind": "peak",
     "reliefM": 71,
-    "source": "auto-picked from CTX DTM (not yet checked on Mars Trek)"
+    "source": "auto-picked from CTX DTM (no IAU-named feature within 300 m in the USGS Gazetteer; Mars Trek check still to do)"
   },
   {
     "id": "peak_04",
@@ -46,7 +46,7 @@
     "heightM": 0,
     "kind": "peak",
     "reliefM": 37,
-    "source": "auto-picked from CTX DTM (not yet checked on Mars Trek)"
+    "source": "auto-picked from CTX DTM (no IAU-named feature within 300 m in the USGS Gazetteer; Mars Trek check still to do)"
   },
   {
     "id": "peak_05",
@@ -56,7 +56,7 @@
     "heightM": 0,
     "kind": "peak",
     "reliefM": 34,
-    "source": "auto-picked from CTX DTM (not yet checked on Mars Trek)"
+    "source": "auto-picked from CTX DTM (no IAU-named feature within 300 m in the USGS Gazetteer; Mars Trek check still to do)"
   },
   {
     "id": "peak_06",
@@ -66,7 +66,7 @@
     "heightM": 0,
     "kind": "peak",
     "reliefM": 39,
-    "source": "auto-picked from CTX DTM (not yet checked on Mars Trek)"
+    "source": "auto-picked from CTX DTM (no IAU-named feature within 300 m in the USGS Gazetteer; Mars Trek check still to do)"
   },
   {
     "id": "peak_07",
@@ -76,7 +76,7 @@
     "heightM": 0,
     "kind": "peak",
     "reliefM": 49,
-    "source": "auto-picked from CTX DTM (not yet checked on Mars Trek)"
+    "source": "auto-picked from CTX DTM (no IAU-named feature within 300 m in the USGS Gazetteer; Mars Trek check still to do)"
   },
   {
     "id": "peak_08",
@@ -86,7 +86,7 @@
     "heightM": 0,
     "kind": "peak",
     "reliefM": 50,
-    "source": "auto-picked from CTX DTM (not yet checked on Mars Trek)"
+    "source": "auto-picked from CTX DTM (no IAU-named feature within 300 m in the USGS Gazetteer; Mars Trek check still to do)"
   },
   {
     "id": "peak_09",
@@ -96,7 +96,7 @@
     "heightM": 0,
     "kind": "peak",
     "reliefM": 82,
-    "source": "auto-picked from CTX DTM (not yet checked on Mars Trek)"
+    "source": "auto-picked from CTX DTM (no IAU-named feature within 300 m in the USGS Gazetteer; Mars Trek check still to do)"
   },
   {
     "id": "rim_10",
@@ -106,7 +106,7 @@
     "heightM": 0,
     "kind": "rim",
     "reliefM": 276,
-    "source": "auto-picked from CTX DTM (not yet checked on Mars Trek)"
+    "source": "auto-picked from CTX DTM (no IAU-named feature within 300 m in the USGS Gazetteer; Mars Trek check still to do)"
   },
   {
     "id": "rim_11",
@@ -116,7 +116,7 @@
     "heightM": 0,
     "kind": "rim",
     "reliefM": 193,
-    "source": "auto-picked from CTX DTM (not yet checked on Mars Trek)"
+    "source": "auto-picked from CTX DTM (no IAU-named feature within 300 m in the USGS Gazetteer; Mars Trek check still to do)"
   },
   {
     "id": "rim_12",
@@ -126,6 +126,6 @@
     "heightM": 0,
     "kind": "rim",
     "reliefM": 191,
-    "source": "auto-picked from CTX DTM (not yet checked on Mars Trek)"
+    "source": "auto-picked from CTX DTM (no IAU-named feature within 300 m in the USGS Gazetteer; Mars Trek check still to do)"
   }
 ]

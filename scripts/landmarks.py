@@ -70,7 +70,7 @@ def main() -> None:
             "id": f"{p['kind']}_{i:02d}",
             "name": f"{label} {DIRS[round(p['b'] / 45) % 8]} {p['d'] / 1000:.1f} km",
             "lat": round(p["lat"], 5), "lon": round(p["lon"], 5), "heightM": 0, "kind": p["kind"],
-            "reliefM": round(p["relief"]), "source": "auto-picked from CTX DTM (not yet checked on Mars Trek)",
+            "reliefM": round(p["relief"]), "source": "auto-picked from CTX DTM (no IAU-named feature within 300 m in the USGS Gazetteer; Mars Trek check still to do)",
         })
     (DATA / "landmarks.json").write_text(json.dumps(out, indent=2))
     for lm in out:
