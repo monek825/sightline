@@ -49,10 +49,12 @@ function eventsUpTo(scenario, t) {
   return scenario.events.filter(e => e.tMin <= t);
 }
 
-/** Pure: a NEW scenario with one user condition edit applied from demo time t onward (input never mutated).
+/** Pure: a NEW scenario with one user condition edit applied (input never mutated).
  *  key: 'tau' | 'ltst' | 'sol' | 'sepActive'; anything else returns the scenario unchanged (same object).
- *  A no-op edit (storm already on / already off) also returns the same object. */
-export function editScenario(scenario, t, key, value, hourMin) {
+ *  tau / ltst apply from demo time t on. 'sepActive' is a run setting, not a live switch: on = the scripted sep_onset
+ *  of `original` (the unedited scenario) is part of the run, off = no sep_onset / sep_end at all.
+ *  An edit that changes nothing (setting already holds, or no scripted storm to add) returns the same object. */
+export function editScenario(scenario, t, key, value, hourMin, original = scenario) {
   const evs = scenario.events ?? [];
   const sorted = list => list.map((e, i) => [e, i]).sort((a, b) => a[0].tMin - b[0].tMin || a[1] - b[1]).map(x => x[0]);
   const withEvents = list => ({ ...scenario, events: sorted(list) });
@@ -60,19 +62,19 @@ export function editScenario(scenario, t, key, value, hourMin) {
   if (key === 'ltst') return { ...scenario, startLtst: value - t / hourMin };
   if (key === 'sol') return { ...scenario, sol: value };
   if (key !== 'sepActive') return scenario;
-  const onset = evs.find(e => e.type === 'sep_onset');
-  const started = onset && onset.tMin <= t, ended = evs.some(e => e.type === 'sep_end' && e.tMin <= t);
-  const rest = evs.filter(e => e.type !== 'sep_end');
-  if (value) {
-    if (!started) return withEvents([...rest.filter(e => e.type !== 'sep_onset'), { ...onset, tMin: t, type: 'sep_onset' }]);
-    return ended ? withEvents(rest) : scenario; // re-ticked after the storm ended: it never ended
-  }
-  return started && !ended ? withEvents([...rest, { tMin: t, type: 'sep_end' }]) : scenario;
+  const storm = e => e.type === 'sep_onset' || e.type === 'sep_end';
+  const rest = evs.filter(e => !storm(e));
+  if (!value) return rest.length === evs.length ? scenario : withEvents(rest);
+  const scripted = (original.events ?? []).find(e => e.type === 'sep_onset');
+  const ended = evs.some(e => e.type === 'sep_end');
+  if (!scripted || (evs.some(e => e.type === 'sep_onset') && !ended)) return scenario;
+  return withEvents([...rest, { ...scripted }]);
 }
 
 /** Plan both legs once. Same inputs → same legs → same video every time.
  *  targetOverride ({lat, lon, id?}) replaces the scripted target (clicked point drives the walk);
  *  outMode is the outbound route mode then (ignored without an override). The return leg is always 'safest'.
+ *  Without a sep_onset the crew still turns back (sepT = turn-back time, so that they are home at EVA end).
  *  from ({prefix, tMin}, with an override) re-plans mid-walk: the walked prefix is kept and the fresh leg starts at its end,
  *  planned with the limits/visibility in force at tMin (what the orange line uses); walking speed stays the t = 0 one. */
 export function prepareScenario(scenario, data, M, targetOverride = null, outMode = 'safest', from = null) {
@@ -96,18 +98,25 @@ export function prepareScenario(scenario, data, M, targetOverride = null, outMod
   const mPerMin = lim0.speedKmh * 1000 / 60;
 
   const sep = scenario.events.find(e => e.type === 'sep_onset');
-  let back = null;
-  if (sep) {
-    const at = pointAlong(outPts, mPerMin * sep.tMin);
-    const tauAtSep = tauAt(sep.tMin);
-    const limSep = M.computeLimits({ ...base, tau: tauAtSep, sepActive: true }, C);
-    const visSep = M.visibilityArrays(Math.max(1, Math.round(limSep.visibilityKm)));
-    const r = M.planRoute(data.grid, data.bounds, visSep, at, data.meta.home, { ...opts, maxSlopeDeg: limSep.maxSlopeDeg });
-    back = r.ok ? r.points : [[at.lat, at.lon], [data.meta.home.lat, data.meta.home.lon]];
-  }
   const end = scenario.events.find(e => e.type === 'eva_end')?.tMin ?? 200;
+  const toHome = (at, lim) => {
+    const vis = M.visibilityArrays(Math.max(1, Math.round(lim.visibilityKm)));
+    const r = M.planRoute(data.grid, data.bounds, vis, at, data.meta.home, { ...opts, maxSlopeDeg: lim.maxSlopeDeg });
+    return r.ok ? r.points : [[at.lat, at.lon], [data.meta.home.lat, data.meta.home.lon]];
+  };
+  let back, sepT;
+  if (sep) { // storm: turn back at its onset
+    const at = pointAlong(outPts, mPerMin * sep.tMin);
+    back = toHome(at, M.computeLimits({ ...base, tau: tauAt(sep.tMin), sepActive: true }, C));
+    sepT = sep.tMin;
+  } else { // no storm: walk out, wait at the target, turn back in time to be home at EVA end
+    const arrT = legLengthM(outPts) / mPerMin;
+    const [lat, lon] = outPts.at(-1);
+    back = toHome({ lat, lon }, M.computeLimits({ ...base, tau: tauAt(arrT), sepActive: false }, C));
+    sepT = Math.max(arrT, end - legLengthM(back) / mPerMin);
+  }
   return Object.freeze({
-    scenario, mPerMin, outPts, outOk: out.ok, custom: Boolean(targetOverride), target: targetOverride || null, outLen: legLengthM(outPts), back, backLen: back ? legLengthM(back) : 0, sepT: sep?.tMin ?? null, endT: end,
+    scenario, mPerMin, outPts, outOk: out.ok, custom: Boolean(targetOverride), target: targetOverride || null, outLen: legLengthM(outPts), back, backLen: legLengthM(back), sepT, endT: end,
     hourMin: C.mars_hour_min ?? MARS_HOUR_MIN
   });
 }

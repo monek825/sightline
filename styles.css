@@ -250,6 +250,7 @@ h1, h2 { margin: 0; font-weight: 600; }
 .stat { margin: var(--s3) 0 0; color: var(--muted); font-size: 13px; }
 .controls { display: grid; gap: var(--s2); align-content: start; }
 .controls label { display: grid; grid-template-columns: 1fr auto; gap: 2px var(--s2); font-size: 13px; color: var(--muted); align-items: center; }
+.controls label[hidden] { display: none; }
 .controls label > input[type=range] { grid-column: 1 / -1; width: 100%; height: 36px; margin: 0; accent-color: var(--accent); }
 .controls output { color: var(--text); }
 .controls .check { display: flex; gap: 10px; color: var(--text); min-height: 36px; }
