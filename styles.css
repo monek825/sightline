@@ -714,3 +714,17 @@ body.panel-hidden .tabbar [role="tab"][aria-selected="true"] { transform: none; 
 @keyframes intro-dot2 { 0% { opacity: 0; } 50%, 100% { opacity: 1; } }
 @keyframes intro-dot3 { 0% { opacity: 0; } 75%, 100% { opacity: 1; } }
 .intro-fill, .intro-fill-in { transition-timing-function: var(--ease, cubic-bezier(.5, 1, .89, 1)); }
+
+/* Horizon Match topographic scan (skyline/topo.js) */
+.topo-layer { pointer-events: none; }
+.topo-scan { overflow: visible; }
+.topo-wash { fill: rgba(22, 12, 6, .42); }
+.topo-line { fill: none; stroke: #ffe9cf; stroke-opacity: .75; stroke-width: 1px; vector-effect: non-scaling-stroke; }
+.topo-index { fill: none; stroke: #ff8a3d; stroke-opacity: 1; stroke-width: 1.8px; vector-effect: non-scaling-stroke; }
+.topo-ring { fill: rgba(255, 138, 61, .06); stroke: #ff8a3d; stroke-width: 2px; vector-effect: non-scaling-stroke; }
+.topo-prior { fill: none; stroke: #fff4e0; stroke-width: 1.5px; stroke-dasharray: 3 3; vector-effect: non-scaling-stroke; }
+.topo-cand { fill: #fff4e0; }
+.topo-lock { fill: #4cc86a; stroke: #fff; stroke-width: 1.5px; vector-effect: non-scaling-stroke; transform-box: fill-box; transform-origin: center; }
+.topo-lock.is-locked { animation: topo-pulse 1.4s ease-out infinite; }
+@keyframes topo-pulse { 0% { transform: scale(1); } 50% { transform: scale(1.8); } 100% { transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) { .topo-lock.is-locked { animation: none; } }
