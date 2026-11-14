@@ -34,16 +34,21 @@ function eventsUpTo(scenario, t) {
   return scenario.events.filter(e => e.tMin <= t);
 }
 
-/** Plan both legs once. Same inputs → same legs → same video every time. */
-export function prepareScenario(scenario, data, M) {
+/** Plan both legs once. Same inputs → same legs → same video every time.
+ *  targetOverride ({lat, lon, id?}) replaces the scripted target (clicked point drives the walk);
+ *  outMode is the outbound route mode then (ignored without an override). The return leg is always 'safest'. */
+export function prepareScenario(scenario, data, M, targetOverride = null, outMode = 'safest') {
   const C = data.C;
+  // a scripted skyline_fix belongs to the scripted site: drop it for any other target (copy, never mutate)
+  if (targetOverride && targetOverride.id !== scenario.target)
+    scenario = { ...scenario, events: scenario.events.filter(e => e.type !== 'skyline_fix') };
   const start = scenario.start || data.meta.home;
-  const target = data.targets.find(t => t.id === scenario.target) || data.meta.home;
+  const target = targetOverride || data.targets.find(t => t.id === scenario.target) || data.meta.home;
   const base = { ...DEFAULT_INPUTS, sol: scenario.sol, astronaut: { ...start, headingDeg: 0 } };
   const lim0 = M.computeLimits(base, C);
   const opts = { mode: 'safest', maxSlopeDeg: lim0.maxSlopeDeg, speedKmh: lim0.speedKmh };
   const vis0 = M.visibilityArrays(Math.max(1, Math.round(lim0.visibilityKm)));
-  const out = M.planRoute(data.grid, data.bounds, vis0, start, target, opts);
+  const out = M.planRoute(data.grid, data.bounds, vis0, start, target, targetOverride ? { ...opts, mode: outMode } : opts);
   const outPts = out.ok ? out.points : [[start.lat, start.lon], [target.lat, target.lon]];
   const mPerMin = lim0.speedKmh * 1000 / 60;
 
@@ -59,7 +64,7 @@ export function prepareScenario(scenario, data, M) {
   }
   const end = scenario.events.find(e => e.type === 'eva_end')?.tMin ?? 200;
   return Object.freeze({
-    scenario, mPerMin, outPts, outLen: legLengthM(outPts), back, backLen: back ? legLengthM(back) : 0, sepT: sep?.tMin ?? null, endT: end,
+    scenario, mPerMin, outPts, outOk: out.ok, custom: Boolean(targetOverride), target: targetOverride || null, outLen: legLengthM(outPts), back, backLen: back ? legLengthM(back) : 0, sepT: sep?.tMin ?? null, endT: end,
     hourMin: C.mars_hour_min ?? MARS_HOUR_MIN
   });
 }
@@ -91,6 +96,8 @@ export function stateAt(prep, t, skylineResults = {}) {
     ? pointAlong(outPts, mPerMin * tt)
     : pointAlong(back, mPerMin * (tt - sepT));
   patch.astronaut = pos;
+  // custom target only: null = heading home, so no orange line to the abandoned target
+  if (prep.target) patch.target = (sepT === null || tt <= sepT) ? prep.target : null;
   patch.distSinceFixM = Math.max(0, walkedAt(tt) - walkedAt(fixT));
   return patch;
 }

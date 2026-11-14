@@ -48,7 +48,8 @@ async function boot() {
   }
 
   initVisibility(data.viewsheds, data.landmarks, data.grid, data.bounds);
-  const view = createMapView(data, { onPickTarget: target => setInputs({ target }) });
+  let retarget = null; // set by setupScenario below: the clicked target drives the demo walk, not just the orange line
+  const view = createMapView(data, { onPickTarget: target => { setInputs({ target }); retarget?.(target); } });
   const renderPanels = createPanels(data, { setInputs, usingStubs });
 
   initStore(data, createPipeline(M), { astronaut: { ...data.meta.home, headingDeg: 0 } });
@@ -60,7 +61,7 @@ async function boot() {
   const skyIds = (data.targets ?? []).map(t => t.id);
   const skyResults = skyline ? await skyline.loadSkylineResults(skyIds) : {};
   initMotion();
-  setupScenario(data, M, { skyline, skyResults, map: view.map });
+  retarget = setupScenario(data, M, { skyline, skyResults, map: view.map });
   setupHelmet(data);
   setupSkyline(view.map, skyline, skyResults);
   document.addEventListener('keydown', e => {
@@ -69,15 +70,16 @@ async function boot() {
 }
 
 function setupScenario(data, M, sky) {
-  if (!data.scenario) { document.getElementById('timeline').hidden = true; return; }
-  const prep = prepareScenario(data.scenario, data, M);
+  if (!data.scenario) { document.getElementById('timeline').hidden = true; return null; }
+  let prep = prepareScenario(data.scenario, data, M);
   const play = document.getElementById('t-play');
   const scrub = document.getElementById('t-scrub');
   const label = document.getElementById('t-label');
   scrub.max = prep.endT;
   let t = 0, playing = false, last = 0, raf = 0;
 
-  const fixEvents = (data.scenario.events ?? []).filter(e => e.type === 'skyline_fix' && sky.skyResults[e.site]);
+  const fixesOf = p => (p.scenario.events ?? []).filter(e => e.type === 'skyline_fix' && sky.skyResults[e.site]);
+  let fixEvents = fixesOf(prep);
   const apply = () => {
     setInputs(stateAt(prep, t, sky.skyResults));
     scrub.value = t;
@@ -112,6 +114,19 @@ function setupScenario(data, M, sky) {
   document.getElementById('t-reset').addEventListener('click', () => { stop(); t = 0; apply(); });
   scrub.addEventListener('input', () => { stop(); t = Number(scrub.value); apply(); });
   document.addEventListener('visibilitychange', () => { if (document.hidden) stop(); });
+  // re-plan the walk for a target + mode; an unreachable one keeps the old walk
+  const replan = (target, mode) => {
+    const next = prepareScenario(data.scenario, data, M, target, mode);
+    if (!next.outOk) return;
+    const wasPlaying = playing;
+    stop();
+    prep = next; fixEvents = fixesOf(prep);
+    scrub.max = prep.endT; t = 0; apply();
+    if (wasPlaying) start();
+  };
+  // changing the route mode after picking a target re-plans the walk too (value from the event, not listener order)
+  document.getElementById('c-mode').addEventListener('change', e => { if (prep.custom) replan(prep.target, e.target.value); });
+  return target => replan(target, getStore().inputs.routeMode);
 }
 
 function setupHelmet(data) {
