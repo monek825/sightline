@@ -4,8 +4,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Sightline — Mars navigation without GPS</title>
-  <meta name="description" content="Sightline answers one question on a Mars spacewalk in Jezero Crater: can this astronaut still find their way home safely? Built on NASA terrain, radiation and weather data.">
+  <title>Sightline: Mars navigation without GPS</title>
+  <meta name="description" content="Sightline shows whether an astronaut on a Mars spacewalk in Jezero crater can still get back to the habitat without GPS. It uses NASA terrain, radiation and weather data.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="preconnect" href="https://api.fontshare.com" crossorigin>
@@ -38,7 +38,7 @@
     </p>
   </div>
   <main class="stage">
-    <section class="map-wrap" aria-label="Jezero Crater map">
+    <section class="map-wrap" aria-label="Jezero crater map">
       <div id="map"></div>
       <div id="view3d" class="view3d" hidden>
         <p id="v3-note" class="v3-note"></p>
@@ -71,23 +71,23 @@
       <div id="banner" class="banner" role="alert" hidden></div>
       <p id="caption" class="caption frost" aria-live="polite" hidden></p>
       <section id="welcome" class="welcome frost" aria-labelledby="welcome-h" hidden>
-        <h2 id="welcome-h">Can this astronaut still get home?</h2>
-        <p>Mars has no GPS. Sightline shows where an astronaut on a spacewalk in Jezero Crater can still find the way back, using NASA terrain, dust and radiation data.</p>
+        <h2 id="welcome-h">Getting home without GPS</h2>
+        <p>Mars has no GPS. Sightline shows whether an astronaut on a spacewalk in Jezero crater can still find the way back. It uses NASA terrain, dust and radiation data.</p>
         <ul class="welcome-keys">
-          <li><i class="sw sw-red"></i>Red: no landmark in sight, easy to get lost</li>
-          <li><i class="sw sw-ring"></i>Ring: how far the astronaut can see in the dust</li>
-          <li><b class="status-chip">GO</b>The status panel answers the question, live</li>
+          <li><i class="sw sw-red"></i>Red: no landmark in sight</li>
+          <li><i class="sw sw-ring"></i>Ring: how far the astronaut can see through dust</li>
+          <li><b class="status-chip">GO</b>The status panel shows the current walk status</li>
         </ul>
         <div class="welcome-ctl">
-          <button type="button" id="w-play" class="btn btn-accent">Play the 100-second story</button>
+          <button type="button" id="w-play" class="btn btn-accent">Play the 100-second demo</button>
           <button type="button" id="w-close" class="btn">Explore the map</button>
         </div>
       </section>
 
       <div class="legend frost" id="legend">
         <span><i class="sw sw-red"></i>No landmark in sight</span>
-        <span><i class="sw sw-amber"></i>Home hidden</span>
-        <span><i class="sw sw-ring"></i>How far you can see</span>
+        <span><i class="sw sw-amber"></i>Habitat hidden</span>
+        <span><i class="sw sw-ring"></i>Visibility range</span>
       </div>
 
       <aside class="panel frost" id="panel" aria-label="Walk status">
@@ -97,51 +97,51 @@
         <div class="tab-body">
           <section id="tab-home" class="tab" role="tabpanel" aria-labelledby="t-home">
             <h2 id="b-headline" class="headline">–</h2>
-            <p class="question">Can this astronaut still get home?</p>
-            <p class="hero-num"><span id="b-return">–</span> <small>walk home · <span id="b-km">–</span></small></p>
+            <p class="question">Walk status</p>
+            <p class="hero-num"><span id="b-return">–</span> <small>walk home, <span id="b-km">–</span></small></p>
             <dl class="pairs">
               <div><dt>Suit time left</dt><dd id="b-suit">–</dd></div>
               <div><dt>Turn back in</dt><dd id="b-turn">–</dd></div>
               <div><dt>Walking speed</dt><dd id="c-walk">–</dd></div>
               <div><dt>Steepest safe slope</dt><dd id="c-slope">–</dd></div>
             </dl>
-            <p class="hint"><span id="c-sol-v">–</span> on Mars · <span id="c-state">–</span></p>
+            <p class="hint"><span id="c-sol-v">–</span> on Mars, <span id="c-state">–</span></p>
             <ul class="factors" data-group="home"></ul>
           </section>
 
           <section id="tab-dust" class="tab" role="tabpanel" aria-labelledby="t-dust" hidden>
-            <h2 class="tab-title">How far can I see?</h2>
-            <p class="hero-num"><span id="d-vis">–</span> <small>visibility</small></p>
+            <h2 class="tab-title">Visibility</h2>
+            <p class="hero-num"><span id="d-vis">–</span> <small>visibility range</small></p>
             <div class="haze" aria-hidden="true"><span id="now-haze"></span></div>
             <dl class="pairs">
-              <div><dt>Dust τ</dt><dd id="d-tau">–</dd></div>
-              <div><dt>Home seen from</dt><dd id="d-home">–</dd></div>
+              <div><dt>Dust (τ)</dt><dd id="d-tau">–</dd></div>
+              <div><dt>Habitat visible from</dt><dd id="d-home">–</dd></div>
             </dl>
-            <p id="now-devil" class="chip" hidden>Dust-devil hours: swirls on the map</p>
+            <p id="now-devil" class="chip" hidden>Dust-devil hours. Swirls on the map are illustrative.</p>
             <ul class="factors" data-group="dust"></ul>
           </section>
 
           <section id="tab-pos" class="tab" role="tabpanel" aria-labelledby="t-pos" hidden>
-            <h2 class="tab-title">Where am I, which way?</h2>
+            <h2 class="tab-title">Position</h2>
             <p class="hero-num"><span id="p-unc">–</span> <small>position uncertainty</small></p>
             <dl class="pairs">
               <div><dt>Walked since fix</dt><dd id="p-since">–</dd></div>
               <div><dt>Route home</dt><dd id="r-km">–</dd></div>
             </dl>
             <span id="p-acc" hidden></span>
-            <button type="button" id="btn-skyline" class="btn btn-accent wide" data-magnetic>Lost? Find position from the hills</button>
+            <button type="button" id="btn-skyline" class="btn btn-accent wide" data-magnetic>Find position with Horizon Match</button>
             <button type="button" id="btn-lostdust" class="btn wide">Can't see the hills (dust)</button>
             <label class="field">Route
               <select id="c-mode">
                 <option value="safest">Safest (landmarks in sight)</option>
-                <option value="homeInSight">Keep home in sight</option>
+                <option value="homeInSight">Home in sight</option>
                 <option value="shortest">Shortest</option>
               </select></label>
             <div id="r-cmp" class="cmp" hidden>
               <div id="r-cmp-rows"></div>
               <p id="r-cmp-note" class="cmp-note"></p>
             </div>
-            <p class="hint">Click the map or a science target to walk there.</p>
+            <p class="hint">Click the map or a science target to plan a walk there.</p>
             <button type="button" id="btn-helmet" class="btn wide">Open helmet view</button>
             <ul class="factors" data-group="pos"></ul>
           </section>
@@ -158,12 +158,12 @@
           <button type="button" id="t-reset" class="icon-btn" aria-label="Restart demo">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12a7 7 0 1 0 2.1-5"/><path d="M5 4.5V8h3.5"/></svg>
           </button>
-          <button type="button" id="t-home" class="icon-btn" aria-label="Return home" title="Return home" disabled>
+          <button type="button" id="t-home" class="icon-btn" aria-label="Turn back to the habitat" title="Turn back to the habitat" disabled>
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11.5 12 5l8 6.5"/><path d="M6.5 10v9h11v-9"/></svg>
           </button>
           <div class="scrub-wrap">
-            <input type="range" id="t-scrub" min="0" max="200" step="1" value="0" aria-label="Scenario time">
-            <ol id="t-track" class="track" aria-label="Scenario checkpoints"></ol>
+            <input type="range" id="t-scrub" min="0" max="200" step="1" value="0" aria-label="Demo time">
+            <ol id="t-track" class="track" aria-label="Demo events"></ol>
           </div>
           <span id="t-label" class="mono">t = 0 min</span>
         </div>
@@ -173,24 +173,24 @@
         </button>
       </div>
       <div class="bar bar-right">
-        <nav class="tabbar" role="tablist" aria-label="Categories">
+        <nav class="tabbar" role="tablist" aria-label="Status tabs">
           <button type="button" role="tab" id="t-home" aria-controls="tab-home" aria-selected="true">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11 12 4l9 7v9h-6v-6H9v6H3z"/></svg><span class="tip">Home · can I get back?</span></button>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11 12 4l9 7v9h-6v-6H9v6H3z"/></svg><span class="tip">Walk status</span></button>
           <button type="button" role="tab" id="t-dust" aria-controls="tab-dust" aria-selected="false" tabindex="-1">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8h11a3 3 0 1 0-3-3M3 12h16a3 3 0 1 1-3 3M3 16h8"/></svg><span class="tip">Dust · how far can I see?</span></button>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8h11a3 3 0 1 0-3-3M3 12h16a3 3 0 1 1-3 3M3 16h8"/></svg><span class="tip">Visibility</span></button>
           <button type="button" role="tab" id="t-pos" aria-controls="tab-pos" aria-selected="false" tabindex="-1">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="7"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg><span class="tip">Position · where am I?</span></button>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="7"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg><span class="tip">Position</span></button>
         </nav>
       </div>
 
       <div class="more frost" id="drawer-more" hidden role="region" aria-label="Details">
         <p id="verdict" class="verdict" role="status"></p>
         <section class="why" aria-labelledby="why-h">
-          <h2 id="why-h">What's limiting the walk</h2>
+          <h2 id="why-h">Limiting factors</h2>
           <ul id="alerts" class="alerts"></ul>
         </section>
         <section class="controls" aria-labelledby="cond-h">
-          <h2 id="cond-h">What if…</h2>
+          <h2 id="cond-h">Conditions</h2>
           <label>Dust (τ) <output id="o-tau"></output>
             <input type="range" id="c-tau" min="0.2" max="10" step="0.1">
             <span class="sub" data-hint="c-tau"></span></label>
@@ -215,14 +215,14 @@
               <button type="button" class="btn ev" data-event="scripted">The story</button>
             </div>
           </div>
-          <label class="check"><input type="checkbox" id="c-sep"> Solar storm during the run</label>
+          <label class="check"><input type="checkbox" id="c-sep"> Solar storm during the walk</label>
           <label class="check"><input type="checkbox" id="c-sans"> Vision changes (SANS)</label>
           <label>Simulation speed <output id="o-speed"></output>
             <input type="range" id="c-speed" min="1" max="10" step="1" value="1">
             <span class="sub" data-hint="c-speed"></span></label>
         </section>
         <footer class="more-foot">
-          <button type="button" id="btn-sources" class="btn">How we know: every number and its source</button>
+          <button type="button" id="btn-sources" class="btn">Sources for every number</button>
           <p id="vis-stat" class="stat"></p>
           <p class="stat credit">Map imagery: CTX mosaic NASA/JPL-Caltech/MSSS, HiRISE mosaic NASA/JPL-Caltech/UArizona, via NASA Mars Trek. Map library: Leaflet.</p>
         </footer>
@@ -231,7 +231,7 @@
   </main>
 
   <dialog id="dlg-sources" class="dlg">
-    <form method="dialog" class="dlg-head"><h2>How we know: every number and its source</h2><button class="btn">Close</button></form>
+    <form method="dialog" class="dlg-head"><h2>Sources for every number</h2><button class="btn">Close</button></form>
     <div class="dlg-body"><table class="src-table"><thead><tr><th>What</th><th>Value</th><th>Type</th><th>Source</th></tr></thead><tbody id="src-rows"></tbody></table></div>
   </dialog>
 

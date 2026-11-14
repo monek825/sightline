@@ -49,7 +49,7 @@ const DEVIL_WIND_DEG = 60;         // drift direction (towards ENE); illustrativ
 const DEVIL_RESPAWN_M = 3500;      // a devil that drifts this far away is replaced upwind
 const DEVIL_WIDTH_M = 150;         // drawn width; Newman et al. 2022 saw devils up to ~270 m wide
 const DEVIL_HEIGHT_M = 800;        // 3D column height; illustrative (Jezero devils are typically hundreds of metres to over a kilometre tall)
-const DEVIL_NOTE = 'Dust devils: illustrative, not a forecast';
+const DEVIL_NOTE = 'Dust devils are illustrative, not a forecast.';
 const M_PER_DEG = 2 * Math.PI * 3396190 / 360;
 const DEVIL_SVG = '<svg viewBox="-20 -20 40 40" aria-hidden="true"><circle r="15"/><path d="M0-16A16 16 0 0 1 14 8M0 16A16 16 0 0 1-14-8"/><path d="M0-9A9 9 0 0 1 8 4M0 9A9 9 0 0 1-8-4"/></svg>';
 
@@ -73,7 +73,7 @@ function createDevils(map, C) {
     layer.clearLayers();
     items = DEVIL_SPAWN_M.map(off => {
       const m = L.marker(place(anchor.lat, anchor.lon, off), { icon: icon(), keyboard: false, interactive: true })
-        .bindTooltip(`Dust-devil hours (illustrative, not a forecast). Drifting with the wind at ~${speedMs} m/s, shown ${DEVIL_TIMELAPSE}× faster.`)
+        .bindTooltip(`Dust devil (illustrative, not a forecast). Drifts with the wind at ~${speedMs} m/s, shown ${DEVIL_TIMELAPSE}× faster.`)
         .addTo(layer);
       const [lat, lon] = place(anchor.lat, anchor.lon, off);
       return { m, off, lat, lon };
@@ -463,10 +463,10 @@ function createView3D(data, onPickTarget, devils) {
   let s = null, starting = null, terrain = null, last = null, lastHome, lastOut, lastRadius = -1, lastTau = null, lastSun = null, lastVis = null, blind3d = null;
   let routeK = 1, retried = false, groundU = null, rocks = null;
   const say = text => { msg.textContent = text; msg.hidden = !text; };
-  const noteBase = `Vertical scale ×${EXAGGERATE} (true) · rover and habitat true size`;
+  const noteBase = `Vertical scale ×${EXAGGERATE} (true). Rover and habitat are true size.`;
   let noteDevils = null, dv3 = null, dvAff = null, dvT0 = performance.now();
   const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const setNote = on => { if (on === noteDevils) return; noteDevils = on; $('v3-note').textContent = on ? `${noteBase} · ${DEVIL_NOTE}` : noteBase; };
+  const setNote = on => { if (on === noteDevils) return; noteDevils = on; $('v3-note').textContent = on ? `${noteBase} ${DEVIL_NOTE}` : noteBase; };
   setNote(false);
 
   // Per frame: stand each column on the ground at the 2D map's devil position (affine lat/lon → world, no allocation).
@@ -708,7 +708,7 @@ function createView3D(data, onPickTarget, devils) {
         e.preventDefault();
         if (gfxChoice() !== 'low') setGfxChoice('low');   // next load uses the small texture and no HiRISE images
         $('v-2d').click();
-        say('3D view stopped (graphics memory). Showing the 2D map; graphics set to Low, reload to try 3D again.');
+        say('3D view stopped (out of graphics memory). Showing the 2D map. Graphics are now set to Low. Reload to try 3D again.');
         const b = $('banner');
         b.textContent = '3D view stopped on this device, so the 2D map is shown. Graphics are now set to Low: reload to try 3D again.';
         b.hidden = false;
