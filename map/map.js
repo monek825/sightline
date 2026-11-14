@@ -110,6 +110,9 @@ function routeLine(map, color, weight, dashArray) {
   return pts => { casing.setLatLngs(pts); line.setLatLngs(pts); };
 }
 
+// HiRISE coverage, from the layer's WMTSCapabilities.xml WGS84BoundingBox (trek.nasa.gov); lies inside `box`
+const HIRISE_BOUNDS = [[18.3067994, 77.2229331], [18.669315, 77.583964]];
+
 function addLayers(map, data, box, onPickTarget) {
   // Offline fallback UNDER the NASA tiles (image overlays default to above tiles, which hid the real imagery)
   if (data.hasBasemap) {
@@ -122,7 +125,7 @@ function addLayers(map, data, box, onPickTarget) {
   }).addTo(map);
   const hirise = L.tileLayer(`${TREK}JEZ_hirise_soc_006_orthoMosaic_25cm_Eqc_latTs0_lon0_first_dd${TILE_PATH}`, {
     // ponytail: HiRISE pyramid shows 1-px seams at z13–14 (NASA tile artifact); only use it close up
-    minZoom: 15, maxNativeZoom: 17, maxZoom: 18, bounds: box,
+    minZoom: 15, maxNativeZoom: 17, maxZoom: 18, bounds: HIRISE_BOUNDS,
     attribution: 'HiRISE mosaic: NASA/JPL-Caltech/UArizona'
   }).addTo(map);
 
