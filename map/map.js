@@ -39,7 +39,7 @@ const DEVIL_TIMELAPSE = 30;        // shown 30x faster than real time so the dri
 const DEVIL_WIND_DEG = 60;         // drift direction (towards ENE); illustrative
 const DEVIL_RESPAWN_M = 3500;      // a devil that drifts this far away is replaced upwind
 const DEVIL_WIDTH_M = 150;         // drawn width; Newman et al. 2022 saw devils up to ~270 m wide
-const DEVIL_HEIGHT_M = 800;        // 3D column height; illustrative (Jezero devils are typically hundreds of metres to over a kilometre tall)
+const DEVIL_HEIGHT_M = 800;        // 3D column height; illustrative (Perseverance measured devils from ~120 m to an estimated ~2 km tall)
 const DEVIL_NOTE = 'Dust devils are illustrative, not a forecast.';
 const M_PER_DEG = 2 * Math.PI * 3396190 / 360;
 const DEVIL_SVG = '<svg viewBox="-20 -20 40 40" aria-hidden="true"><circle r="15"/><path d="M0-16A16 16 0 0 1 14 8M0 16A16 16 0 0 1-14-8"/><path d="M0-9A9 9 0 0 1 8 4M0 9A9 9 0 0 1-8-4"/></svg>';
@@ -360,10 +360,12 @@ function skyGradient(horizon, f) {
   return c.toDataURL();
 }
 
-// Sun from local solar time: rises east at 06:00, highest at noon, sets west at 18:00 (simple model, Jezero ~18°N).
-function sunPosition(ltst) {
+// Sun from local solar time: sin(el) = cos(lat)·cos(hour angle); ignores the Mars season (declination ~0 at Ls ≈ 5°).
+// East in the morning, west in the afternoon. The light keeps a 4° floor so the scene is not black; there is no sun disc here.
+function sunPosition(ltst, lat) {
   const day = Math.min(1, Math.max(0, (ltst - 6) / 12));
-  const el = Math.max(4, 72 * Math.sin(Math.PI * day)) * Math.PI / 180;
+  const trueEl = Math.asin(Math.cos(lat * Math.PI / 180) * Math.cos(15 * (ltst - 12) * Math.PI / 180));
+  const el = Math.max(4 * Math.PI / 180, trueEl);
   const az = (90 + 180 * day) * Math.PI / 180; // from north, clockwise
   return [Math.sin(az) * Math.cos(el) * SUN_DIST, Math.sin(el) * SUN_DIST, -Math.cos(az) * Math.cos(el) * SUN_DIST];
 }
@@ -459,7 +461,7 @@ function createView3D(data, onPickTarget, devils) {
   let s = null, starting = null, terrain = null, last = null, lastHome, lastOut, lastRadius = -1, lastTau = null, lastSun = null, lastVis = null, blind3d = null;
   let routeK = 1, retried = false, groundU = null, rocks = null, wasPlaying = false;
   const say = text => { msg.textContent = text; msg.hidden = !text; };
-  const noteBase = `Vertical scale ×${EXAGGERATE} (true). Rover and habitat are true size.`;
+  const noteBase = `Vertical scale ×${EXAGGERATE} (true). Rover and habitat are true size. The habitat is a concept, not a NASA design. The far rover is Perseverance at its latest traverse position.`;
   let noteDevils = null, dv3 = null, dvAff = null, dvT0 = performance.now();
   const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const setNote = on => { if (on === noteDevils) return; noteDevils = on; $('v3-note').textContent = on ? `${noteBase} ${DEVIL_NOTE}` : noteBase; };
@@ -578,7 +580,7 @@ function createView3D(data, onPickTarget, devils) {
     if (d.routeHome !== lastHome) { lastHome = d.routeHome; setRoute(s, terrain, 'home', d.routeHome, CREAM, routeK); }
     if (d.routeOut !== lastOut) { lastOut = d.routeOut; setRoute(s, terrain, 'out', d.routeOut, ACCENT, routeK); }
     const ltst = Math.round(last.inputs.ltst * 4) / 4;
-    if (ltst !== lastSun) { lastSun = ltst; s.sun.setAttribute('position', sunPosition(ltst).map(Math.round).join(' ')); }
+    if (ltst !== lastSun) { lastSun = ltst; s.sun.setAttribute('position', sunPosition(ltst, data.meta.home.lat).map(Math.round).join(' ')); }
     const tau = Math.round(last.inputs.tau * 10) / 10;
     if (tau !== lastTau) {
       lastTau = tau;
@@ -814,7 +816,8 @@ export function createMapView(data, { onPickTarget }) {
     const C = store0.data.C, a = inputs.astronaut;
     haze.setStyle({ fillOpacity: Math.min(HAZE_MAX, inputs.tau * HAZE_PER_TAU) });
     seeRing.setLatLng([a.lat, a.lon]).setRadius(derived.limits.visibilityKm * 1000);
-    devils.update(inputs.ltst >= C.dust_devil_peak_start_ltst && inputs.ltst <= C.dust_devil_peak_end_ltst, a);
+    // no devils in a dust storm: Gale's stopped during the 2018 storm, so hide them above tau_red (2D and 3D both follow active())
+    devils.update(inputs.ltst >= C.dust_devil_peak_start_ltst && inputs.ltst <= C.dust_devil_peak_end_ltst && inputs.tau <= C.tau_red, a);
   }
   function render(store) {
     const { inputs, derived } = store;

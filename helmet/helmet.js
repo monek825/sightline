@@ -87,9 +87,9 @@ let envKey = '', lastLevel = null, homeTxtKey = '', homeCls = '';
 let skyCtx = null, skyTex = null, skyMesh = null, beacon = null, beaconMat = null, lmPoleGeo = null, lmPoleMat = null;
 let sunEl = null, hemiEl = null, terrainEl = null;
 let rocks = null, groundU = null, beaconDash = null, dashMat = null;
-let sunDisc = null, sunHalo = null, sunVis = { disc: 1, halo: 0.3, blue: 0 };
+let sunUp = true, sunDisc = null, sunHalo = null, sunVis = { disc: 1, halo: 0.3, blue: 0 };
 let veil = null, veilU = null, veilWind = 0;
-let dust = null, dustU = null, devils = [], devilU = null, devilHours = [11, 14], tauNow = 0.4, ltstNow = LTST_DEFAULT;
+let dust = null, dustU = null, devils = [], devilU = null, devilHours = [11, 14], tauRed = 3, tauNow = 0.4, ltstNow = LTST_DEFAULT;
 let fov = FOV_DEFAULT, fovT = FOV_DEFAULT, fovBase = FOV_DEFAULT, lookPrev = null, zoomEl = null;
 let shadowOn = false, shadowCx = 1e9, shadowCz = 1e9, shadowDirty = true, shadowLight = null, shadowTarget = null, shadowT0 = -1, shadowSum = 0, shadowN = 0;
 const sunDir = [0.5, 0.7, 0.5];
@@ -151,10 +151,15 @@ let THREE = null, routeHolder = null;
 const showH = { beacon: true, route: true, landmarks: true, dust: true };   // eye menu
 const tmpV = new (window.AFRAME ? AFRAME.THREE.Vector3 : Object)();
 
-// Sun from local solar time (same simple model as the main 3D view): rises east 06:00, highest at noon, sets west 18:00.
+// Sun from local solar time (same model as the main 3D view): sin(el) = cos(lat)·cos(hour angle); ignores the Mars season
+// (declination ~0 at Ls ≈ 5°). East in the morning, west in the afternoon. The light keeps a 4° floor so the scene is not
+// black; the visible disc uses the true elevation (sunUp) and is hidden below the horizon.
+function sunTrueEl(ltst) {
+  return Math.asin(Math.cos(meta.home.lat * Math.PI / 180) * Math.cos(15 * (ltst - 12) * Math.PI / 180));
+}
 function sunPosition(ltst) {
   const day = Math.min(1, Math.max(0, (ltst - 6) / 12));
-  const el = Math.max(4, 72 * Math.sin(Math.PI * day)) * Math.PI / 180;
+  const el = Math.max(4 * Math.PI / 180, sunTrueEl(ltst));
   const az = (90 + 180 * day) * Math.PI / 180; // from north, clockwise
   return [Math.sin(az) * Math.cos(el) * SUN_DIST, Math.sin(el) * SUN_DIST, -Math.cos(az) * Math.cos(el) * SUN_DIST];
 }
@@ -193,6 +198,7 @@ function setEnv(tau, ltst, visKm) {
   }
   if (sunEl) {
     const sp = sunPosition(l);
+    sunUp = sunTrueEl(l) > 0;
     sunEl.setAttribute('position', sp.map(Math.round).join(' '));
     for (let i = 0; i < 3; i++) sunDir[i] = sp[i] / SUN_DIST;
     shadowDirty = true;
@@ -285,9 +291,9 @@ function sunLook(tau) {
   sunVis.disc = Math.min(1, trans * 2.2);
   sunVis.halo = Math.min(0.85, 0.6 + 0.06 * tau);   // the aureole stays even when the disc itself is dimmed
   sunVis.blue = Math.max(0, 1 - el / 0.3);   // below ~17 deg the forward-scattered light near the sun turns blue
-  if (sunDisc) sunDisc.material.opacity = sunVis.disc;
+  if (sunDisc) sunDisc.material.opacity = sunUp ? sunVis.disc : 0;
   if (sunHalo) {
-    sunHalo.material.opacity = sunVis.halo;
+    sunHalo.material.opacity = sunUp ? sunVis.halo : 0;
     const b = sunVis.blue;
     sunHalo.material.color.setRGB(1 - 0.45 * b, 0.97 - 0.2 * b, 0.9 - 0.02 * b, THREE.SRGBColorSpace);
   }
@@ -446,7 +452,8 @@ function spawnDevil(dv, cx, cz, upwind) {
 }
 function updateDevils(dt, t, cx, cz) {
   if (!devils.length) return;
-  const on = ltstNow >= devilHours[0] && ltstNow <= devilHours[1] && !reduceMotionQ.matches;
+  // no devils in a dust storm: Gale's stopped during the 2018 storm, so hide them above tau_red
+  const on = ltstNow >= devilHours[0] && ltstNow <= devilHours[1] && tauNow <= tauRed && !reduceMotionQ.matches;
   devilU.uTime.value = t; devilU.uCam.value.set(cx, 0, cz);
   const speed = constants && constants.get('dust_devil_drift_ms') ? constants.get('dust_devil_drift_ms').value : 5;
   const wa = DUST_WIND_DEG * Math.PI / 180;
@@ -668,7 +675,8 @@ function makeModels() {
   placeModel('mars-habitat', 0, h0, 0, 0, HABITAT_SCALE);
   const [rx, rz] = ROVER_PARK_M;
   placeModel('mars-rover', rx, terrain.heightAt(rx, rz), rz, -30);
-  // Perseverance at its latest real position (last point of data/traverse.json)
+  // Perseverance at its latest traverse position (last point of data/traverse.json), not at the habitat's story time.
+  // The habitat above is a concept model, not a NASA design.
   traverseP.then((tr) => {
     const q = Array.isArray(tr) && tr.length ? tr[tr.length - 1] : null;
     if (!q || !fin(q.lat) || !fin(q.lon)) return;
@@ -1181,6 +1189,8 @@ async function boot() {
       constants = new Map(rows.map((r) => [r.key, r]));
       const a = constants.get('dust_devil_peak_start_ltst'), b = constants.get('dust_devil_peak_end_ltst');
       if (a && b && fin(a.value) && fin(b.value)) devilHours = [a.value, b.value];
+      const tr = constants.get('tau_red');
+      if (tr && fin(tr.value)) tauRed = tr.value;
       if (current) hud(current.inputs, current.derived);
     })
     .catch((e) => note('Source tags unavailable: ' + e.message));

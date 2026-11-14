@@ -20,7 +20,7 @@ const CAPTIONS = {
     ? `Dust storm (τ ${e.value}, sped up: real storms build over days). Visibility drops and the red no-landmark zones grow.`
     : `Dust is rising (τ ${e.value}). Red areas have no landmark in sight, so it is easy to get lost there.`,
   skyline_fix: () => 'Without GPS, Horizon Match finds the position by matching the horizon to NASA terrain.',
-  sep_onset: () => 'Solar storm, replay of May 2024. Turn back to shelter now because of the radiation.',
+  sep_onset: () => 'Solar storm, replay of May 2024 (about 30 chest X-rays of dose). Turn back to shelter now to keep the radiation low.',
   return_home: () => 'The astronaut turns back to the habitat.',
   eva_end: () => 'Back at the habitat. The walk budget kept the astronaut safe.'
 };
