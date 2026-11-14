@@ -78,10 +78,13 @@ export function editScenario(scenario, t, key, value, hourMin, original = scenar
 /** Plan both legs once. Same inputs → same legs → same video every time.
  *  targetOverride ({lat, lon, id?}) replaces the scripted target (clicked point drives the walk);
  *  outMode is the outbound route mode then (ignored without an override). The return leg is always 'safest'.
- *  A return_home event turns back too: the leg switches at the earliest of it and the sep_onset, planned from there.
- *  Without either the crew still turns back (sepT = turn-back time, so that they are home at EVA end).
+ *  A return_home event turns back too, and so does the first tau event above tau_red (RED dust): the leg switches at the
+ *  earliest of them and the sep_onset, planned from there. Without any the crew still turns back (sepT = turn-back time,
+ *  so that they are home at EVA end).
  *  from ({prefix, tMin}, with an override) re-plans mid-walk: the walked prefix is kept and the fresh leg starts at its end,
- *  planned with the limits/visibility in force at tMin (what the orange line uses); walking speed stays the t = 0 one. */
+ *  planned with the limits/visibility in force at tMin (what the orange line uses); walking speed stays the t = 0 one.
+ *  from.backPrefix/backTMin (already returning, tMin = the switch time): prefix is the whole outbound leg, kept as is, and the
+ *  rest of the way home is re-planned from the end of backPrefix for the state at backTMin. */
 export function prepareScenario(scenario, data, M, targetOverride = null, outMode = 'safest', from = null) {
   const C = data.C;
   // a scripted skyline_fix belongs to the scripted site: drop it for any other target (copy, never mutate)
@@ -96,27 +99,35 @@ export function prepareScenario(scenario, data, M, targetOverride = null, outMod
   const tauAt = tt => eventsUpTo(scenario, tt).filter(e => e.type === 'tau').pop()?.value ?? base.tau;
   const limF = from ? M.computeLimits({ ...base, tau: tauAt(from.tMin), sepActive: false }, C) : lim0;
   const opts = { mode: 'safest', maxSlopeDeg: limF.maxSlopeDeg, speedKmh: limF.speedKmh };
-  const vis0 = M.visibilityArrays(Math.max(1, Math.round(limF.visibilityKm)));
-  const out = M.planRoute(data.grid, data.bounds, vis0, start, target, targetOverride ? { ...opts, mode: outMode } : opts);
-  const fresh = out.ok ? out.points : [[start.lat, start.lon], [target.lat, target.lon]];
-  const outPts = from ? [...from.prefix, ...(fresh[0][0] === here[0] && fresh[0][1] === here[1] ? fresh.slice(1) : fresh)] : fresh;
-  const mPerMin = lim0.speedKmh * 1000 / 60;
-
   const sep = scenario.events.find(e => e.type === 'sep_onset');
   const end = scenario.events.find(e => e.type === 'eva_end')?.tMin ?? 200;
+  // leg switch: the earliest of the storm, the return_home press and the first RED dust level (tau > tau_red)
+  const times = type => scenario.events.filter(e => e.type === type).map(e => e.tMin);
+  const redT = C.tau_red == null ? [] : scenario.events.filter(e => e.type === 'tau' && e.value > C.tau_red).map(e => e.tMin);
+  const swT = Math.min(...times('sep_onset'), ...times('return_home'), ...redT);
+  const bk = from?.backPrefix && swT === from.tMin ? from : null; // already returning: outbound leg and walked part of `back` are kept
+  let out = { ok: true }, outPts = from?.prefix;
+  if (!bk) {
+    const vis0 = M.visibilityArrays(Math.max(1, Math.round(limF.visibilityKm)));
+    out = M.planRoute(data.grid, data.bounds, vis0, start, target, targetOverride ? { ...opts, mode: outMode } : opts);
+    const fresh = out.ok ? out.points : [[start.lat, start.lon], [target.lat, target.lon]];
+    outPts = from ? [...from.prefix, ...(fresh[0][0] === here[0] && fresh[0][1] === here[1] ? fresh.slice(1) : fresh)] : fresh;
+  }
+  const mPerMin = lim0.speedKmh * 1000 / 60;
+
   const toHome = (at, lim) => {
     const vis = M.visibilityArrays(Math.max(1, Math.round(lim.visibilityKm)));
     const r = M.planRoute(data.grid, data.bounds, vis, at, data.meta.home, { ...opts, maxSlopeDeg: lim.maxSlopeDeg });
     return r.ok ? r.points : [[at.lat, at.lon], [data.meta.home.lat, data.meta.home.lon]];
   };
-  const home = scenario.events.find(e => e.type === 'return_home');
-  const swT = Math.min(sep?.tMin ?? Infinity, home?.tMin ?? Infinity);
   let back, sepT;
-  if (swT < Infinity) { // storm and/or return_home: turn back at the earliest
-    const at = pointAlong(outPts, mPerMin * swT);
-    back = toHome(at, M.computeLimits({ ...base, tau: tauAt(swT), sepActive: Boolean(sep) && sep.tMin <= swT }, C));
+  if (swT < Infinity) { // storm, return_home and/or RED dust: turn back at the earliest
+    const tl = bk ? from.backTMin : swT; // the rest of the way home is planned for the state now
+    const at = bk ? { lat: from.backPrefix.at(-1)[0], lon: from.backPrefix.at(-1)[1] } : pointAlong(outPts, mPerMin * swT);
+    const fresh = toHome(at, M.computeLimits({ ...base, tau: tauAt(tl), sepActive: Boolean(sep) && sep.tMin <= tl }, C));
+    back = bk ? [...from.backPrefix, ...(fresh[0][0] === at.lat && fresh[0][1] === at.lon ? fresh.slice(1) : fresh)] : fresh;
     sepT = swT;
-  } else { // no storm: walk out, wait at the target, turn back in time to be home at EVA end
+  } else { // nothing triggers: walk out, wait at the target, turn back in time to be home at EVA end
     const arrT = legLengthM(outPts) / mPerMin;
     const [lat, lon] = outPts.at(-1);
     back = toHome({ lat, lon }, M.computeLimits({ ...base, tau: tauAt(arrT), sepActive: false }, C));

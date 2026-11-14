@@ -159,7 +159,7 @@ function setupScenario(data, M, sky) {
     // already heading home and only a condition changed: keep the whole outbound leg so the history does not move
     const returning = clock === 'keep' && prep.sepT !== null && t > prep.sepT;
     const from = walking ? { prefix: pathUpTo(prep.outPts, Math.min(prep.mPerMin * t, prep.outLen)), tMin: t }
-      : returning ? { prefix: prep.outPts, tMin: prep.sepT } : null;
+      : returning ? { prefix: prep.outPts, tMin: prep.sepT, backPrefix: pathUpTo(prep.back, Math.min(prep.mPerMin * (t - prep.sepT), prep.backLen)), backTMin: t } : null;
     const next = prepareScenario(sc, data, M, target, mode, from);
     if (!next.outOk) return false;
     const wasPlaying = playing;

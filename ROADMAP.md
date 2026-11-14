@@ -17,16 +17,17 @@
 | Integration check `bash scripts/check_all.sh` | Brayden | ✅ pull + data check + demo test + both `*.test.html` in headless Chrome, one table |
 | Skyline off-grid honesty run | Brayden | ✅ `data/skyline/offgrid_summary.json`: median error 32.0 m, max 44.6 m with truth off the 100 m grid |
 | Horizon Match panel `skyline/skyline.js` | Brayden | ✅ done: button picks nearest site; demo pauses at t=55 and plays it |
-| Helmet overlays (beacon, HUD, walk) | Edward | ⏳ `helmet/` only has the README |
+| Helmet overlays (beacon, HUD, walk) | Edward | ✅ merged (`helmet/helmet.js`): beacon (dashed when hidden), visor HUD with compass strip, habitat and rover models, walks `data/route_demo.json` |
+| Demo controls (Jojo) | Jojo | ✅ merged: click 2D/3D to pick a target and the walk follows the orange route; safest vs shortest comparison; Change conditions edit the run; solar event on/off per run; speed slider; Return home button |
 | Landmark names on Mars Trek | Sean | ⏳ gazetteer check found no match; still needs a look on Trek by eye (`peak_02` may be Kodiak butte) |
 | `sources.md` "Challenge resources used" | Sean | ⏳ copy the list from the challenge Resources tab |
 | Video + submission page | Brayden + Sean | ⏳ Sunday |
 
 ### Next up (in this order)
-1. **Brayden:** `skyline/skyline.js`. It is the only demo-path feature with no code yet, and the "Run Horizon Match" button currently shows "not built yet".
-2. **Edward:** helmet overlays on `lib/terrain.js`.
+1. ~~**Brayden:** `skyline/skyline.js`~~ done (see the status table).
+2. ~~**Edward:** helmet overlays on `lib/terrain.js`~~ done (merged in #11).
 3. **Sean:** Resources tab → `sources.md` (needed for Global Award eligibility), then the Mars Trek name check.
-4. **Jojo:** check the crew tests against `terrain_shielding_pct` = 4.
+4. ~~**Jojo:** check the crew tests against `terrain_shielding_pct` = 4~~ done: 11/11 pass, no test hard-codes 5.
 5. ~~Skyline off-grid~~ done: re-run with truth 0-50 m off the grid gives median 32 m, max 45 m error (the matcher finds the nearest 100 m grid node every time). Say "within about 50 m" in the pitch, not "0 m".
 
 ## Known issues (Sat evening)
@@ -38,7 +39,9 @@
 - Route replan on a storm or SEP event takes 20-60 ms on a quiet laptop and up to ~500 ms when the machine is busy. The test allows 300 ms (ARCHITECTURE §5). If `test_demo` fails only on "replan derive", re-run it with nothing else running.
 - Horizon Match accuracy is limited by the 100 m search grid (about 50 m worst case). A finer grid would need a `scripts/skyline.py` change by Sean.
 - The edge-case test does not cover NaN inputs passed straight to `computeLimits`/`computeBudget`; the store clamps inputs before they get there.
-- Helmet overlays, landmark names and `sources.md` resources list: see the status table.
+- Landmark names and `sources.md` resources list: see the status table.
+- The demo controls have only been tried with mouse and emulated touch, not on a real phone or tablet.
+- At phone (390×844) and tablet (820×1180) widths the answer card, tab bar and player cover the whole map/3D view: 0 of 20 sample points on it can be tapped, so a target cannot be picked there. Player buttons and the Change conditions controls work; no horizontal scroll. Layout fix needed in `styles.css`.
 
 ## How to decide what to work on next
 When you finish something, pick the **first** item that is true:
