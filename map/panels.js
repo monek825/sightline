@@ -32,8 +32,8 @@ const GROUPS = [
 const groupOf = f => GROUPS.find(([, re]) => re.test(f.id))[0];
 const SEVERITY = { RED: 0, AMBER: 1, GREEN: 2 };
 
-const EVENT_LABELS = { eva_start: 'EVA start', sep_onset: 'Solar storm', return_home: 'Return home', skyline_fix: 'Horizon match', eva_end: 'EVA end' };
-const eventLabel = ev => (ev.type === 'tau' ? `Dust τ ${ev.value}` : EVENT_LABELS[ev.type] ?? ev.type);
+const EVENT_LABELS = { eva_start: 'EVA start', sep_onset: 'Solar storm', return_home: 'Return home', skyline_fix: 'Horizon Match', eva_end: 'EVA end' };
+const eventLabel = ev => (ev.type === 'tau' ? `Dust (τ) ${ev.value}` : EVENT_LABELS[ev.type] ?? ev.type);
 
 function buildTimeline(events) {
   if (!events.length) { $('t-track').replaceChildren(); return []; }
@@ -66,7 +66,7 @@ function tagFor(keys, byKey) {
   const rows = keys.map(k => byKey[k]).filter(Boolean);
   if (!rows.length) return null;
   const est = rows.some(r => r.isEstimate), nasa = rows.some(r => !r.isEstimate);
-  if (nasa && est) return ['NASA data + estimate', 'tag tag-nasa'];
+  if (nasa && est) return ['NASA data and estimate', 'tag tag-nasa'];
   return nasa ? ['NASA data', 'tag tag-nasa'] : ['Estimate', 'tag tag-est'];
 }
 
@@ -126,7 +126,7 @@ function keyNumber(f, bdg, inputs) {
   if (f.id === 'suit_time') return bdg.marginMin <= 0 ? `home ${fmtMin(bdg.returnMin)}` : `turn back in ${fmtMin(bdg.turnBackInMin)}`;
   if (f.id === 'radiation' && f.level === 'RED') return `home ${fmtMin(bdg.returnMin)}`;
   if (f.id === 'radiation') return fmtNum(bdg.careerPct, 1, '% of career dose');
-  if (f.id === 'dust') return `τ ${fmtNum(inputs.tau, 1)} · ${fmtKm(bdg.visibilityKm)}`;
+  if (f.id === 'dust') return `τ ${fmtNum(inputs.tau, 1)}, ${fmtKm(bdg.visibilityKm)}`;
   if (f.id === 'mobility') return fmtNum(bdg.speedKmh, 1, ' km/h');
   return f.message.match(/\d[\d.,]*\s?(?:min|km|%|Pa|°C|h)\b/)?.[0] ?? '';
 }
@@ -136,21 +136,21 @@ function verdictSentence(bdg) {
   const w = bdg.factors[0];
   const home = fmtMin(bdg.returnMin), back = fmtMin(bdg.turnBackInMin);
   const worstWords = { // [RED, AMBER] wording per factor id (null: that level cannot happen, fall back to the label)
-    suit_time: [`only ${fmtMin(Math.max(0, bdg.suitMinLeft))} of suit time is left and home is ${home} away.`, `the suit-time margin is thin; turn back in ${back}.`],
-    radiation: [`a solar storm started and home is ${home} away.`, 'the career radiation dose is getting high.'],
-    dust: [`dust hides landmarks beyond ${fmtKm(bdg.visibilityKm)}.`, `dust limits sight to about ${fmtKm(bdg.visibilityKm)}; turn back in ${back}.`],
-    dust_devil: [null, 'it is dust-devil hours, so visibility can drop suddenly.'],
+    suit_time: [`only ${fmtMin(Math.max(0, bdg.suitMinLeft))} of suit time is left and home is ${home} away.`, `the suit-time margin is thin. Turn back in ${back}.`],
+    radiation: [`a solar storm started and home is ${home} away.`, 'the career radiation dose is high.'],
+    dust: [`dust hides landmarks beyond ${fmtKm(bdg.visibilityKm)}.`, `dust limits sight to about ${fmtKm(bdg.visibilityKm)}. Turn back in ${back}.`],
+    dust_devil: [null, 'it is dust-devil hours and visibility can drop suddenly.'],
     cooling: ['the suit cannot cool at this air pressure.', 'the suit cooling margin is thin at this air pressure.'],
-    cold: [null, 'the air is cooling fast, so head home soon.'],
+    cold: [null, 'the air is cooling fast. Head home soon.'],
     mobility: [null, `walking is slow (${fmtNum(bdg.speedKmh, 1, ' km/h')}) while balance recovers.`],
-    body_clock: [null, 'an early start while the body clock drifts means lower alertness.']
+    body_clock: [null, 'an early start with a drifting body clock lowers alertness.']
   }[w.id];
   if (bdg.headline === 'AT SHELTER') {
-    return w.id === 'radiation' ? 'At shelter: the crew is home during the solar storm.' : `At shelter: the crew is home, and ${w.label.toLowerCase()} would stop a walk right now.`;
+    return w.id === 'radiation' ? 'At shelter: the astronaut is at the habitat during the solar storm.' : `At shelter: the astronaut is at the habitat and ${w.label.toLowerCase()} would stop a walk now.`;
   }
   if (bdg.status === 'RED') return `Return now: ${worstWords?.[0] ?? `${w.label}.`}`;
   if (bdg.status === 'AMBER') return `Caution: ${worstWords?.[1] ?? `${w.label}.`}${worstWords ? '' : ` Turn back in ${back}.`}`;
-  return `Go: everything is within limits; turn back in ${back}.`;
+  return `Go: all factors are within limits. Turn back in ${back}.`;
 }
 
 // Clicking/pressing Enter on a factor opens its source row.
@@ -221,10 +221,10 @@ export function createPanels(data, { setInputs, usingStubs, onCondition, runHasS
   // scale hints under the sliders: endpoints from the sliders themselves, recovery day from the constants
   const rng = id => [$(id).min, $(id).max];
   const hints = {
-    'c-tau': `${rng('c-tau')[0]} clear sky · ${rng('c-tau')[1]} global storm`,
-    'c-ltst': `${fmtLtst(rng('c-ltst')[0])} morning · ${fmtLtst(rng('c-ltst')[1])} evening`,
-    'c-sol': `sol ${rng('c-sol')[0]} is landing day; balance recovers by sol ${data.C.sensorimotor_recovery_days}`,
-    'c-speed': 'only changes how fast the demo plays'
+    'c-tau': `${rng('c-tau')[0]} is clear sky, ${rng('c-tau')[1]} is a global dust storm`,
+    'c-ltst': `${fmtLtst(rng('c-ltst')[0])} is morning, ${fmtLtst(rng('c-ltst')[1])} is evening`,
+    'c-sol': `Sol ${rng('c-sol')[0]} is landing day. Balance recovers by sol ${data.C.sensorimotor_recovery_days}.`,
+    'c-speed': 'Changes the demo playback speed only.'
   };
   for (const h of document.querySelectorAll('[data-hint]')) h.textContent = hints[h.dataset.hint] ?? '';
 
@@ -260,11 +260,11 @@ export function createPanels(data, { setInputs, usingStubs, onCondition, runHasS
       li.append(el('span', 'dot'), el('div', '', w));
       limiting.push(li);
     }
-    if (!limiting.length) limiting.push(el('li', 'none', 'Nothing is limiting the walk right now.'));
+    if (!limiting.length) limiting.push(el('li', 'none', 'No factor is limiting the walk.'));
     const fine = sorted.filter(f => f.level === 'GREEN');
     if (fine.length) {
       const also = el('li', 'also'), det = el('details'), list = el('ul', 'alerts');
-      det.append(el('summary', '', `Also checked (all fine): ${fine.length}`));
+      det.append(el('summary', '', `Also checked, all fine: ${fine.length}`));
       list.append(...fine.map(item));
       det.append(list);
       also.append(det);
@@ -305,9 +305,9 @@ export function createPanels(data, { setInputs, usingStubs, onCondition, runHasS
       const same = Math.round(a.etaMin) === Math.round(alt.etaMin) && sight(a) === sight(alt);
       const dMin = Math.round(a.etaMin) - Math.round(alt.etaMin), dSight = sight(a) - sight(alt);
       const mins = n => `${n >= 0 ? '+' : '-'}${Math.abs(n)} min`;
-      if (same) note = `Same path as the ${label(alt.mode).toLowerCase()} route here.`;
+      if (same) note = `Same path as the ${label(alt.mode)} route.`;
       else if (a.mode === 'shortest') // chosen is shortest: say what the safest route would cost and gain
-        note = `The safest route would be ${mins(-dMin)}, keeping home in sight ${sight(alt)}% of the way (${sight(a)}% on the shortest route).`;
+        note = `The safest route ${dMin === 0 ? "takes the same time" : `takes ${Math.abs(dMin)} min longer`} and keeps home in sight ${sight(alt)}% of the way (${sight(a)}% on the shortest route).`;
       else if (dMin > 0 && dSight > 0) note = `${mins(dMin)}, but home stays in sight ${sight(a)}% of the way (${sight(alt)}% on the shortest route).`;
       else note = `${mins(dMin)} and home in sight ${sight(a)}% of the way (${sight(alt)}% on the shortest route).`;
     }
@@ -338,7 +338,7 @@ export function createPanels(data, { setInputs, usingStubs, onCondition, runHasS
 
     const recovering = inputs.sol < C.sensorimotor_recovery_days;
     $('c-sol-v').textContent = `Sol ${inputs.sol}`;
-    $('c-state').textContent = `${recovering ? 'balance still recovering' : 'balance recovered'}${inputs.sansAffected ? ' · vision changes' : ''}`;
+    $('c-state').textContent = `${recovering ? 'balance still recovering' : 'balance recovered'}${inputs.sansAffected ? ', vision changes' : ''}`;
     $('c-walk').textContent = fmtNum(derived.limits.speedKmh, 1, ' km/h');
     $('c-slope').textContent = fmtNum(derived.limits.maxSlopeDeg, 0, '°');
 
@@ -361,7 +361,7 @@ export function createPanels(data, { setInputs, usingStubs, onCondition, runHasS
 
     const banner = $('banner');
     if (inputs.sepActive) {
-      banner.textContent = `Solar storm: return to shelter. Replay of May 2024, when Curiosity measured ${data.C.may2024_sep_dose_ugy.toLocaleString()} µGy at Mars.`;
+      banner.textContent = `Solar storm: return to shelter. Replay of May 2024, when Curiosity measured ${data.C.may2024_sep_dose_ugy.toLocaleString()} µGy on Mars.`;
       banner.hidden = false;
     } else banner.hidden = true;
 
