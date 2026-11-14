@@ -61,8 +61,9 @@ async function boot() {
   initVisibility(data.viewsheds, data.landmarks, data.grid, data.bounds);
   let retarget = null; // set by setupScenario below: the clicked target drives the demo walk, not just the orange line
   let setCondition = null; // likewise: a condition control edits the scenario from the current demo time on
+  let runHasSep = null; // likewise: does this run include the solar particle event? (null = no scenario file)
   const view = createMapView(data, { onPickTarget: target => { setInputs({ target }); retarget?.(target); } });
-  const renderPanels = createPanels(data, { setInputs, usingStubs, onCondition: (key, value) => setCondition ? setCondition(key, value) : false });
+  const renderPanels = createPanels(data, { setInputs, usingStubs, onCondition: (key, value) => setCondition ? setCondition(key, value) : false, runHasSep: () => runHasSep ? runHasSep() : null });
 
   initStore(data, createPipeline(M), { astronaut: { ...data.meta.home, headingDeg: 0 } });
   for (const w of data.warnings) console.warn(w);
@@ -73,7 +74,8 @@ async function boot() {
   const skyIds = (data.targets ?? []).map(t => t.id);
   const skyResults = skyline ? await skyline.loadSkylineResults(skyIds) : {};
   initMotion();
-  ({ retarget = null, setCondition = null } = setupScenario(data, M, { skyline, skyResults, map: view.map }) ?? {});
+  ({ retarget = null, setCondition = null, runHasSep = null } = setupScenario(data, M, { skyline, skyResults, map: view.map }) ?? {});
+  renderPanels(getStore()); // the run setting is known now: show it (a re-render, no state written)
   setupHelmet(data);
   setupSkyline(view.map, skyline, skyResults);
   setupWelcome();
@@ -158,15 +160,24 @@ function setupScenario(data, M, sky) {
   // re-plan the walk for a target + mode; an unreachable one keeps the old walk
   const replan = (target, mode) => swap(scenario, target, mode, 'auto');
   // a condition control edit from demo time t on; sol is a different EVA day, so it restarts the walk
+  const runHasSep = () => scenario.events.some(e => e.type === 'sep_onset'); // the run setting behind the checkbox
   const setCondition = (key, value) => {
-    const sc = editScenario(scenario, t, key, value, prep.hourMin);
+    const sc = editScenario(scenario, t, key, value, prep.hourMin, data.scenario);
+    if (key === 'sepActive' && sc !== scenario) {
+      // the solar particle event is a run setting: if it changes the walk already shown (t is past the earlier leg switch), restart the run
+      const mode = prep.custom ? getStore().inputs.routeMode : 'safest';
+      const nextSwitch = prepareScenario(sc, data, M, prep.target, mode).sepT;
+      swap(sc, prep.target, mode, t > Math.min(prep.sepT, nextSwitch) ? 'zero' : 'keep');
+      apply(); // also puts the checkbox back when the change was unreachable
+      return true;
+    }
     if (sc !== scenario && swap(sc, prep.target, prep.custom ? getStore().inputs.routeMode : 'safest', key === 'sol' ? 'zero' : 'keep')) return true;
     apply(); // no-op or unreachable edit: put the controls back to what the demo shows
     return true;
   };
   // changing the route mode after picking a target re-plans the walk too (value from the event, not listener order)
   document.getElementById('c-mode').addEventListener('change', e => { if (prep.custom) replan(prep.target, e.target.value); });
-  return { retarget: target => replan(target, getStore().inputs.routeMode), setCondition };
+  return { retarget: target => replan(target, getStore().inputs.routeMode), setCondition, runHasSep };
 }
 
 // First-visit card: what this is + one-click story. Shown once per browser session.

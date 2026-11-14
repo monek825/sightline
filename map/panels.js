@@ -167,7 +167,7 @@ function wireDrawer() {
   });
 }
 
-export function createPanels(data, { setInputs, usingStubs, onCondition }) {
+export function createPanels(data, { setInputs, usingStubs, onCondition, runHasSep }) {
   buildSources(data);
   dataBadge(data, usingStubs);
   const checkpoints = buildTimeline(data);
@@ -301,7 +301,7 @@ export function createPanels(data, { setInputs, usingStubs, onCondition }) {
       $(id).value = inputs[key];
       $(out).textContent = fmt(inputs[key]);
     }
-    $('c-sep').checked = inputs.sepActive;
+    $('c-sep').checked = runHasSep?.() ?? inputs.sepActive; // run setting with a scenario file, else the live value
     $('c-sans').checked = inputs.sansAffected;
     $('c-mode').value = inputs.routeMode;
   };
