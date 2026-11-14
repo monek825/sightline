@@ -101,11 +101,13 @@ function setupScenario(data, M, sky) {
   };
   const apply = () => {
     setInputs(stateAt(prep, t, sky.skyResults));
-    const text = t > 0 || playing ? captionAt(t) : '';
+    const text = t > 0 || playing ? captionAt(t) : 'Press play to watch the 100-second story.';
     if (caption.textContent !== text) { caption.textContent = text; caption.hidden = !text; }
     scrub.value = t;
     label.textContent = `t = ${Math.round(t)} min`;
   };
+  caption.textContent = 'Press play to watch the 100-second story.';
+  caption.hidden = false;
   const frame = now => {
     if (!playing) return;
     const prevT = t;
@@ -124,12 +126,12 @@ function setupScenario(data, M, sky) {
   const start = () => {
     if (t >= prep.endT) t = 0;
     playing = true; last = performance.now();
-    play.textContent = 'Pause'; play.setAttribute('aria-label', 'Pause demo');
+    play.dataset.state = 'playing'; play.setAttribute('aria-label', 'Pause demo');
     raf = requestAnimationFrame(frame);
   };
   function stop() {
     playing = false; cancelAnimationFrame(raf);
-    play.textContent = 'Play demo'; play.setAttribute('aria-label', 'Play demo');
+    play.dataset.state = 'paused'; play.setAttribute('aria-label', 'Play demo');
   }
   play.addEventListener('click', () => (playing ? stop() : start()));
   document.getElementById('t-reset').addEventListener('click', () => { stop(); t = 0; apply(); });

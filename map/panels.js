@@ -1,5 +1,5 @@
 // Written with AI assistance (Claude / GitHub Copilot)
-// Panels: frosted category panel (5 question tabs), bottom drawer (timeline + details), clock, banner,
+// Panels: frosted category panel (3 question tabs), bottom drawer (timeline + details), clock, banner,
 // sources modal, data badge. Renders from the store; control events call setInputs (user actions only).
 
 const $ = id => document.getElementById(id);
@@ -26,8 +26,8 @@ const fmtKm = v => (Number.isFinite(v) ? `${v.toFixed(v < 10 ? 1 : 0)} km` : 'â€
 const GROUPS = [
   ['dust', /dust|vis|tau|devil|storm/i],
   ['pos', /pos|fix|sky|lost/i],
-  ['home', /suit|time|return|walk|home/i],
-  ['body', /.*/]
+  ['pos', /route|path|slope/i],
+  ['home', /.*/] // suit time, walking, radiation, body: all answer "can I get home?"
 ];
 const groupOf = f => GROUPS.find(([, re]) => re.test(f.id))[0];
 const SEVERITY = { RED: 0, AMBER: 1, GREEN: 2 };
@@ -42,6 +42,7 @@ function buildTimeline(data) {
   const cps = events.map(ev => {
     const cp = el('li', 'cp');
     cp.style.left = `${end > 0 ? (ev.tMin / end) * 100 : 0}%`;
+    cp.title = eventLabel(ev);
     cp.append(el('span', 'cp-dot'), el('span', 'cp-label', eventLabel(ev)));
     return { tMin: ev.tMin, cp };
   });

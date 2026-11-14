@@ -25,7 +25,9 @@
   --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px; --s6: 32px;
   --r-lg: 20px; --r-md: 12px; --r-sm: 8px;
   --panel-w: clamp(320px, 26vw, 380px);
-  --notch-d: 52px; /* depth of the hexagon notch the map drops into */
+  --notch-d: 76px; /* height of the glass bottom bar (and its notch) */
+  --notch-w: 600px; /* notch width at the top edge */
+  --notch-s: 46px;  /* how far each notch side slants in */
   --map-shape: polygon(0.0px 20.0px, 1.0px 13.8px, 3.8px 8.2px, 8.2px 3.8px, 13.8px 1.0px, 20.0px 0.0px, calc(100% - 20.0px) 0.0px, calc(100% - 13.8px) 1.0px, calc(100% - 8.2px) 3.8px, calc(100% - 3.8px) 8.2px, calc(100% - 1.0px) 13.8px, calc(100% + 0.0px) 20.0px, calc(100% + 0.0px) calc(100% - 72.0px), calc(100% - 1.0px) calc(100% - 65.8px), calc(100% - 3.8px) calc(100% - 60.2px), calc(100% - 8.2px) calc(100% - 55.8px), calc(100% - 13.8px) calc(100% - 53.0px), calc(100% - 20.0px) calc(100% - 52.0px), calc(50% + 216.0px) calc(100% - 52.0px), calc(50% + 209.8px) calc(100% - 51.5px), calc(50% + 204.2px) calc(100% - 50.0px), calc(50% + 199.0px) calc(100% - 47.4px), calc(50% + 194.4px) calc(100% - 43.9px), calc(50% + 190.2px) calc(100% - 39.3px), calc(50% + 169.8px) calc(100% - 12.7px), calc(50% + 165.6px) calc(100% - 8.1px), calc(50% + 161.0px) calc(100% - 4.6px), calc(50% + 155.8px) calc(100% - 2.0px), calc(50% + 150.2px) calc(100% - 0.5px), calc(50% + 144.0px) calc(100% + 0.0px), calc(50% - 144.0px) calc(100% + 0.0px), calc(50% - 150.2px) calc(100% - 0.5px), calc(50% - 155.8px) calc(100% - 2.0px), calc(50% - 161.0px) calc(100% - 4.6px), calc(50% - 165.6px) calc(100% - 8.1px), calc(50% - 169.8px) calc(100% - 12.7px), calc(50% - 190.2px) calc(100% - 39.3px), calc(50% - 194.4px) calc(100% - 43.9px), calc(50% - 199.0px) calc(100% - 47.4px), calc(50% - 204.2px) calc(100% - 50.0px), calc(50% - 209.8px) calc(100% - 51.5px), calc(50% - 216.0px) calc(100% - 52.0px), 20.0px calc(100% - 52.0px), 13.8px calc(100% - 53.0px), 8.2px calc(100% - 55.8px), 3.8px calc(100% - 60.2px), 1.0px calc(100% - 65.8px), 0.0px calc(100% - 72.0px));
 }
 * { box-sizing: border-box; }
@@ -42,11 +44,10 @@ h1, h2 { margin: 0; font-weight: 600; }
   border: 0; box-shadow: var(--shadow);
 }
 
-.stage { height: 100dvh; display: flex; flex-direction: column; padding: var(--s4) var(--s4) 0; }
+.stage { height: 100dvh; display: flex; flex-direction: column; padding: var(--s4); }
 /* framed map: rounded card with a half-hexagon notch dropping into the drawer */
-.map-wrap { position: relative; flex: 1; min-height: 0; isolation: isolate; margin-bottom: calc(var(--notch-d) * -1); z-index: 2; }
+.map-wrap { position: relative; flex: 1; min-height: 0; isolation: isolate; border-radius: var(--r-lg); overflow: hidden; }
 #map { position: absolute; inset: 0; background: var(--bg); }
-#map, .view3d { clip-path: var(--map-shape); }
 .leaflet-bottom { bottom: var(--notch-d); }
 .leaflet-container { font-family: var(--font); background: var(--bg); }
 .blind-overlay { image-rendering: auto; }
@@ -283,7 +284,7 @@ h1, h2 { margin: 0; font-weight: 600; }
 .fatal { padding: var(--s4); background: var(--red); color: var(--accent-ink); font-weight: 600; }
 
 /* video mode: clean screen recording */
-body.video :is(.drawer, .view-toggle, .leaflet-control-container) { display: none; }
+body.video :is(.bar-left, .view-toggle, .leaflet-control-container) { display: none; }
 
 /* tablet + phone: map on top, panel and drawer stacked below */
 @media (max-width: 1023px) {
@@ -479,3 +480,87 @@ h1, h2, .brand, .tab-title, .skyfix-head h2, .more h2 { font-family: var(--displ
 .cmp-line.dashed { border-top: 2px dashed var(--cream); }
 .cmp-nums { grid-column: 2; display: flex; flex-wrap: wrap; gap: 0 var(--s3); font: 12px var(--mono); color: var(--muted); }
 .cmp-note { margin: 0; font-size: 13px; color: var(--text); }
+
+/* ---------- glass bottom bar: two slanted glass pieces; the gap between them is the notch ---------- */
+.bar {
+  position: absolute; bottom: 0; height: var(--notch-d); z-index: 1001; display: flex; align-items: center;
+  background: rgba(24, 14, 9, .5); backdrop-filter: var(--blur); -webkit-backdrop-filter: var(--blur);
+}
+.bar-left {
+  left: 0; width: calc(50% - var(--notch-w) / 2 + var(--notch-s)); gap: var(--s3);
+  padding: 0 calc(var(--notch-s) + var(--s3)) 0 var(--s4);
+  clip-path: polygon(0 0, calc(100% - var(--notch-s)) 0, 100% 100%, 0 100%);
+}
+.bar-right {
+  right: 0; width: calc(50% - var(--notch-w) / 2 + var(--notch-s)); justify-content: flex-end;
+  padding: 0 var(--s4) 0 calc(var(--notch-s) + var(--s3));
+  clip-path: polygon(0 0, 100% 0, 100% 100%, var(--notch-s) 100%);
+}
+/* the selected tab may lift above the bar, so the right bar must not clip it */
+.bar-right { clip-path: none; background: none; backdrop-filter: none; -webkit-backdrop-filter: none; }
+.bar-right::before {
+  content: ""; position: absolute; inset: 0; z-index: -1; background: rgba(24, 14, 9, .5);
+  backdrop-filter: var(--blur); -webkit-backdrop-filter: var(--blur);
+  clip-path: polygon(0 0, 100% 0, 100% 100%, var(--notch-s) 100%);
+}
+.bar-right .tabbar { margin: 0; width: min(var(--panel-w), 100%); justify-content: space-around; }
+
+/* compact player */
+.player { flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--s2); }
+.icon-btn {
+  flex: none; width: 38px; height: 38px; display: grid; place-items: center; padding: 0; border: 0; border-radius: 50%;
+  background: rgba(255, 255, 255, .08); color: var(--text); cursor: pointer;
+  transition: transform .5s var(--ease-out), background-color .2s;
+}
+.icon-btn:hover { background: rgba(255, 138, 61, .25); transform: scale(1.06); }
+.icon-btn:active { transform: scale(.94); transition-duration: .1s; }
+.icon-btn svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.icon-btn.play { background: var(--accent); color: var(--accent-ink); }
+.icon-btn.play:hover { background: #ffa05f; }
+.icon-btn.play .i-play { fill: currentColor; stroke: none; }
+.icon-btn.play[data-state="playing"] .i-play, .icon-btn.play[data-state="paused"] .i-pause { display: none; }
+.player .scrub-wrap { flex: 1; min-width: 60px; position: relative; }
+.player input[type=range] { width: 100%; height: 22px; margin: 0; display: block; accent-color: var(--accent); }
+.player .track { position: absolute; left: 8px; right: 8px; top: 100%; height: 8px; margin: 0; padding: 0; pointer-events: none; }
+.player .cp-dot { width: 6px; height: 6px; border-width: 1.5px; }
+.player .cp-label { display: none !important; }
+.player #t-label { flex: none; min-width: 0; line-height: 1; font-size: 12px; color: var(--muted); text-align: right; }
+.details-btn {
+  flex: none; display: flex; align-items: center; gap: 4px; height: 32px; padding: 0 var(--s3); border: 0; border-radius: 999px;
+  background: rgba(255, 255, 255, .08); color: var(--text); font: 600 12px var(--font); cursor: pointer; transition: background-color .2s;
+}
+.details-btn:hover { background: rgba(255, 138, 61, .25); }
+.details-btn svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2.2; transition: transform .5s var(--spring); }
+.details-btn[aria-expanded="true"] svg { transform: rotate(180deg); }
+.details-btn.has-mock span::after { content: " · mock"; color: #f3c66c; font-weight: 500; }
+
+/* story caption sits in the notch, over the crisp map */
+.caption {
+  bottom: 10px; max-width: calc(var(--notch-w) - 2 * var(--notch-s) - 16px); width: calc(var(--notch-w) - 2 * var(--notch-s) - 16px);
+  padding: var(--s2) var(--s3); font-size: 14px; background: rgba(24, 14, 9, .62);
+}
+
+/* details sheet: glass card above the left bar (contents: Jojo) */
+.more {
+  position: absolute; left: var(--s4); bottom: calc(var(--notch-d) + var(--s3)); z-index: 1055;
+  width: min(760px, calc(100% - var(--panel-w) - 56px)); max-height: calc(100% - var(--notch-d) - 96px);
+  border-top: 0; border-radius: var(--r-lg); background: var(--frost-strong);
+}
+
+/* panel stops above the bar; its tab bar now lives in the right bar */
+.panel { bottom: calc(var(--notch-d) + var(--s3)); }
+.tab-body { padding-bottom: var(--s5); }
+
+@media (max-width: 1023px) {
+  .stage { padding: var(--s3); }
+  .map-wrap { display: flex; flex-direction: column; border-radius: 0; overflow: visible; }
+  #map, .view3d { border-radius: var(--r-lg); overflow: hidden; }
+  .bar { position: relative; height: auto; min-height: 60px; width: auto; clip-path: none; padding: var(--s2) var(--s3); border-radius: var(--r-lg); margin-top: var(--s3); }
+  .bar-right::before { clip-path: none; border-radius: var(--r-lg); }
+  .bar-left { order: 2; }
+  .caption { order: 1; position: relative; left: auto; bottom: auto; transform: none; width: auto; max-width: none; margin: var(--s3) 0 0; }
+  .panel { order: 3; bottom: auto; }
+  .bar-right { order: 4; justify-content: center; padding-top: var(--s4); }
+  .more { position: relative; order: 5; left: auto; bottom: auto; width: auto; max-height: none; margin-top: var(--s3); }
+  .player #t-label { display: none; }
+}
