@@ -10,6 +10,7 @@ Mars has no GPS. If the astronaut is lost, they **turn slowly 360°**. A helmet 
 - Today, rover **global localisation on Mars is still done partly by humans** matching images to orbital maps (JPL, ICRA 2024).
 - JPL reports horizon-matching methods at **~10–100 m** accuracy.
 - Our test on the real Jezero DTM (simulated skylines + 0.15° noise): **0 m error at all 5 test sites with a full 360° turn**; with only a 96° camera view: 0 m to 1.1 km → that's why the procedure is a **full turn**.
+- Off-grid check (`python scripts/skyline.py --offgrid`: true position 0–50 m between search-grid nodes, same noise): full 360° turn error **5–23 m** across the 5 sites (uncertainty 50–141 m); the 96° view landed within 5–142 m in that run, but in another off-grid run with different starting guesses it was 2.9 km and 4.0 km off at two sites, so a single view is not reliable.
 - Honest limit: **not yet tested on real photos.** Real cameras + dust + rover/suit tilt will be worse. We show "coarse fix + confidence", never a precise dot.
 
 ## Part A — precompute: `scripts/skyline.py` → `data/skyline/<site>.json`

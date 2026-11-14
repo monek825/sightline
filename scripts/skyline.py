@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 import math
+import sys
 import time
 
 import numpy as np
@@ -30,6 +31,7 @@ UNC_MARGIN_DEG, UNC_MIN_M = 0.05, 50
 FOV96_N = 48                                          # 48 * 2 deg = 96 deg
 BATCH = 60
 SEED = 2020
+OFFGRID_SEED, OFFGRID_MAX_M = 4040, 50.0   # --offgrid: truth moved 0-50 m so it is not a search-grid node
 
 
 def horizons(z: np.ndarray, rows: np.ndarray, cols: np.ndarray) -> np.ndarray:
@@ -82,14 +84,20 @@ def r3(a) -> list[float]:
     return [round(float(v), 3) for v in np.asarray(a).ravel()]
 
 
-def run_site(z: np.ndarray, t: dict, k: int) -> dict:
+def run_site(z: np.ndarray, t: dict, k: int, offgrid: bool = False) -> dict:
     rng = np.random.default_rng(SEED + k)
     lat, lon = t["lat"], t["lon"]
     tr, tc = latlon_to_px(lat, lon, z.shape)
-    # prior = truth offset 1-2 km in a random direction, NOT snapped: the truth is generally between grid nodes
+    sh_n = sh_e = 0.0
+    if offgrid:                                           # separate rng: default run's random stream is untouched
+        r2 = np.random.default_rng(OFFGRID_SEED + k)
+        d2, a2 = r2.uniform(0, OFFGRID_MAX_M), r2.uniform(0, 2 * math.pi)
+        sh_n, sh_e = d2 * math.cos(a2), d2 * math.sin(a2)
+        tr, tc = tr - sh_n / PX_M, tc + sh_e / EW_M
+    # prior = truth offset 1-2 km in a random direction (snapped to the 100 m grid step)
     dist, ang = rng.uniform(1000, 2000), rng.uniform(0, 2 * math.pi)
-    off_n = dist * math.cos(ang)
-    off_e = dist * math.sin(ang)
+    off_n = round(dist * math.cos(ang) / GRID_STEP) * GRID_STEP
+    off_e = round(dist * math.sin(ang) / GRID_STEP) * GRID_STEP
     pr, pc = tr - off_n / PX_M, tc + off_e / EW_M
     prior_lat, prior_lon = px_to_latlon(pr, pc, z.shape)
 
@@ -116,7 +124,7 @@ def run_site(z: np.ndarray, t: dict, k: int) -> dict:
     def locate(rms, arg):
         b = int(rms.argmin())
         bi, bj = divmod(b, n)
-        err = float(math.hypot(gn.ravel()[b] - (-off_n), ge.ravel()[b] - (-off_e)))
+        err = float(math.hypot(gn.ravel()[b] - (-off_n + sh_n), ge.ravel()[b] - (-off_e + sh_e)))
         return b, bi, bj, err
 
     # full 360
@@ -131,7 +139,6 @@ def run_site(z: np.ndarray, t: dict, k: int) -> dict:
     rms96, arg96 = match(cand, obs[:FOV96_N])
     b96, bi96, bj96, err96 = locate(rms96, arg96)
     unc96 = uncertainty(rms96.reshape(n, n), bi96, bj96)
-    est96_lat, est96_lon = px_to_latlon(rows[b96], cols[b96], z.shape)
 
     return {
         "site": t["id"], "name": t["name"],
@@ -143,28 +150,38 @@ def run_site(z: np.ndarray, t: dict, k: int) -> dict:
         "observed": r3(obs), "best": r3(best_prof),
         "grid": {"centerLat": round(prior_lat, 5), "centerLon": round(prior_lon, 5),
                  "stepM": GRID_STEP, "n": n, "rmsDeg": r3(rms2)},
-        "fov96": {"errorM": round(err96), "uncertaintyM": round(unc96),
-                  "estimate": {"lat": round(est96_lat, 5), "lon": round(est96_lon, 5)}},
+        "fov96": {"errorM": round(err96), "uncertaintyM": round(unc96)},
         "method": "Simulated skyline from CTX DTM + 0.15° noise; not a real photo.",
     }, (round(float(rms.min()), 3), hdg_err(int(arg96[b96])), round(math.hypot(off_n, off_e)))
 
 
 def main() -> None:
+    offgrid = "--offgrid" in sys.argv[1:]
     z = load_dtm()
     targets = json.loads((DATA / "targets.json").read_text(encoding="utf-8"))
     out_dir = DATA / "skyline"
     out_dir.mkdir(exist_ok=True)
     t_all = time.time()
+    summary = {}
     for k, t in enumerate(targets):
         t0 = time.time()
-        res, (min_rms, h96, off) = run_site(z, t, k)
+        res, (min_rms, h96, off) = run_site(z, t, k, offgrid)
         path = out_dir / f"{t['id']}.json"
-        path.write_text(json.dumps(res, separators=(",", ":"), allow_nan=False), encoding="utf-8")
+        if offgrid:
+            summary[t["id"]] = {"errorM": res["errorM"], "uncertaintyM": res["uncertaintyM"], "fov96": dict(res["fov96"])}
+        else:
+            path.write_text(json.dumps(res, separators=(",", ":"), allow_nan=False), encoding="utf-8")
         f96 = res["fov96"]
-        print(f"{t['id']:<14} wrote {path.relative_to(DATA.parent)} ({path.stat().st_size / 1024:.0f} kB, {time.time() - t0:.0f}s) "
+        print(f"{t['id']:<14} {'(offgrid, not written)' if offgrid else 'wrote ' + str(path.relative_to(DATA.parent))} ({path.stat().st_size / 1024:.0f} kB, {time.time() - t0:.0f}s) "
               f"prior offset {off} m | 360: error {res['errorM']} m, uncertainty {res['uncertaintyM']} m, "
               f"heading err {res['headingErrorDeg']} deg, min RMS {min_rms} deg | "
               f"96: error {f96['errorM']} m, uncertainty {f96['uncertaintyM']} m, heading err {h96} deg")
+    if offgrid:
+        note = ("Simulated skyline (CTX DTM + 0.15 deg noise), not a real photo. True position moved a seeded random 0-50 m so it "
+                "sits between the 100 m search-grid nodes; prior 1-2 km away as in the default run.")
+        (out_dir / "offgrid_summary.json").write_text(json.dumps(
+            {"note": note, "seed": OFFGRID_SEED, "noiseDeg": NOISE_DEG, "sites": summary}, indent=1, allow_nan=False), encoding="utf-8")
+        print("wrote data/skyline/offgrid_summary.json")
     print(f"done in {time.time() - t_all:.0f}s")
 
 
