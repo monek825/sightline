@@ -15,13 +15,13 @@ const SPEED_MIN_PER_SEC = 2; // demo clock: 1 real second = 2 EVA minutes
 const TAU_STORM = 3; // a tau event at or above this is captioned as a dust storm
 // Story captions for the demo, one per scenario event type (plain-language narration for judges).
 const CAPTIONS = {
-  eva_start: () => 'The astronaut walks out to the Three Forks sample depot. Green means plenty of time to get home.',
+  eva_start: () => 'The astronaut walks out to the Three Forks sample depot. Green means there is plenty of time to get home.',
   tau: e => e.value >= TAU_STORM
-    ? `Dust storm rolling in (τ rising to ${e.value}, sped up: real storms build over days). Visibility drops, red no-landmark zones grow.`
-    : `Dust is rising (τ ${e.value}). Red areas: no landmark in sight, so it's easy to get lost there.`,
-  skyline_fix: () => 'Lost without GPS? Horizon Match finds the position by matching the horizon to NASA terrain.',
-  sep_onset: () => 'Solar storm (a replay of May 2024). Radiation means: turn back to shelter now.',
-  return_home: () => 'Turning back to the habitat now.',
+    ? `Dust storm (τ ${e.value}, sped up: real storms build over days). Visibility drops and the red no-landmark zones grow.`
+    : `Dust is rising (τ ${e.value}). Red areas have no landmark in sight, so it is easy to get lost there.`,
+  skyline_fix: () => 'Without GPS, Horizon Match finds the position by matching the horizon to NASA terrain.',
+  sep_onset: () => 'Solar storm, replay of May 2024. Turn back to shelter now because of the radiation.',
+  return_home: () => 'The astronaut turns back to the habitat.',
   eva_end: () => 'Back at the habitat. The walk budget kept the astronaut safe.'
 };
 
@@ -109,13 +109,13 @@ function setupScenario(data, M, sky) {
   };
   const apply = () => {
     setInputs(stateAt(prep, t, sky.skyResults));
-    const text = t > 0 || playing ? captionAt(t) : 'Press play to watch the 100-second story.';
+    const text = t > 0 || playing ? captionAt(t) : 'Press play to start the 100-second demo.';
     if (caption.textContent !== text) { caption.textContent = text; caption.hidden = !text; }
     scrub.value = t;
     label.textContent = `t = ${Math.round(t)} min`;
     homeBtn.disabled = !(t > 0 && t < prep.sepT && t < prep.endT); // a press only acts on the outbound leg
   };
-  caption.textContent = 'Press play to watch the 100-second story.';
+  caption.textContent = 'Press play to start the 100-second demo.';
   caption.hidden = false;
   const frame = now => {
     if (!playing) return;

@@ -58,7 +58,7 @@ function buildDialog() {
   close.type = 'button';
   head.append(h, close);
 
-  const lead = el('p', 'skyfix-lead', "Every spot in the crater sees a different outline of hills on the horizon, like a fingerprint. Turn around once, compare that outline with NASA's 3D map, and the best match is where you are.");
+  const lead = el('p', 'skyfix-lead', "Each spot in the crater has a different outline of hills on the horizon. The astronaut turns once, the outline is compared with NASA's 3D map, and the best match is the position.");
   const step = el('ol', 'skyfix-steps');
   step.setAttribute('aria-label', 'Progress');
   for (const label of STEPS) step.append(el('li', null, label));
@@ -79,13 +79,13 @@ function buildDialog() {
   axis.setAttribute('aria-hidden', 'true');
   for (const d of ['N', 'E', 'S', 'W', 'N']) axis.append(el('span', null, d));
   const legend = el('p', 'skyfix-legend');
-  legend.append(el('span', 'k-obs', 'Hills the astronaut sees'), el('span', 'k-best', "Hills NASA's map predicts at the match"));
+  legend.append(el('span', 'k-obs', 'Hills the astronaut sees'), el('span', 'k-best', "Hills in NASA's map at the match"));
   const result = el('div', 'skyfix-result');
   const how = el('details', 'skyfix-how');
   how.append(el('summary', null, 'More detail'));
   for (const line of [
     'The horizon for every spot comes from the NASA CTX elevation model of Jezero (20 m per point).',
-    'Perseverance used the same idea while landing: it matched its camera view to an orbital map. JPL reports horizon matching at about 10–100 m.',
+    'Perseverance used the same idea while landing, matching its camera view to an orbital map. JPL reports horizon matching at about 10–100 m.',
     'Tested on simulated views so far. Real photos, dust and suit tilt will make it less accurate.'
   ]) how.append(el('p', null, line));
 
@@ -171,20 +171,20 @@ function showResult(box, s, map, reduced) {
     what.textContent = is96 ? `${Math.round(v.err)} m off` : `(within ${Math.round(v.unc)} m)`;
     btns.forEach(([b, m]) => b.setAttribute('aria-pressed', String(m === mode)));
     if (!is96) explain.textContent = 'Looking all the way round sees the most hills, so the match is reliable.';
-    else if (same) explain.textContent = 'Here one direction happens to be enough, but at other spots it is far off, so astronauts always turn all the way.';
-    else explain.textContent = `Looking one way sees too few hills: the answer can be ${Math.round(v.err)} m off. That's why astronauts turn all the way round.`;
+    else if (same) explain.textContent = 'Here one direction is enough, but at other spots it is far off, so astronauts always turn all the way round.';
+    else explain.textContent = `Looking one way sees too few hills, so the answer can be ${Math.round(v.err)} m off. Astronauts turn all the way round for this reason.`;
     setCompareView(map, v, reduced);
   };
 
   ui.how.querySelector('.skyfix-why')?.remove();
-  if (v96) { // the comparison lives under "Why turn all the way round?" so the main card stays simple
+  if (v96) { // the comparison lives under "Turning all the way round" so the main card stays simple
     const why = el('div', 'skyfix-why');
     const group = el('div', 'skyfix-toggle');
     group.setAttribute('role', 'group');
     group.setAttribute('aria-label', 'Compare looking all the way round with looking one way (simulated)');
-    btns = [[el('button', 'btn', 'Turn all the way'), 360], [el('button', 'btn', 'Look one way only'), 96]];
+    btns = [[el('button', 'btn', 'Turn all the way round'), 360], [el('button', 'btn', 'Look one way only'), 96]];
     for (const [b, m] of btns) { b.type = 'button'; b.addEventListener('click', () => show(m)); group.append(b); }
-    why.append(el('h3', null, 'Why turn all the way round?'), group, explain);
+    why.append(el('h3', null, 'Turning all the way round'), group, explain);
     ui.how.insertBefore(why, ui.how.children[1]);
   }
   show(360);
@@ -228,11 +228,11 @@ export async function openSkylineFix(siteId, map, opts = {}) {
   );
   const [, obs, best] = chart.children;
   result.replaceChildren();
-  dlg.querySelector('.skyfix-head h2').textContent = 'Lost? Find your position from the hills';
+  dlg.querySelector('.skyfix-head h2').textContent = 'Horizon Match';
   if (!dlg.open) dlg.show();
 
   // 1. Turn 360°
-  setStep(0, `Near ${s.name}. The astronaut turns slowly; the helmet camera traces the hills.`);
+  setStep(0, `Near ${s.name}. The astronaut turns slowly and the helmet camera traces the hills.`);
   const sweep = compass.querySelector('.sweep');
   const n = s.observed.length;
   if (reduced) {
