@@ -48,9 +48,9 @@
       <header class="brandbar frost">
         <h1 class="brand"><span class="logo" aria-hidden="true"><img src="assets/logo.svg" alt="" width="142" height="142"></span>Sightline</h1>
         <dl class="clock">
-          <div><dt>Sol</dt><dd id="clk-sol">–</dd></div>
-          <div><dt>LTST</dt><dd id="clk-ltst">–</dd></div>
-          <div><dt>EVA</dt><dd id="clk-eva">–</dd></div>
+          <div title="Mars days since landing"><dt>Sol</dt><dd id="clk-sol">–</dd></div>
+          <div title="Local true solar time on Mars"><dt>LTST</dt><dd id="clk-ltst">–</dd></div>
+          <div title="Minutes since the walk outside began"><dt>EVA</dt><dd id="clk-eva">–</dd></div>
         </dl>
       </header>
 
@@ -128,7 +128,7 @@
             <p class="hero-num"><span id="d-vis">–</span> <small>visibility range</small></p>
             <div class="haze" aria-hidden="true"><span id="now-haze"></span></div>
             <dl class="pairs">
-              <div><dt>Dust (τ)</dt><dd id="d-tau">–</dd></div>
+              <div><dt title="Optical depth: how much dust is in the air">Dust (τ)</dt><dd id="d-tau">–</dd></div>
               <div><dt>Habitat visible from</dt><dd id="d-home">–</dd></div>
             </dl>
             <p id="now-devil" class="chip" hidden>Dust-devil hours. Swirls on the map are illustrative.</p>

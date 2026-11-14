@@ -843,6 +843,7 @@ function setupLayerMenu(items, setLayer3D) {
     const lab = document.createElement('label'), box = document.createElement('input');
     box.type = 'checkbox'; box.checked = true;
     box.addEventListener('change', () => { it.on2?.(box.checked); setLayer3D(it.id, box.checked); });
+    if (it.only) lab.className = `only-${it.only}`;   // drawn in one view only: hidden in the other (styles.css)
     lab.append(box, document.createTextNode(it.label));
     list.append(lab);
   }
@@ -894,14 +895,14 @@ export function createMapView(data, { onPickTarget }) {
   for (const id of ['v-2d', 'v-3d']) $(id).addEventListener('click', () => devils.refresh()); // pause/resume the devil loop
   const g2 = (...ls) => on => ls.forEach(l => (on ? l.addTo(map) : l.remove()));
   setupLayerMenu([
-    { id: 'beacon', label: 'Home beacon' },
+    { id: 'beacon', label: 'Home beacon', only: '3d' },
     { id: 'landmarks', label: 'Landmarks', on2: g2(L2.landmarkLayer) },
     { id: 'names', label: 'Place names', on2: on => L2.setNames(on) },
     { id: 'sites', label: 'Science sites', on2: g2(L2.targetLayer) },
-    { id: 'perseverance', label: 'Perseverance route', on2: g2(L2.traverse) },
+    { id: 'perseverance', label: 'Perseverance route', on2: g2(L2.traverse), only: '2d' },
     { id: 'routes', label: 'Walking routes', on2: g2(routesG) },
     { id: 'blind', label: 'Blind zones', on2: g2(blindLayer) },
-    { id: 'ring', label: 'Visibility ring', on2: g2(seeRing, uncertainty) },
+    { id: 'ring', label: 'Range and position rings', on2: g2(seeRing, uncertainty) },
     { id: 'dust', label: 'Dust haze', on2: g2(haze) }
   ], view3d.setLayer);
   L2.setNames(true);

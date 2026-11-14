@@ -127,6 +127,7 @@ function setupScenario(data, M, sky) {
     const fix = fixEvents.find(e => prevT < e.tMin && e.tMin <= t);
     if (fix) { // pause, play the Horizon Match, resume when the panel closes
       stop();
+      caption.textContent = 'Close the Horizon Match panel to continue the demo.'; caption.hidden = false;
       const restore = show2D(), id = pauseId;
       sky.skyline.openSkylineFix(fix.site, sky.map, { applyFix: false, onClose: () => { restore(); if (id === pauseId) start(); } });
       return;
@@ -218,9 +219,11 @@ function setupScenario(data, M, sky) {
   const triggerEvent = kind => {
     if (kind === 'dust' || kind === 'clear') {   // storms build up (and clear) gradually, with gusts
       swap(editScenario(scenario, t, 'tauRamp', kind === 'dust' ? 6 : 0.4, prep.hourMin, data.scenario), prep.target, mode0(), 'keep');
-      return apply();
+      apply();
+      if (!playing) start();   // paused: nothing would show until Play
+      return;
     }
-    if (kind === 'solar') { swap(editScenario(scenario, Math.max(t, 1), 'sepAt', true, prep.hourMin, data.scenario), prep.target, mode0(), 'keep'); return apply(); }
+    if (kind === 'solar') { swap(editScenario(scenario, Math.max(t, 1), 'sepAt', true, prep.hourMin, data.scenario), prep.target, mode0(), 'keep'); apply(); if (!playing) start(); return; }
     if (kind === 'lost') { stop(); document.getElementById('btn-skyline').click(); return; }
     const list = kind === 'random' ? randomEvents() : kind === 'calm' ? fixed(data.scenario.events) : data.scenario.events;
     swap(editScenario(scenario, 0, 'events', list), prep.target, mode0(), 'zero');

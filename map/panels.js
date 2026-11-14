@@ -406,7 +406,7 @@ export function createPanels(data, { setInputs, usingStubs, onCondition, runHasS
 
     const banner = $('banner');
     if (inputs.sepActive) {
-      banner.textContent = `Solar storm: return to shelter. Replay of May 2024: NASA says an astronaut at Gale would have received ${data.C.may2024_sep_dose_ugy.toLocaleString()} micrograys, about 30 chest X-rays.`;
+      banner.textContent = `Solar storm: ${derived.budget.headline === 'AT SHELTER' ? 'the astronaut is in the shelter' : 'return to shelter'}. Replay of May 2024: NASA says an astronaut at Gale would have received ${data.C.may2024_sep_dose_ugy.toLocaleString()} micrograys, about 30 chest X-rays.`;
       banner.hidden = false;
     } else banner.hidden = true;
 
