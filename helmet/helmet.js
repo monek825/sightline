@@ -22,11 +22,12 @@ const NEAR_HOME_M = 60;           // visual: this close to the habitat you can s
 const SKY_CLEAR = [227, 167, 106], SKY_DUSTY = [168, 120, 84], ZENITH_CLEAR = [128, 86, 62], TAU_DUSTY = 8, SUN_DIST = 30000;
 const LTST_DEFAULT = 9.0;
 // Realism layer (visual only, lib/ground.js). Three rock layers around the view, hashed per world cell so they stay put:
-// gravel at your feet, rocks out to 75 m, boulders out to 280 m. Clumped, and sparse on the sand patches the ground shader draws.
+// gravel at your feet, rocks out to 75 m, boulders out to 280 m. Inside a HiRISE patch their density follows the image
+// (lib/terrain.js roughnessAt); elsewhere they are illustrative clumps.
 const ROCK_LAYERS = [
-  { count: 9000, radius: 24, cell: 1, min: 0.012, max: 0.09, rescatter: 6, detail: 0, color: 0x7d5f4c, cast: false, sandAvoid: 0.6, clumpM: 6, clearHome: 11 },
-  { count: 2400, radius: 75, cell: 4, min: 0.1, max: 0.6, rescatter: 15, detail: 1, color: 0x6f5444, cast: true, sandAvoid: 0.85, clumpM: 25, clearHome: 11 },
-  { count: 320, radius: 280, cell: 20, min: 0.5, max: 2.8, rescatter: 50, detail: 1, color: 0x6a4f40, cast: true, sandAvoid: 0.9, clumpM: 90, clearHome: 14 }
+  { count: 9000, radius: 24, cell: 1, min: 0.012, max: 0.09, rescatter: 6, detail: 0, color: 0x7d5f4c, cast: false, clumpM: 6, clearHome: 11 },
+  { count: 2400, radius: 75, cell: 4, min: 0.1, max: 0.6, rescatter: 15, detail: 1, color: 0x6f5444, cast: true, clumpM: 25, clearHome: 11 },
+  { count: 320, radius: 280, cell: 20, min: 0.5, max: 2.8, rescatter: 50, detail: 1, color: 0x6a4f40, cast: true, clumpM: 90, clearHome: 14 }
 ];
 const GROUND_NEAR_M = 40, GROUND_FAR_M = 400;     // close-up grain and ripples fade out over this range
 // Zoom (binocular view): mouse wheel, pinch, + / - keys, 0 resets. 80 deg = normal, 4 deg = 20x.
@@ -1160,7 +1161,15 @@ async function boot() {
   el.addEventListener('terrain-error', (e) => fail('Terrain failed to load: ' + (e.detail && e.detail.message)));
   el.addEventListener('terrain-loaded', (e) => { onTerrain(e.detail); if (!inIframe) standalone(); });
   sceneEl.appendChild(el);
-  el.setAttribute('heightgrid-terrain', { src: '../data/heightgrid.json', meta: '../data/meta.json', texture: '../data/terrain_texture.jpg' });
+  // HiRISE close-up patches load after the terrain; then rock density near home / Three Forks follows the image
+  el.addEventListener('patches-loaded', (e) => {
+    const t = e.detail, maxA = sceneEl.renderer ? sceneEl.renderer.capabilities.getMaxAnisotropy() : 8;
+    for (const p of t.patches) { p.tex.anisotropy = maxA; p.tex.needsUpdate = true; }
+    if (rocks) rocks.setDensity(t.roughnessAt);
+    shadowDirty = true;
+  });
+  el.setAttribute('heightgrid-terrain', { src: '../data/heightgrid.json', meta: '../data/meta.json', texture: '../data/terrain_texture.jpg',
+    patches: '../data/hirise_patches.json' });
 
   // optional files: failure is shown as a note, not fatal
   constP = fetchJSON('../data/crew_constants.json')
