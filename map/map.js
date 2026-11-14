@@ -15,6 +15,7 @@ const PITCH_MIN = 0.08, PITCH_MAX = 1.5, CAM_CLEARANCE_M = 40;
 // 3D look (visual only; terrain tint + ground grain live in lib/terrain.js): sun placed from local solar time, slow idle orbit.
 const SUN_DIST = 30000, IDLE_MS = 5000, IDLE_YAW_PER_S = 0.035;
 const ZENITH_CLEAR = [128, 86, 62], LANDMARK_H = 180;
+const PICK_SLOP_PX = 6, PICK_INSET_DEG = 1e-5; // 3D click-vs-drag threshold; keep picks just inside the bounds
 const COLORS = { blind: [248, 81, 73, 120], homeHidden: [210, 153, 34, 32] };
 const CREAM = '#fff4e0', INK = '#1a110c', ACCENT = '#ff8a3d', DUST = '#c98a55';
 // Dust look (visual only, driven by τ): haze opacity and sky colour. Not a measured haze map.
@@ -262,6 +263,15 @@ function drape(terrain, points) {
   return out;
 }
 
+// Inverse of terrain.toWorld (x linear in lon, z linear in lat), from two opposite corners of the bounds; clamped inside.
+function worldToLatLon(terrain, b, x, z) {
+  const nw = terrain.toWorld(b.latMax, b.lonMin), se = terrain.toWorld(b.latMin, b.lonMax);
+  const lon = b.lonMin + (x - nw.x) / (se.x - nw.x) * (b.lonMax - b.lonMin);
+  const lat = b.latMax + (z - nw.z) / (se.z - nw.z) * (b.latMin - b.latMax);
+  const fit = (v, lo, hi) => Math.min(hi - PICK_INSET_DEG, Math.max(lo + PICK_INSET_DEG, v));
+  return { lat: fit(lat, b.latMin, b.latMax), lon: fit(lon, b.lonMin, b.lonMax) };
+}
+
 function setRoute(s, terrain, name, route, color) {
   const old = s.routes.getObject3D(name);
   old?.geometry.dispose();
@@ -293,7 +303,7 @@ function sunPosition(ltst) {
   return [Math.sin(az) * Math.cos(el) * SUN_DIST, Math.sin(el) * SUN_DIST, -Math.cos(az) * Math.cos(el) * SUN_DIST];
 }
 
-function createView3D(data) {
+function createView3D(data, onPickTarget) {
   const host = $('view3d'), msg = $('v3-msg');
   $('v3-note').textContent = `Vertical scale ×${EXAGGERATE} · rover and habitat ×${MODEL_SCALE} size`;
   let s = null, starting = null, terrain = null, last = null, lastHome, lastOut, lastRadius = -1, lastTau = null, lastSun = null;
@@ -363,6 +373,31 @@ function createView3D(data) {
       }
       update();
     });
+    // A click (one pointer, barely moves) picks a target; a drag orbits (orbit-camera) and a pinch zooms.
+    const down = new Set();
+    let press = null;
+    function pick(e) {
+      if (!terrain?.ready) return;
+      const T = AFRAME.THREE, r = s.scene.canvas.getBoundingClientRect(), cam = s.scene.camera;
+      cam.updateMatrixWorld();
+      const ray = new T.Raycaster();
+      ray.setFromCamera(new T.Vector2((e.clientX - r.left) / r.width * 2 - 1, 1 - (e.clientY - r.top) / r.height * 2), cam);
+      const hit = ray.intersectObject(s.terrain.getObject3D('mesh'))[0]; // nearest first; sky → no hit
+      if (hit) onPickTarget(worldToLatLon(terrain, data.bounds, hit.point.x, hit.point.z));
+    }
+    s.scene.addEventListener('pointerdown', e => {
+      down.add(e.pointerId);
+      press = down.size === 1 && e.isPrimary && e.button === 0 ? { id: e.pointerId, x: e.clientX, y: e.clientY } : null;
+    });
+    s.scene.addEventListener('pointermove', e => {
+      if (press?.id === e.pointerId && Math.hypot(e.clientX - press.x, e.clientY - press.y) >= PICK_SLOP_PX) press = null;
+    });
+    s.scene.addEventListener('pointerup', e => {
+      down.delete(e.pointerId);
+      const p = press;
+      if (p?.id === e.pointerId) { press = null; if (Math.hypot(e.clientX - p.x, e.clientY - p.y) < PICK_SLOP_PX) pick(e); }
+    });
+    s.scene.addEventListener('pointercancel', e => { down.delete(e.pointerId); press = null; });
     s.terrain.addEventListener('terrain-error', e => say(`3D terrain failed: ${e.detail?.message ?? 'unknown error'}`));
     s.scene.addEventListener('loaded', () => { if (host.hidden) s.scene.pause(); update(); });
     host.prepend(s.scene);
@@ -412,7 +447,7 @@ export function createMapView(data, { onPickTarget }) {
   const astro = L.marker([0, 0], { icon: astronautIcon(0), keyboard: false, zIndexOffset: 1000 }).addTo(map);
   map.on('click', e => onPickTarget({ lat: e.latlng.lat, lon: e.latlng.lng }));
 
-  const view3d = createView3D(data);
+  const view3d = createView3D(data, onPickTarget);
   setupToggle(map, view3d);
   for (const id of ['v-2d', 'v-3d']) $(id).addEventListener('click', () => devils.refresh()); // pause/resume the devil loop
 
