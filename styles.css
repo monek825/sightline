@@ -728,3 +728,5 @@ body.panel-hidden .tabbar [role="tab"][aria-selected="true"] { transform: none; 
 .topo-lock.is-locked { animation: topo-pulse 1.4s ease-out infinite; }
 @keyframes topo-pulse { 0% { transform: scale(1); } 50% { transform: scale(1.8); } 100% { transform: scale(1); } }
 @media (prefers-reduced-motion: reduce) { .topo-lock.is-locked { animation: none; } }
+
+.intro-lines span.slow { animation: none; opacity: 1; }

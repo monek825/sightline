@@ -129,6 +129,21 @@ function drawOverlayCanvas(vis) {
 }
 
 // A route line with a dark casing underneath so it reads over orange-brown terrain.
+// Routes are re-planned every few hundred metres (lib/pipeline.js), so between re-plans the line starts behind the
+// astronaut. Draw it from the astronaut instead: drop the points already passed (nearest point, within 500 m).
+const TRIM_MAX_M = 500;
+function fromHere(points, a) {
+  if (!points?.length || !a) return points ?? [];
+  const k = Math.cos(a.lat * Math.PI / 180);
+  let best = 0, bestD = Infinity;
+  for (let i = 0; i < points.length; i++) {
+    const d = (points[i][0] - a.lat) ** 2 + ((points[i][1] - a.lon) * k) ** 2;
+    if (d < bestD) { bestD = d; best = i; }
+  }
+  if (Math.sqrt(bestD) * M_PER_DEG > TRIM_MAX_M) return points;
+  return [[a.lat, a.lon], ...points.slice(best + 1)];
+}
+
 function routeLine(map, color, weight, dashArray) {
   const casing = L.polyline([], { color: INK, weight: weight + 4, opacity: 0.85 }).addTo(map);
   const line = L.polyline([], { color, weight, opacity: 1, dashArray }).addTo(map);
@@ -305,8 +320,20 @@ function setRoute(s, terrain, name, route, color, k = 1) {
   if (!route?.ok || route.points.length < 2) { if (old) s.routes.removeObject3D(name); return; }
   const T = AFRAME.THREE;
   const pts = drape(terrain, route.points).map(p => new T.Vector3(p.x, p.y + LIFT_M * k, p.z));
-  const geo = new T.TubeGeometry(new T.CatmullRomCurve3(pts), Math.min(pts.length * 2, 1200), ROUTE_R * k, 5, false);
-  s.routes.setObject3D(name, new T.Mesh(geo, new T.MeshBasicMaterial({ color })));
+  const segs = Math.min(pts.length * 2, 1200);
+  const geo = new T.TubeGeometry(new T.CatmullRomCurve3(pts), segs, ROUTE_R * k, 5, false);
+  const mesh = new T.Mesh(geo, new T.MeshBasicMaterial({ color }));
+  mesh.userData.trim = { pts, segs, radial: 5 };
+  s.routes.setObject3D(name, mesh);
+}
+// start the 3D route at the astronaut: skip the tube segments before the nearest sample (index buffer is segment-major)
+function trimRoute(s, name, p) {
+  const m = s.routes.getObject3D(name), t = m?.userData.trim;
+  if (!t) return;
+  let best = 0, bestD = Infinity;
+  for (let i = 0; i < t.pts.length; i++) { const d = (t.pts[i].x - p.x) ** 2 + (t.pts[i].z - p.z) ** 2; if (d < bestD) { bestD = d; best = i; } }
+  const start = Math.sqrt(bestD) > TRIM_MAX_M ? 0 : Math.floor(best / (t.pts.length - 1) * t.segs);
+  m.geometry.setDrawRange(start * t.radial * 6, Infinity);
 }
 
 // Vertical sky gradient as a data URL: darker zenith, lighter horizon; dust flattens it.
@@ -389,14 +416,14 @@ function dustNoise() {
   const N = 256, c = document.createElement('canvas');
   c.width = c.height = N;
   const g = c.getContext('2d'), img = g.createImageData(N, N);
-  const rnd = (x, y, s) => { const k = ((x % s + s) % s) * 7919 + ((y % s + s) % s) * 104729; const v = Math.sin(k) * 43758.5453; return v - Math.floor(v); };
-  const smooth = (x, y, s) => {
+  const rnd = (x, y, sx, sy) => { const k = ((x % sx + sx) % sx) * 7919 + ((y % sy + sy) % sy) * 104729; const v = Math.sin(k) * 43758.5453; return v - Math.floor(v); };
+  const smooth = (x, y, sx, sy) => {   // value noise that wraps every sx (x) and sy (y) cells, so the tile has no seams
     const x0 = Math.floor(x), y0 = Math.floor(y), fx = x - x0, fy = y - y0, u = fx * fx * (3 - 2 * fx), v = fy * fy * (3 - 2 * fy);
-    return (rnd(x0, y0, s) * (1 - u) + rnd(x0 + 1, y0, s) * u) * (1 - v) + (rnd(x0, y0 + 1, s) * (1 - u) + rnd(x0 + 1, y0 + 1, s) * u) * v;
+    return (rnd(x0, y0, sx, sy) * (1 - u) + rnd(x0 + 1, y0, sx, sy) * u) * (1 - v) + (rnd(x0, y0 + 1, sx, sy) * (1 - u) + rnd(x0 + 1, y0 + 1, sx, sy) * u) * v;
   };
   for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
     let n = 0, amp = 0.6;
-    for (const s of [4, 8, 16]) { n += amp * smooth(x * s / N, (y * s / N) * 0.5, s); amp *= 0.5; } // stretched sideways: wind streaks
+    for (const s of [4, 8, 16]) { n += amp * smooth(x * s / N, y * (s / 2) / N, s, s / 2); amp *= 0.5; } // half as many cells in y: wind streaks
     img.data.set([214, 160, 112, Math.round(Math.min(1, Math.max(0, n - 0.3) * 2.2) * 255)], (y * N + x) * 4); // dust colour baked in
   }
   g.putImageData(img, 0, 0);
@@ -491,6 +518,7 @@ function createView3D(data, onPickTarget, devils) {
     const { inputs: { astronaut: a }, derived: d } = last;
     const p = terrain.toWorld(a.lat, a.lon);
     s.astro.object3D.position.set(p.x, p.y, p.z);
+    trimRoute(s, 'home', p); trimRoute(s, 'out', p);
     s.ring.object3D.position.set(p.x, p.y + Math.max(0.1, LIFT_M * routeK), p.z);
     const r = Math.max(5, Math.round(d.posUncertaintyM));
     if (r + routeK * 1e6 !== lastRadius) {      // line width follows the zoom (thin when close)
@@ -691,9 +719,9 @@ export function createMapView(data, { onPickTarget }) {
     if (h !== lastHeading) { astro.setIcon(astronautIcon(h)); lastHeading = h; }
     uncertainty.setLatLng([a.lat, a.lon]).setRadius(derived.posUncertaintyM);
     renderWeather(store);
-    setRouteHome(derived.routeHome?.ok ? derived.routeHome.points : []);
-    setRouteAlt(derived.routeAlt?.ok ? derived.routeAlt.points : []);
-    setRouteOut(derived.routeOut?.ok ? derived.routeOut.points : []);
+    setRouteHome(derived.routeHome?.ok ? fromHere(derived.routeHome.points, a) : []);
+    setRouteAlt(derived.routeAlt?.ok ? fromHere(derived.routeAlt.points, a) : []);
+    setRouteOut(derived.routeOut?.ok ? fromHere(derived.routeOut.points, a) : []);
     view3d.render(store);
   }
   return { map, render };

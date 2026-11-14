@@ -889,6 +889,17 @@ function setMarkClass(el, cls) { if (el.className !== cls) el.className = cls; }
 const LABEL_EDGE_PX = 8;
 function clampLabelX(x, w) { return Math.min(vw - w / 2 - LABEL_EDGE_PX, Math.max(w / 2 + LABEL_EDGE_PX, x)); }
 
+// The body turns to face the walking direction, but never while you are looking around (drag + 1.5 s after),
+// never while zoomed in, and never while standing still: that pull fought the drag and felt like the view snapping back.
+const LOOK_GRACE_MS = 1500, FOLLOW_MIN_MS = 0.5, FOLLOW_MAX_ZOOM = 0.9;
+let lookingUntil = 0, pointersDown = 0;
+function setupLookGuard() {
+  const c = sceneEl.canvas || sceneEl;
+  c.addEventListener('pointerdown', () => { pointersDown++; lookingUntil = Infinity; });
+  const up = () => { pointersDown = Math.max(0, pointersDown - 1); if (!pointersDown) lookingUntil = performance.now() + LOOK_GRACE_MS; };
+  for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) c.addEventListener(ev, up);
+  c.addEventListener('wheel', () => { lookingUntil = Math.max(lookingUntil, performance.now() + LOOK_GRACE_MS); }, { passive: true });
+}
 function smoothCamera(dt) {
   const o = rig.object3D;
   const cur = o.position;
@@ -899,9 +910,12 @@ function smoothCamera(dt) {
   } else {
     const k = 1 - Math.exp(-dt / CAM_SMOOTH_S);
     cur.x += (camT.x - cur.x) * k; cur.z += (camT.z - cur.z) * k;
-    const TWO_PI = Math.PI * 2;
-    const dy = ((camT.yaw - yaw + Math.PI) % TWO_PI + TWO_PI) % TWO_PI - Math.PI;
-    yaw += dy * k;
+    const follow = performance.now() > lookingUntil && fov > fovBase * FOLLOW_MAX_ZOOM && camSpeed > FOLLOW_MIN_MS;
+    if (follow) {
+      const TWO_PI = Math.PI * 2;
+      const dy = ((camT.yaw - yaw + Math.PI) % TWO_PI + TWO_PI) % TWO_PI - Math.PI;
+      yaw += dy * k;
+    }
   }
   const g = terrain.heightAt(cur.x, cur.z);
   cur.y = (fin(g) ? g : 0) + camT.eye;      // glued to the ground at eye height every frame
@@ -1133,7 +1147,8 @@ async function boot() {
   setupZoom();
   setupPause();
   sceneEl.setAttribute('helmet-tick', '');
-  if (sceneEl.hasLoaded) setupGfx(); else sceneEl.addEventListener('loaded', setupGfx, { once: true });
+  const onLoaded = () => { setupGfx(); setupLookGuard(); };
+  if (sceneEl.hasLoaded) onLoaded(); else sceneEl.addEventListener('loaded', onLoaded, { once: true });
 
   try { meta = await fetchJSON('../data/meta.json'); }
   catch (e) { fail('Could not load data/meta.json: ' + e.message); return; }

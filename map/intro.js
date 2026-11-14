@@ -7,7 +7,8 @@
 //   terrain drawn on screen (3 frames later) → 100 %, then open
 // Eyelid reveal adapted from the component hub's eye-blink transition (650 ms cubic-bezier(.7,0,.2,1)).
 
-const MAX_WAIT_MS = 15000;      // never hold the app longer than this
+const MAX_WAIT_MS = 15000;      // after the data is in, wait at most this long for the 3D terrain
+const SLOW_MS = 9000;           // then say the connection is slow
 const FILL_MS = 600, OPEN_MS = 150 + 650, FADE_MS = 200;
 
 const intro = document.getElementById('intro');
@@ -54,7 +55,17 @@ async function run() {
   const failed = new Promise(r => document.addEventListener('terrain-error', r, { once: true })); // 2D fallback: don't wait
   await frames(2); // commit the empty state before the first transition
   progress(0.12, 400);
-  await Promise.race([Promise.all([booted, Promise.race([drawn, failed])]), later(MAX_WAIT_MS)]);
+  // never open before the data has loaded (an empty app is worse than a longer wait); only the 3D terrain wait is capped
+  const slow = setTimeout(() => {
+    const lines = intro.querySelector('.intro-lines');
+    if (!lines) return;
+    const msg = document.createElement('span');
+    msg.className = 'slow';
+    msg.textContent = 'Slow connection: still downloading the NASA terrain (about 8 MB)…';
+    lines.replaceChildren(msg);
+  }, SLOW_MS);
+  await Promise.all([booted, Promise.race([drawn, failed, later(MAX_WAIT_MS)])]);
+  clearTimeout(slow);
   progress(1);
   await later(FILL_MS);
   intro.classList.add('is-open');
