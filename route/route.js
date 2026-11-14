@@ -7,6 +7,7 @@ import { toCell, toLatLon, distM } from '../lib/geo.js';
 const MODES = ['shortest', 'safest', 'homeInSight'];
 const TOBLER_NORM = Math.exp(-0.175);
 const HEURISTIC_DIV = 1.2; // tobler peaks ~1.19 on gentle downhill
+const LOOKAHEAD = 60; // max cells a string-pull shortcut may skip ahead
 
 // ---- minimal binary min-heap (parallel arrays: key f, value node id) ----
 class MinHeap {
@@ -181,41 +182,69 @@ export function planRoute(grid, bounds, vis, start, goal, opts) {
       path.reverse();
     }
 
-    // ---- metrics on the full cell path (no penalties) ----
-    let lenM = 0, etaMin = 0, maxSl = 0, blindN = 0, hhN = 0;
-    for (let k = 0; k < path.length; k++) {
-      const i = path[k];
-      if (blind[i]) blindN++;
-      if (hh[i]) hhN++;
-      if (k === 0) continue;
-      const p = path[k - 1];
-      const ar = (p / W) | 0, ac = p - ar * W, br = (i / W) | 0, bc = i - br * W;
+    // ---- string-pull: shortcut the A* cell path with straight segments, validated ----
+    const mPerMin = speedKmh * 1000 / 60;
+    const penOf = (j) => (mode === 'shortest' ? 1 : 1 + 3 * blind[j] + (mode === 'homeInSight' ? 6 * hh[j] : 0));
+    // walk the straight line between two cell centres in <= half-cell samples; consecutive distinct cells are steps.
+    // acc gets cost (penalised min), min (step times), len (m, straight segment), maxTan, cells, blindN, hhN. Returns false if a step is not allowed or cost > limit.
+    const walk = (a, b, acc, limit) => {
+      const r0 = (a / W) | 0, c0 = a - r0 * W, r1 = (b / W) | 0, c1 = b - r1 * W;
+      const n = Math.max(2, Math.ceil(2 * Math.max(Math.abs(r1 - r0), Math.abs(c1 - c0))));
+      const er = Math.sign(r1 - r0) * 1e-9, ec = Math.sign(c1 - c0) * 1e-9; // break .5 ties toward the destination
+      let pr = r0, pc = c0;
+      for (let k = 1; k <= n; k++) {
+        const r = k === n ? r1 : Math.round(r0 + (r1 - r0) * k / n + er);
+        const c = k === n ? c1 : Math.round(c0 + (c1 - c0) * k / n + ec);
+        if (r === pr && c === pc) continue;
+        const i = pr * W + pc, j = r * W + c;
+        const hi = data[i], hj = data[j];
+        if (!ok(hi) || !ok(hj)) return false;
+        const dist = Math.hypot((r - pr) * dy, (c - pc) * dx);
+        const t = (hj - hi) / dist;
+        const at = Math.abs(t);
+        if (at > maxTan) return false;
+        const minutes = dist / (mPerMin * tobler(t));
+        acc.cost += minutes * penOf(j);
+        if (acc.cost > limit) return false;
+        acc.min += minutes; acc.cells++;
+        if (at > acc.maxTan) acc.maxTan = at;
+        if (blind[j]) acc.blindN++;
+        if (hh[j]) acc.hhN++;
+        pr = r; pc = c;
+      }
+      acc.len += Math.hypot((r1 - r0) * dy, (c1 - c0) * dx); // ground length of the straight segment
+      return true;
+    };
+    // cumulative penalised cost along the A* path (prefix[k] = cost from path[0] to path[k])
+    const prefix = new Float64Array(path.length);
+    for (let k = 1; k < path.length; k++) {
+      const a = path[k - 1], b = path[k];
+      const ar = (a / W) | 0, ac = a - ar * W, br = (b / W) | 0, bc = b - br * W;
       const dist = Math.hypot((br - ar) * dy, (bc - ac) * dx);
-      const dh = data[i] - data[p];
-      lenM += dist;
-      etaMin += dist / 1000 / (speedKmh * tobler(dh / dist)) * 60;
-      const sl = Math.atan(Math.abs(dh) / dist) * 180 / Math.PI;
-      if (sl > maxSl) maxSl = sl;
+      prefix[k] = prefix[k - 1] + dist / (mPerMin * tobler((data[b] - data[a]) / dist)) * penOf(b);
     }
-    let lengthKm = lenM / 1000;
+    const anchors = [path[0]];
+    for (let a = 0; a < path.length - 1;) {
+      let next = a + 1;
+      for (let b = Math.min(a + LOOKAHEAD, path.length - 1); b > a + 1; b--) {
+        const acc = { cost: 0, min: 0, len: 0, maxTan: 0, cells: 0, blindN: 0, hhN: 0 };
+        if (walk(path[a], path[b], acc, prefix[b] - prefix[a] + 1e-9)) { next = b; break; }
+      }
+      anchors.push(path[next]);
+      a = next;
+    }
+
+    // ---- metrics from the final polyline, same sampling (no penalties) ----
+    const fin = { cost: 0, min: 0, len: 0, maxTan: 0, cells: 1, blindN: blind[path[0]], hhN: hh[path[0]] };
+    for (let k = 1; k < anchors.length; k++) walk(anchors[k - 1], anchors[k], fin, Infinity);
+    let lengthKm = fin.len / 1000, etaMin = fin.min;
+    const maxSl = Math.min(Math.atan(fin.maxTan) * 180 / Math.PI, maxSlopeDeg);
     if (path.length === 1) {
       lengthKm = straightKm;
       etaMin = straightKm / speedKmh * 60;
     }
 
-    // ---- simplify: drop intermediate points on collinear runs ----
-    const keep = [path[0]];
-    let pdr = 0, pdc = 0;
-    for (let k = 1; k < path.length; k++) {
-      const a = path[k - 1], b = path[k];
-      const ar = (a / W) | 0, ac = a - ar * W, br = (b / W) | 0, bc = b - br * W;
-      const ddr = br - ar, ddc = bc - ac;
-      if (k > 1 && (ddr !== pdr || ddc !== pdc)) keep.push(a);
-      pdr = ddr; pdc = ddc;
-    }
-    if (path.length > 1) keep.push(path[path.length - 1]);
-
-    const points = keep.map((i) => {
+    const points = anchors.map((i) => {
       const r = (i / W) | 0, c = i - r * W;
       const ll = toLatLon(grid, bounds, r, c);
       return [ll.lat, ll.lon];
@@ -226,7 +255,7 @@ export function planRoute(grid, bounds, vis, start, goal, opts) {
 
     return {
       ok: true, reason: null, mode, points, lengthKm, etaMin, maxSlopeDeg: maxSl,
-      blindFraction: blindN / path.length, homeHiddenFraction: hhN / path.length
+      blindFraction: fin.blindN / fin.cells, homeHiddenFraction: fin.hhN / fin.cells
     };
   } catch (e) {
     return fail(mode, 'route planner error: ' + (e && e.message));

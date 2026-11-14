@@ -7,12 +7,14 @@ import { setInputs, getStore } from '../lib/store.js';
 
 const SWEEP_MS = 4000;
 const SEARCH_MS = 1200;
+const MORPH_MS = 400; // 360° <-> 96° circle change
+const STEPS = ['Look around', 'Compare with the map', 'You are here'];
 const M_PER_DEG = 2 * Math.PI * R / 360;
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const CHART = { w: 720, h: 150, pad: 8 };
 
 const cache = new Map();
-let ui = null; // { dlg, overlay, timers, onClose }
+let ui = null; // { dlg, overlay, timers, onClose, cmp: {circle, marker} | null, raf }
 
 async function loadSite(siteId) {
   if (!/^[a-z_]+$/.test(siteId)) throw new Error('bad site id');
@@ -55,8 +57,12 @@ function buildDialog() {
   close.type = 'button';
   head.append(h, close);
 
-  const step = el('p', 'skyfix-step');
-  step.setAttribute('role', 'status');
+  const lead = el('p', 'skyfix-lead', "Every spot in the crater sees a different outline of hills on the horizon, like a fingerprint. Turn around once, compare that outline with NASA's 3D map, and the best match is where you are.");
+  const step = el('ol', 'skyfix-steps');
+  step.setAttribute('aria-label', 'Progress');
+  for (const label of STEPS) step.append(el('li', null, label));
+  const status = el('p', 'skyfix-status');
+  status.setAttribute('role', 'status');
   const compass = svg('svg', { viewBox: '0 0 100 100', class: 'skyfix-compass', 'aria-hidden': 'true' });
   compass.append(
     svg('circle', { cx: 50, cy: 50, r: 44, class: 'ring' }),
@@ -68,24 +74,27 @@ function buildDialog() {
   compass.append(n);
 
   const chart = svg('svg', { viewBox: `0 0 ${CHART.w} ${CHART.h}`, class: 'skyfix-chart', role: 'img', 'aria-label': 'Observed skyline and best match' });
+  const axis = el('p', 'skyfix-axis');
+  axis.setAttribute('aria-hidden', 'true');
+  for (const d of ['N', 'E', 'S', 'W', 'N']) axis.append(el('span', null, d));
   const legend = el('p', 'skyfix-legend');
-  legend.append(el('span', 'k-obs', 'Observed skyline'), el('span', 'k-best', 'Best match on NASA terrain'));
+  legend.append(el('span', 'k-obs', 'Hills the astronaut sees'), el('span', 'k-best', "Hills NASA's map predicts at the match"));
   const result = el('div', 'skyfix-result');
   const how = el('details', 'skyfix-how');
-  how.append(el('summary', null, 'How it works'));
+  how.append(el('summary', null, 'More detail'));
   for (const line of [
-    'Every spot in Jezero has its own horizon. We compute it from the NASA CTX elevation model (20 m).',
-    'The astronaut turns once; the helmet camera traces the skyline; we find the spot whose horizon matches best.',
-    'Perseverance matched camera images to an orbital map while landing. JPL reports horizon matching at about 10–100 m.',
-    'Not yet tested on real photos. Dust, camera and suit tilt will make it worse.'
+    'The horizon for every spot comes from the NASA CTX elevation model of Jezero (20 m per point).',
+    'Perseverance used the same idea while landing: it matched its camera view to an orbital map. JPL reports horizon matching at about 10–100 m.',
+    'Tested on simulated views so far. Real photos, dust and suit tilt will make it less accurate.'
   ]) how.append(el('p', null, line));
 
-  dlg.append(head, el('div', 'skyfix-top', null), chart, legend, result, how);
-  dlg.querySelector('.skyfix-top').append(compass, step);
+  dlg.append(head, lead, el('div', 'skyfix-top', null), chart, axis, legend, result, how);
+  dlg.querySelector('.skyfix-top').append(compass, el('div', 'skyfix-prog', null));
+  dlg.querySelector('.skyfix-prog').append(step, status);
   document.querySelector('.map-wrap').append(dlg);
   close.addEventListener('click', () => closeFix());
   dlg.addEventListener('keydown', e => { if (e.key === 'Escape') { e.preventDefault(); closeFix(); } });
-  return { dlg, step, compass, chart, result };
+  return { dlg, step, status, compass, chart, result, how };
 }
 
 function chartScale(s) {
@@ -121,19 +130,87 @@ function gridBounds(g) {
   return [[g.centerLat - dLat, g.centerLon - dLon], [g.centerLat + dLat, g.centerLon + dLon]];
 }
 
-function showResult(box, s) {
+const isLL = p => Number.isFinite(p?.lat) && Number.isFinite(p?.lon);
+
+/** Comparison view only: draws the 360° or 96° result on the map; never touches app state. */
+function setCompareView(map, to, reduced) {
+  if (!ui.cmp) {
+    const style = { color: '#f3c66c', interactive: false };
+    ui.cmp = {
+      circle: L.circle([to.est.lat, to.est.lon], { ...style, radius: to.unc, weight: 2, dashArray: '5 5', fillColor: '#f3c66c', fillOpacity: 0.1 }).addTo(map),
+      marker: L.circleMarker([to.est.lat, to.est.lon], { ...style, radius: 6, weight: 2, fillOpacity: 0.9 }).addTo(map)
+    };
+    return;
+  }
+  const { circle, marker } = ui.cmp;
+  cancelAnimationFrame(ui.raf);
+  const from = circle.getLatLng(), r0 = circle.getRadius(), t0 = performance.now();
+  const apply = f => {
+    const lat = from.lat + (to.est.lat - from.lat) * f, lon = from.lng + (to.est.lon - from.lng) * f;
+    circle.setLatLng([lat, lon]).setRadius(r0 + (to.unc - r0) * f);
+    marker.setLatLng([lat, lon]);
+  };
+  if (reduced) { apply(1); return; }
+  const tick = now => {
+    if (!ui?.cmp) return;
+    const f = Math.min(1, (now - t0) / MORPH_MS);
+    apply(f * (2 - f)); // ease-out
+    if (f < 1) ui.raf = requestAnimationFrame(tick);
+  };
+  ui.raf = requestAnimationFrame(tick);
+}
+
+function showResult(box, s, map, reduced) {
   box.replaceChildren();
+  const full = { est: s.estimate, err: s.errorM, unc: s.uncertaintyM };
+  const hasEst96 = isLL(s.fov96?.estimate);
+  const v96 = Number.isFinite(s.fov96?.errorM) && Number.isFinite(s.fov96?.uncertaintyM)
+    ? { est: hasEst96 ? s.fov96.estimate : s.estimate, err: s.fov96.errorM, unc: s.fov96.uncertaintyM } : null;
+  const same = !!v96 && Math.round(v96.err) === Math.round(full.err) && Math.round(v96.unc) === Math.round(full.unc)
+    && (!hasEst96 || (Math.abs(v96.est.lat - full.est.lat) < 1e-5 && Math.abs(v96.est.lon - full.est.lon) < 1e-5));
+
+  const strong = el('strong');
+  const what = el('span');
   const big = el('p', 'skyfix-big');
-  big.append(el('strong', null, `± ${Math.round(s.uncertaintyM)} m`), el('span', null, ` position fixed · error ${Math.round(s.errorM)} m`));
-  box.append(big,
-    el('p', null, `With only a 96° camera view: error ${Math.round(s.fov96?.errorM ?? NaN)} m, ± ${Math.round(s.fov96?.uncertaintyM ?? NaN)} m. That's why the astronaut turns a full circle.`),
-    el('p', 'skyfix-note', `Simulated skyline (${s.noiseDeg}° noise) on NASA terrain, not a real photo. Real cameras: expect about 10–100 m (JPL).`));
+  big.append(strong, what);
+  const explain = el('p', 'skyfix-explain');
+  explain.setAttribute('role', 'status');
+  const note = el('p', 'skyfix-note', 'Simulated test on NASA terrain, not a real photo yet.');
+  box.append(big, note);
+
+  let btns = [];
+  const show = mode => {
+    const is96 = mode === 96;
+    const v = is96 ? v96 : full;
+    strong.textContent = is96 ? 'One way only: ' : 'You are here ';
+    what.textContent = is96 ? `${Math.round(v.err)} m off` : `(within ${Math.round(v.unc)} m)`;
+    btns.forEach(([b, m]) => b.setAttribute('aria-pressed', String(m === mode)));
+    if (!is96) explain.textContent = 'Looking all the way round sees the most hills, so the match is reliable.';
+    else if (same) explain.textContent = 'Here one direction happens to be enough, but at other spots it is far off, so astronauts always turn all the way.';
+    else explain.textContent = `Looking one way sees too few hills: the answer can be ${Math.round(v.err)} m off. That's why astronauts turn all the way round.`;
+    setCompareView(map, v, reduced);
+  };
+
+  ui.how.querySelector('.skyfix-why')?.remove();
+  if (v96) { // the comparison lives under "Why turn all the way round?" so the main card stays simple
+    const why = el('div', 'skyfix-why');
+    const group = el('div', 'skyfix-toggle');
+    group.setAttribute('role', 'group');
+    group.setAttribute('aria-label', 'Compare looking all the way round with looking one way (simulated)');
+    btns = [[el('button', 'btn', 'Turn all the way'), 360], [el('button', 'btn', 'Look one way only'), 96]];
+    for (const [b, m] of btns) { b.type = 'button'; b.addEventListener('click', () => show(m)); group.append(b); }
+    why.append(el('h3', null, 'Why turn all the way round?'), group, explain);
+    ui.how.insertBefore(why, ui.how.children[1]);
+  }
+  show(360);
 }
 
 export function closeFix() {
   if (!ui) return;
   ui.timers.forEach(clearTimeout);
   ui.timers = [];
+  cancelAnimationFrame(ui.raf);
+  if (ui.cmp) { ui.cmp.circle.remove(); ui.cmp.marker.remove(); ui.cmp = null; }
   if (ui.overlay) { ui.overlay.remove(); ui.overlay = null; }
   if (ui.dlg.open) ui.dlg.close();
   const cb = ui.onClose; ui.onClose = null;
@@ -147,10 +224,14 @@ export function closeFix() {
  */
 export async function openSkylineFix(siteId, map, opts = {}) {
   const s = await loadSite(siteId);
-  if (!ui) ui = { ...buildDialog(), timers: [], overlay: null, onClose: null };
+  if (!ui) ui = { ...buildDialog(), timers: [], overlay: null, onClose: null, cmp: null, raf: 0 };
   closeFix();
   ui.onClose = opts.onClose ?? null;
-  const { dlg, step, compass, chart, result } = ui;
+  const { dlg, step, status, compass, chart, result } = ui;
+  const setStep = (i, text) => {
+    [...step.children].forEach((li, k) => { li.className = k < i ? 'done' : k === i ? 'now' : ''; });
+    status.textContent = text;
+  };
   const sc = chartScale(s);
   const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -161,11 +242,11 @@ export async function openSkylineFix(siteId, map, opts = {}) {
   );
   const [, obs, best] = chart.children;
   result.replaceChildren();
-  dlg.querySelector('.skyfix-head h2').textContent = `Skyline Fix · ${s.name}`;
+  dlg.querySelector('.skyfix-head h2').textContent = 'Lost? Find your position from the hills';
   if (!dlg.open) dlg.show();
 
   // 1. Turn 360°
-  step.textContent = '1 · Turn slowly 360°. The camera traces the skyline.';
+  setStep(0, `Near ${s.name}. The astronaut turns slowly; the helmet camera traces the hills.`);
   const sweep = compass.querySelector('.sweep');
   const n = s.observed.length;
   if (reduced) {
@@ -185,16 +266,17 @@ export async function openSkylineFix(siteId, map, opts = {}) {
   // 2. Search the map
   const later = (ms, fn) => ui.timers.push(setTimeout(fn, reduced ? 0 : ms));
   later(SWEEP_MS, () => {
-    step.textContent = '2 · Compare with the horizon of every spot nearby.';
+    setStep(1, 'Checking every spot nearby on the map. Bright = similar hills.');
     ui.overlay = L.imageOverlay(heatImage(s.grid), gridBounds(s.grid), { opacity: 0.85, interactive: false, className: 'skyfix-heat' }).addTo(map);
     map.flyToBounds(gridBounds(s.grid), { duration: reduced ? 0 : 0.8, padding: [40, 40] });
   });
 
   // 3. Fix
   later(SWEEP_MS + SEARCH_MS, () => {
-    step.textContent = '3 · Best match found.';
+    setStep(2, 'Best match found.');
+    [...step.children].forEach(li => { li.className = 'done'; });
     best.setAttribute('points', points(s.best, sc));
-    showResult(result, s);
+    showResult(result, s, map, reduced);
     if (opts.applyFix !== false) {
       const cur = getStore().inputs.astronaut;
       setInputs({ astronaut: { ...cur, lat: s.estimate.lat, lon: s.estimate.lon }, distSinceFixM: 0, fixUncertaintyM: s.uncertaintyM });

@@ -8,7 +8,9 @@
   <meta name="description" content="Sightline answers one question on a Mars spacewalk in Jezero Crater: can this astronaut still find their way home safely? Built on NASA terrain, radiation and weather data.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+  <link rel="preconnect" href="https://api.fontshare.com" crossorigin>
+  <link rel="stylesheet" href="https://api.fontshare.com/v2/css?f[]=clash-display@500,600&f[]=switzer@400,500,600&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;600&display=swap">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
   <link rel="stylesheet" href="styles.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js" defer></script>
@@ -38,6 +40,20 @@
       </div>
 
       <div id="banner" class="banner" role="alert" hidden></div>
+      <p id="caption" class="caption frost" aria-live="polite" hidden></p>
+      <section id="welcome" class="welcome frost" aria-labelledby="welcome-h" hidden>
+        <h2 id="welcome-h">Can this astronaut still get home?</h2>
+        <p>Mars has no GPS. Sightline shows where an astronaut on a spacewalk in Jezero Crater can still find the way back, using NASA terrain, dust and radiation data.</p>
+        <ul class="welcome-keys">
+          <li><i class="sw sw-red"></i>Red: no landmark in sight, easy to get lost</li>
+          <li><i class="sw sw-ring"></i>Ring: how far the astronaut can see in the dust</li>
+          <li><b class="status-chip">GO</b>The status panel answers the question, live</li>
+        </ul>
+        <div class="welcome-ctl">
+          <button type="button" id="w-play" class="btn btn-accent">Play the 100-second story</button>
+          <button type="button" id="w-close" class="btn">Explore the map</button>
+        </div>
+      </section>
 
       <div class="legend frost" id="legend">
         <span><i class="sw sw-red"></i>No landmark in sight</span>
@@ -77,7 +93,7 @@
               <div><dt>Walked since fix</dt><dd id="p-since">–</dd></div>
               <div><dt>Fix accuracy</dt><dd id="p-acc">–</dd></div>
             </dl>
-            <button type="button" id="btn-skyline" class="btn btn-accent wide">Run Skyline Fix</button>
+            <button type="button" id="btn-skyline" class="btn btn-accent wide" data-magnetic>Run Skyline Fix</button>
             <ul class="factors" data-group="pos"></ul>
           </section>
 
@@ -100,6 +116,10 @@
                 <option value="homeInSight">Keep home in sight</option>
                 <option value="shortest">Shortest</option>
               </select></label>
+            <div id="r-cmp" class="cmp" hidden>
+              <div id="r-cmp-rows"></div>
+              <p id="r-cmp-note" class="cmp-note"></p>
+            </div>
             <p class="hint">Click the map or a science target to plan a route there.</p>
             <button type="button" id="btn-helmet" class="btn wide">Open helmet view</button>
           </section>
@@ -128,7 +148,7 @@
 
       <div class="timeline" id="timeline">
         <div class="dock-ctl">
-          <button type="button" id="t-play" class="btn btn-accent" aria-label="Play demo">Play demo</button>
+          <button type="button" id="t-play" class="btn btn-accent" data-magnetic aria-label="Play demo">Play demo</button>
           <button type="button" id="t-reset" class="btn">Restart</button>
         </div>
         <div class="scrub-wrap">
@@ -143,6 +163,7 @@
           <h2 id="why-h">Every factor</h2>
           <ul id="alerts" class="alerts"></ul>
           <p id="vis-stat" class="stat"></p>
+          <p class="stat credit">Map imagery: CTX mosaic NASA/JPL-Caltech/MSSS, HiRISE mosaic NASA/JPL-Caltech/UArizona, via NASA Mars Trek. Map library: Leaflet.</p>
         </section>
         <section class="controls" aria-labelledby="cond-h">
           <h2 id="cond-h">Change conditions</h2>

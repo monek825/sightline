@@ -150,8 +150,14 @@ def check_scenario(target_ids):
 
 def check_skyline():
     for p in sorted((DATA / "skyline").glob("*.json")):
+        if p.name == "offgrid_summary.json":  # summary of the --offgrid run, not a site file
+            continue
         s = load(f"skyline/{p.name}")
         if not s:
+            continue
+        if p.name == "offgrid_summary.json":
+            if not isinstance(s.get("sites"), dict):
+                fail("skyline/offgrid_summary.json: 'sites' object missing")
             continue
         n = round(360 / s.get("azStepDeg", 2))
         if len(s.get("observed", [])) != n or len(s.get("best", [])) != n:

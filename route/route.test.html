@@ -100,6 +100,62 @@ test('7 null grid does not throw', () => {
   return good;
 });
 
+test('8 flat grid, odd bearing: <= 3 points, length within 1.5% of straight line', () => {
+  const a = at(10, 5), b = at(25, 50); // 15 rows x 45 cols: neither axis-aligned nor 45 deg
+  const res = planRoute(mockGrid(), bounds, mockVis(), a, b, OPTS);
+  const straightKm = distM(a.lat, a.lon, b.lat, b.lon) / 1000;
+  const good = res.ok && res.points.length <= 3 && Math.abs(res.lengthKm - straightKm) / straightKm <= 0.015;
+  console.assert(good, 'test 8', res, straightKm);
+  return good;
+});
+
+// fractional cell coordinates of a lat/lon (cell centres at integer r, c)
+function frac(lat, lon) {
+  return { r: (bounds.latMax - lat) / (bounds.latMax - bounds.latMin) * N - 0.5,
+           c: (lon - bounds.lonMin) / (bounds.lonMax - bounds.lonMin) * N - 0.5 };
+}
+// independent re-walk of a polyline: fine samples, consecutive distinct cells; visit(prevIdx, idx, dist) per step
+function rewalk(points, visit) {
+  const dy = 80, dx = 80 * Math.cos((bounds.latMin + bounds.latMax) / 2 * Math.PI / 180);
+  let pr = null, pc = null;
+  for (let k = 0; k < points.length - 1; k++) {
+    const A = frac(points[k][0], points[k][1]), B = frac(points[k + 1][0], points[k + 1][1]);
+    const n = Math.max(1, Math.ceil(Math.max(Math.abs(B.r - A.r), Math.abs(B.c - A.c)) / 0.05));
+    for (let i = 0; i <= n; i++) {
+      const r = Math.round(A.r + (B.r - A.r) * i / n), c = Math.round(A.c + (B.c - A.c) * i / n);
+      if (pr === null) { pr = r; pc = c; visit(null, r * N + c, 0); continue; }
+      if (r === pr && c === pc) continue;
+      visit(pr * N + pc, r * N + c, Math.hypot((r - pr) * dy, (c - pc) * dx));
+      pr = r; pc = c;
+    }
+  }
+}
+
+test('9 bumpy grid: re-walked polyline never exceeds maxSlopeDeg', () => {
+  let seed = 12345; // small LCG, deterministic
+  const rnd = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
+  const g = mockGrid();
+  for (let i = 0; i < N * N; i++) g.data[i] = rnd() * 22; // up to 22 m between 80 m cells: some steps ~15 deg or more
+  const opts = { ...OPTS, maxSlopeDeg: 15 };
+  const res = planRoute(g, bounds, mockVis(), at(5, 5), at(52, 50), opts);
+  let worst = 0;
+  if (res.ok) rewalk(res.points, (i, j, d) => { if (i !== null) worst = Math.max(worst, Math.atan(Math.abs(g.data[j] - g.data[i]) / d) * 180 / Math.PI); });
+  const good = res.ok && worst <= opts.maxSlopeDeg + 0.01 && res.maxSlopeDeg <= opts.maxSlopeDeg;
+  console.assert(good, 'test 9', worst, res);
+  return good;
+});
+
+test('10 safest + smoothing still crosses zero blind cells when a clean path exists', () => {
+  const v = mockVis();
+  for (let r = 24; r <= 36; r++) for (let c = 25; c <= 35; c++) v.blind[r * N + c] = 1;
+  const res = planRoute(mockGrid(), bounds, v, at(30, 5), at(30, 55), { ...OPTS, mode: 'safest' });
+  let blindSeen = 0;
+  if (res.ok) rewalk(res.points, (i, j) => { if (v.blind[j]) blindSeen++; });
+  const good = res.ok && res.blindFraction === 0 && blindSeen === 0;
+  console.assert(good, 'test 10', blindSeen, res);
+  return good;
+});
+
 // ---- run ----
 const results = tests.map((t) => {
   let pass = false;

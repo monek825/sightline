@@ -98,6 +98,7 @@ store = {
 | `posUncertaintyM` | `fixUncertaintyM + C.dead_reckoning_drift_pct/100 × distSinceFixM` |
 | `vis` = `{blind, homeHidden, w, h, homeVisiblePct3km}` | `visibilityArrays(limits.visibilityKm)` |
 | `routeOut` | `planRoute(... astronaut → target ...)` (null if no target) |
+| `routeAlt` | `planRoute(... astronaut → target, mode = the other of safest/shortest ...)` for the comparison view (null if no target) |
 | `routeHome` | `planRoute(... astronaut → home, mode = inputs.routeMode ...)` (the scenario's return leg always uses `'safest'`) |
 | `routeHomeKm` | remaining length of `routeHome` from the astronaut |
 | `budget` | `computeBudget(inputs, limits, routeHomeKm, C)` |
