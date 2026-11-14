@@ -422,7 +422,8 @@ PANO_SEED = SEED                                 # same prior seed as the single
 # --- parameters fixed from the brief BEFORE any panorama result was seen; never tuned ---
 HDG_MAX_DEG = 10.0                               # heading known to +-10 deg (11 shifts of 2 deg), as in the single-frame tests
 ELEV_OFFSET_MAX_DEG = 0.5                        # one elevation offset per candidate, bounded to +-0.5 deg (absorbs pitch error)
-NEAR_FIELD_M = 150.0                             # azimuths whose predicted horizon forms closer than this at a candidate are not scored
+NEAR_FIELD_M = 150.0                             # terrain closer than this is not used to form the predicted horizon (a 20 m DTM cannot resolve it); the azimuth is still scored.
+                                                 # (v1 dropped such azimuths per candidate, which made candidates' RMS incomparable: see README 8b, site 33)
 CTX_STEP_M, CTX_MAX_M = 40.0, 15000.0            # CTX horizon sampling (as skyline.py)
 MOLA_STEP_M, MOLA_MAX_M = 250.0, 120000.0        # MOLA backdrop sampling
 MIN_CELL_POINTS = 10                             # traced columns needed inside a 2-deg azimuth cell
@@ -605,7 +606,8 @@ def merge_frames(profs: list) -> np.ndarray:
 
 def horizons_ext(z: np.ndarray, m: np.ndarray, rows: np.ndarray, cols: np.ndarray, batch: int = 40):
     """Per observer (fractional DTM pixel) and 2-deg azimuth: CTX horizon (40 m to 15 km) with the distance of its forming sample,
-    and the MOLA horizon (250 m steps to 120 km, only samples outside the CTX footprint or beyond 15 km). -inf = no data."""
+    and the MOLA horizon (250 m steps to 120 km, only samples outside the CTX footprint or beyond 15 km). -inf = no data.
+    Also returns the CTX horizon from samples >= NEAR_FIELD_M only (a_cf, d_cf), which is what the matcher uses."""
     H, W = z.shape
     NAZ = sk.NAZ
     dc = np.arange(CTX_STEP_M, CTX_MAX_M + 1, CTX_STEP_M)
@@ -615,6 +617,7 @@ def horizons_ext(z: np.ndarray, m: np.ndarray, rows: np.ndarray, cols: np.ndarra
     sa, ca = np.sin(sk.AZ)[:, None], np.cos(sk.AZ)[:, None]
     n = len(rows)
     a_c, d_c, a_m = np.full((n, NAZ), -np.inf), np.zeros((n, NAZ)), np.full((n, NAZ), -np.inf)
+    a_cf, d_cf = np.full((n, NAZ), -np.inf), np.zeros((n, NAZ))          # CTX horizon from samples >= NEAR_FIELD_M only
     dr, dcc = -ca * dc[None] / PX_M, sa * dc[None] / EW_M
     for s in range(0, n, batch):
         r0, c0 = rows[s:s + batch], cols[s:s + batch]
@@ -627,6 +630,10 @@ def horizons_ext(z: np.ndarray, m: np.ndarray, rows: np.ndarray, cols: np.ndarra
         k = ang.argmax(axis=2)
         a_c[s:s + batch] = np.take_along_axis(ang, k[..., None], 2)[..., 0]
         d_c[s:s + batch] = dc[k]
+        angf = np.where(dc[None, None] >= NEAR_FIELD_M, ang, -np.inf)
+        kf = angf.argmax(axis=2)
+        a_cf[s:s + batch] = np.take_along_axis(angf, kf[..., None], 2)[..., 0]
+        d_cf[s:s + batch] = dc[kf]
         lat0 = LAT_MAX - r0 / H * (LAT_MAX - LAT_MIN)
         lon0 = LON_MIN + c0 / W * (LON_MAX - LON_MIN)
         lat = lat0[:, None, None] + (ca * dm[None])[None] / MPD_LAT
@@ -638,11 +645,11 @@ def horizons_ext(z: np.ndarray, m: np.ndarray, rows: np.ndarray, cols: np.ndarra
         zm = m[np.clip(mr, 0, m.shape[0] - 1), np.clip(mc, 0, m.shape[1] - 1)].astype(np.float64)
         angm = np.where(okm, np.degrees(np.arctan((zm - curv_m[None, None] - eye[:, None, None]) / dm[None, None])), -np.inf)
         a_m[s:s + batch] = angm.max(axis=2)
-    return a_c, d_c, a_m
+    return a_c, d_c, a_m, a_cf, d_cf
 
 
 def combine(a_c, d_c, a_m, use_mola: bool):
-    """-> (horizon deg, forming distance m) as the matcher uses it; no-data azimuths -> 0 deg (as skyline.py)."""
+    """-> (horizon deg, forming distance m) as the matcher uses it; pass the far-only CTX arrays (a_cf, d_cf); no-data azimuths -> 0 deg (as skyline.py)."""
     if use_mola:
         h = np.maximum(a_c, a_m)
         d = np.where(a_m > a_c, 1e9, d_c)
@@ -653,7 +660,7 @@ def combine(a_c, d_c, a_m, use_mola: bool):
 
 def score_grid(cand: np.ndarray, dist: np.ndarray, obs: np.ndarray):
     """cand/dist (N, NAZ); obs (NAZ,) with NaN = not scored. Per candidate: min over 11 heading shifts (+-10 deg) of the RMS over valid
-    azimuths not excluded by the near-field rule, with one elevation offset clipped to +-0.5 deg. Returns rms, shift, offset, n_scored."""
+    valid azimuths (identical set for every candidate; the near-field rule acts on the model horizon, not on the scored set), with one elevation offset clipped to +-0.5 deg. Returns rms, shift, offset, n_scored."""
     valid = np.isfinite(obs)
     o = np.where(valid, obs, 0.0)
     N = len(cand)
@@ -661,7 +668,7 @@ def score_grid(cand: np.ndarray, dist: np.ndarray, obs: np.ndarray):
     nsh = int(HDG_MAX_DEG // sk.AZ_STEP)
     for s in range(-nsh, nsh + 1):
         idx = (np.arange(sk.NAZ) + s) % sk.NAZ
-        use = valid[None] & (dist[:, idx] >= NEAR_FIELD_M)
+        use = np.broadcast_to(valid[None], (N, sk.NAZ))
         n = use.sum(1)
         diff = np.where(use, o[None] - cand[:, idx], 0.0)
         mean = diff.sum(1) / np.maximum(n, 1)
@@ -760,7 +767,7 @@ def run_pano(site: int, drive: int, set_name: str) -> dict:
     rows_all = np.concatenate([grows, [tr]])                       # last candidate = the waypoint itself (diagnostic only)
     cols_all = np.concatenate([gcols, [tc]])
     t1 = time.time()
-    a_c, d_c, a_m = horizons_ext(z, m, rows_all, cols_all)
+    a_c, d_c, a_m, a_cf, d_cf = horizons_ext(z, m, rows_all, cols_all)
     # consistency of the CTX part with skyline.horizons (imported, unchanged)
     chk = np.linspace(0, len(rows_all) - 1, 24).astype(int)
     ref = sk.horizons(z, rows_all[chk], cols_all[chk])
@@ -768,7 +775,7 @@ def run_pano(site: int, drive: int, set_name: str) -> dict:
     assert ctx_diff < 1e-6, ctx_diff
     print(f"[{site}/{drive}] frames {len(sel)} (downloads {N_DOWNLOADS[0] - n0}), valid az {valid_frac:.2f}; horizons {time.time() - t1:.0f}s; ctx-vs-skyline.horizons max diff {ctx_diff:.1e} deg")
 
-    hz = {False: combine(a_c, d_c, a_m, False), True: combine(a_c, d_c, a_m, True)}
+    hz = {False: combine(a_cf, d_cf, a_m, False), True: combine(a_cf, d_cf, a_m, True)}
     rows_out = {}
     for key, _ in ABLATION_ROWS:
         obs = obs_single if key.startswith(("i_", "ii_")) else obs_pano
@@ -794,11 +801,11 @@ def run_pano(site: int, drive: int, set_name: str) -> dict:
     hctx_w = hz[False][0][-1]
     s_w = full["headingShiftAtWaypointDeg"] // sk.AZ_STEP
     idx_w = (np.arange(sk.NAZ) + s_w) % sk.NAZ
-    near_w = hz[True][1][-1][idx_w] < NEAR_FIELD_M
+    near_w = np.zeros(sk.NAZ, bool)                                # v2: no azimuth is dropped; near-field terrain is simply not part of the model horizon
     res_w = np.where(np.isfinite(obs_pano) & ~near_w, obs_pano - full["elevOffsetAtWaypointDeg"] - hfull_w[idx_w], np.nan)
     res_valid = res_w[np.isfinite(res_w)]
-    near_n = int((np.isfinite(obs_pano) & near_w).sum())
-    mola_wins = float((a_m[-1] > a_c[-1])[np.isfinite(obs_pano)].mean())
+    near_n = int((np.isfinite(obs_pano) & (a_c[-1][idx_w] > a_cf[-1][idx_w] + 1e-9)).sum())   # informational: azimuths where terrain < 150 m would have formed the CTX horizon
+    mola_wins = float((a_m[-1] > a_cf[-1])[np.isfinite(obs_pano)].mean())
 
     def r3(a):
         return [None if not np.isfinite(v) else round(float(v), 3) for v in np.asarray(a, float).ravel()]
@@ -838,7 +845,7 @@ def run_pano(site: int, drive: int, set_name: str) -> dict:
         "horizonAtWaypointCtx": r3(hctx_w), "horizonAtWaypointFull": r3(hfull_w),
         "horizonAtBestFull": r3(hz[True][0][full["_b"]]),
         "residualAtWaypointFull": r3(res_w),
-        "nearFieldExcludedAtWaypoint": near_n,
+        "nearFieldTerrainIgnoredAtWaypointAzimuths": near_n,
         "fixedParameters": {"edgeSigmaPx": EDGE_SIGMA_PX, "edgeThreshold": EDGE_THRESH, "azStepDeg": sk.AZ_STEP, "headingUncertaintyDeg": HDG_MAX_DEG, "elevationOffsetMaxDeg": ELEV_OFFSET_MAX_DEG,
                             "nearFieldM": NEAR_FIELD_M, "grid": "61 x 61 at 100 m, prior 1-2 km from the waypoint (seed 2021)", "uncertaintyRule": "RMS <= best + 0.05 deg, min 50 m",
                             "ctxStepM": CTX_STEP_M, "ctxMaxKm": CTX_MAX_M / 1000, "molaStepM": MOLA_STEP_M, "molaMaxKm": MOLA_MAX_M / 1000, "minCellColumns": MIN_CELL_POINTS, "minScoredAzimuths": MIN_SCORED_AZ,
@@ -854,7 +861,7 @@ def run_pano(site: int, drive: int, set_name: str) -> dict:
             f"Each frame's columns are converted to true azimuth/elevation with its own CAHVORE model and the waypoint attitude, binned to 2-deg cells (>= {MIN_CELL_POINTS} traced columns, median elevation); frames are merged per cell by median. "
             "Cells with no frame or no accepted trace are NaN (null) and are not scored.",
             f"Rover-hardware rule: {'a rover-frame azimuth sector ' + str(HW_MASK) + ' deg is masked' if HW_MASK else 'no azimuth sector is masked'}. On the development frames the rover deck/RTG appears only in the lowest part of the frame, well below the skyline, so the geometric rule is: nothing masked. Not examined for held-out frames before the run.",
-            f"Matching: heading known to +-{HDG_MAX_DEG:.0f} deg (11 shifts of 2 deg); one elevation offset per candidate (clipped to +-{ELEV_OFFSET_MAX_DEG} deg); azimuths whose predicted horizon forms closer than {NEAR_FIELD_M:.0f} m at the candidate are excluded for that candidate; score = RMS over scored azimuths. "
+            f"Matching: heading known to +-{HDG_MAX_DEG:.0f} deg (11 shifts of 2 deg); one elevation offset per candidate (clipped to +-{ELEV_OFFSET_MAX_DEG} deg); terrain closer than {NEAR_FIELD_M:.0f} m is not used to form the predicted horizon (CTX samples >= {NEAR_FIELD_M:.0f} m and MOLA only) but every traced azimuth is scored for every candidate (v2; v1 excluded such azimuths per candidate, see README 8b); score = RMS over all valid azimuths. "
             "The same near-field and offset rules are used in all four ablation rows; only the frame set and the backdrop change. "
             f"A candidate must score at least {MIN_SCORED_AZ} azimuths AND {MIN_SCORED_FRAC:.0%} of the valid azimuths: this guard was added after the first development run, in which the single-frame best candidate scored only 20 of 48 azimuths because the near-field rule dropped the rest (a degenerate 'win'). It was not tuned on position error.",
             f"Horizon = max over CTX samples (40 m, to 15 km) and MOLA samples (250 m, to 120 km, only outside the CTX footprint or beyond 15 km), Mars curvature term, eye 2 m above the CTX elevation at the candidate. "
@@ -875,7 +882,7 @@ def run_pano(site: int, drive: int, set_name: str) -> dict:
     return out
 
 
-def select_heldout(dev_positions: list, wps: list) -> list:
+def select_heldout(dev_positions: list, wps: list, min_sol: int = 0) -> list:
     """Scan waypoints in ascending sol order; take the first two site+drive positions satisfying the held-out rules. Returns [(wp, log), ...]; the log is printed and returned."""
     z_shape = (1512, 1596)
     cosl = math.cos(math.radians(LAT_MID))
@@ -888,7 +895,7 @@ def select_heldout(dev_positions: list, wps: list) -> list:
     seen = set()
     for w in wps:
         key = (w["site"], w["drive"])
-        if key in seen:
+        if key in seen or w["sol"] <= min_sol:
             continue
         seen.add(key)
         entry = {"site": w["site"], "drive": w["drive"], "sol": w["sol"]}
@@ -939,6 +946,19 @@ def main() -> None:
         site, drive = int(args[k + 1]), int(args[k + 2])
         set_name = args[args.index("--set") + 1] if "--set" in args else "development"
         run_pano(site, drive, set_name)
+        return
+    if "--heldout2" in args:                          # round 2: exclusion applied to all four previous positions; scan continues after sol 911; run each once
+        wps = load_waypoints()
+        prev = [(7, 1716), (90, 5110), (33, 4752), (45, 0)]
+        chosen, log = select_heldout(prev, wps, min_sol=911)
+        print_heldout_log(log)
+        print(f"examined {len(log)} site+drive positions; downloads so far {N_DOWNLOADS[0]}")
+        (OUT / "heldout_selection_round2.json").write_text(json.dumps({"rule": "round 2 (after the site 33 fix): same rule as round 1 (ascending sol, unique site+drive; (a) >= 3 km from ALL FOUR previous positions (sites 7, 90, 33, 45) and from each other, "
+                                                                "(b) >= 2 km inside the CTX DTM bounds, (c) usable daytime Navcam-left frames, greedy footprint coverage >= 270 deg); scan starts after sol 911",
+                                                                "previousPositions": [list(x) for x in prev], "examined": len(log), "log": log}, indent=1, allow_nan=False), encoding="utf-8")
+        for w, _ in chosen:
+            run_pano(w["site"], w["drive"], "held-out (round 2)")
+        print(f"total image downloads: {N_DOWNLOADS[0]}")
         return
     if "--heldout-select" in args or "--heldout" in args:
         wps = load_waypoints()
