@@ -592,39 +592,30 @@ h1, h2, .brand, .tab-title, .skyfix-head h2, .more h2 { font-family: var(--displ
   .player #t-label { display: none; }
 }
 
-/* ---------- intro: line → 30° wedge → SL logo → eyelids open ----------
-   Compositor-only (transform + opacity on HTML boxes, CSS keyframes started at parse): keeps running smoothly
-   while the main thread is busy parsing the terrain and uploading textures. JS only adds .is-open when ready. */
+/* ---------- intro: the SL logo is the loading bar ----------
+   A dim (grey) logo on black; a white copy is revealed left to right as loading progresses (quadratic ease-out).
+   Reveal = a wrapper sliding from -100% to 0 with the logo counter-sliding, so it's transform-only (compositor)
+   and keeps moving while the main thread parses the terrain. Then two eyelids slide open (hub eye-blink timing). */
 body.intro-on { overflow: hidden; }
-.intro { position: fixed; inset: 0; z-index: 12000; pointer-events: all; overflow: hidden; }
+.intro { position: fixed; inset: 0; z-index: 12000; pointer-events: all; overflow: hidden; --p: 0; }
 .intro.is-gone { opacity: 0; transition: opacity 200ms ease; pointer-events: none; }
-.intro-lid { position: absolute; left: -20vw; right: -20vw; height: 50vh; background: var(--bg); will-change: transform;
-  transition: transform 650ms cubic-bezier(.7, 0, .2, 1) 200ms; }
-.intro-lid-top { top: 0; border-radius: 0 0 50% 50% / 0 0 18vh 18vh; transform: translateY(0); }
-.intro-lid-bottom { bottom: 0; border-radius: 50% 50% 0 0 / 18vh 18vh 0 0; transform: translateY(0); }
-/* closed: lids overlap so no gap shows; open: they slide away (top lid up, bottom lid down) */
-.intro-lid-top { height: calc(50vh + 18vh); }
-.intro-lid-bottom { height: calc(50vh + 18vh); }
+.intro-lid { position: absolute; left: -20vw; right: -20vw; height: calc(50vh + 18vh); background: #000; will-change: transform;
+  transition: transform 650ms cubic-bezier(.7, 0, .2, 1) 150ms; }
+.intro-lid-top { top: 0; border-radius: 0 0 50% 50% / 0 0 18vh 18vh; }
+.intro-lid-bottom { bottom: 0; border-radius: 50% 50% 0 0 / 18vh 18vh 0 0; }
 .intro.is-open .intro-lid-top { transform: translateY(-105%); }
 .intro.is-open .intro-lid-bottom { transform: translateY(105%); }
 
-.intro-mark { position: absolute; left: 50%; top: 50%; width: 240px; height: 160px; --mark-scale: 1.8;
-  transform: translate(-50%, -55%) scale(var(--mark-scale)); transition: opacity 220ms ease; }
+/* logo box = the mark's bounds in the 1500-unit file (x 532-976, y 639-871), at --w px wide */
+.intro-mark { --w: 300px; position: absolute; left: 50%; top: 50%; width: var(--w); height: calc(var(--w) * 232 / 444);
+  transform: translate(-50%, -50%); transition: opacity 200ms ease; }
 .intro.is-open .intro-mark { opacity: 0; }
-/* lines are 1.6 px boxes; origin = wedge vertex (10, 150) */
-.intro-base, .intro-arm { position: absolute; left: 10px; top: 149.2px; height: 1.6px; background: #fff; transform-origin: 0 50%; will-change: transform; }
-.intro-base { width: 218.7px; transform: scaleX(0); animation: intro-draw 500ms cubic-bezier(.5, 1, .89, 1) 100ms forwards; }
-.intro-arm { width: 207px; opacity: 0; animation: intro-swing 600ms cubic-bezier(.5, 1, .89, 1) 650ms forwards; }
-@keyframes intro-draw { to { transform: scaleX(1); } }
-@keyframes intro-swing { 0% { opacity: 1; transform: rotate(0deg); } 100% { opacity: 1; transform: rotate(-30.09deg); } }
-/* logo fills the wedge: slanted top on the arm (measured 30.09°), foot on the baseline.
-   Logo units (of 1500): bounds x 532-976, y 639-871; wedge vertex x 490; 0.45 px/unit. */
-.intro-logo { position: absolute; left: 28.9px; top: 45.6px; width: 200px; height: 104.4px; overflow: hidden; opacity: 0;
-  transform: translateY(6px); animation: intro-logo 500ms cubic-bezier(.5, 1, .89, 1) 1250ms forwards; }
-.intro-logo img { position: absolute; left: -239.4px; top: -287.55px; width: 675px; height: 675px; max-width: none; }
-@keyframes intro-logo { to { opacity: 1; transform: none; } }
-.intro-status { position: absolute; left: 0; right: 0; top: 168px; margin: 0; text-align: center; white-space: nowrap;
-  font: 500 7px var(--font); color: var(--muted); opacity: 0; animation: intro-fade 400ms ease 2400ms forwards; }
-@keyframes intro-fade { to { opacity: 1; } }
-@media (max-width: 600px) { .intro-mark { --mark-scale: 1.2; } .intro-status { font-size: 9px; } }
+.intro-logo { position: absolute; inset: 0; overflow: hidden; }
+.intro-logo img { position: absolute; max-width: none; width: calc(var(--w) * 1500 / 444); height: auto;
+  left: calc(var(--w) * -532 / 444); top: calc(var(--w) * -639 / 444); }
+.intro-logo-dim { opacity: .22; } /* white at 22% on black = grey */
+.intro-fill, .intro-fill-in { position: absolute; inset: 0; overflow: hidden; will-change: transform; }
+.intro-fill { transform: translateX(calc((var(--p) - 1) * 100%)); transition: transform var(--dur, 600ms) cubic-bezier(.5, 1, .89, 1); }
+.intro-fill-in { transform: translateX(calc((1 - var(--p)) * 100%)); transition: transform var(--dur, 600ms) cubic-bezier(.5, 1, .89, 1); }
+@media (max-width: 600px) { .intro-mark { --w: 200px; } }
 @media (prefers-reduced-motion: reduce) { .intro { display: none; } }

@@ -1,16 +1,26 @@
 // Written with AI assistance (Claude / GitHub Copilot)
-// Intro: line → 30° wedge → SL logo (pure CSS keyframes, compositor-only, start at parse) → eyelids open.
-// This file only decides WHEN to open: after the logo has shown, the app has booted, and the 3D terrain
-// has been drawn at least once. Eyelid reveal adapted from the component hub's eye-blink transition
-// (650 ms cubic-bezier(.7,0,.2,1)), rebuilt as two transform-animated lids so it never janks.
+// Loader: the SL logo fills from grey to white as the app loads (quadratic ease-out), then eyelids open.
+// Progress is real: each loading milestone sets a target; CSS animates toward it on the compositor.
+//   start → creeps to 60 % over a few seconds (so it always moves)
+//   app booted (data + store) → 75 %
+//   terrain mesh built → 92 %
+//   terrain drawn on screen (3 frames later) → 100 %, then open
+// Eyelid reveal adapted from the component hub's eye-blink transition (650 ms cubic-bezier(.7,0,.2,1)).
 
-const MIN_SHOW_MS = 1900;   // let the line → wedge → logo sequence finish
-const MAX_WAIT_MS = 15000;  // never hold the app longer than this (slow network)
-const OPEN_MS = 200 + 650, FADE_MS = 200;
+const MAX_WAIT_MS = 15000;      // never hold the app longer than this
+const FILL_MS = 600, OPEN_MS = 150 + 650, FADE_MS = 200;
+const CREEP = { to: 0.6, ms: 5000 };
 
 const intro = document.getElementById('intro');
 const later = ms => new Promise(r => setTimeout(r, ms));
 const frames = n => new Promise(r => { const f = () => (--n <= 0 ? r() : requestAnimationFrame(f)); requestAnimationFrame(f); });
+let shown = 0;
+const progress = (p, ms = FILL_MS) => {
+  if (p <= shown) return;
+  shown = p;
+  intro.style.setProperty('--dur', `${ms}ms`);
+  intro.style.setProperty('--p', String(p));
+};
 
 function done() {
   intro?.remove();
@@ -20,17 +30,18 @@ function done() {
 async function run() {
   if (!intro) return;
   if (matchMedia('(prefers-reduced-motion: reduce)').matches) { done(); return; }
-  const t0 = performance.now();
   const booted = new Promise(r => {
     if (window.sightlineReady) r();
     else window.addEventListener('sightline:ready', r, { once: true });
-  });
-  // A-Frame events bubble to document; wait 3 frames after so the texture upload + shader compile are done
-  const terrainDrawn = new Promise(r => document.addEventListener('terrain-loaded', r, { once: true })).then(() => frames(3));
-  // if the user is on the 2D map (3D failed), don't wait for terrain
-  const failed = new Promise(r => document.addEventListener('terrain-error', r, { once: true }));
-  await Promise.race([Promise.all([booted, Promise.race([terrainDrawn, failed])]), later(MAX_WAIT_MS)]);
-  await later(Math.max(0, MIN_SHOW_MS - (performance.now() - t0)));
+  }).then(() => progress(0.75));
+  const built = new Promise(r => document.addEventListener('terrain-loaded', r, { once: true })).then(() => progress(0.92));
+  const drawn = built.then(() => frames(3));
+  const failed = new Promise(r => document.addEventListener('terrain-error', r, { once: true })); // 2D fallback: don't wait
+  await frames(2); // commit the empty state before the first transition
+  progress(CREEP.to, CREEP.ms);
+  await Promise.race([Promise.all([booted, Promise.race([drawn, failed])]), later(MAX_WAIT_MS)]);
+  progress(1);
+  await later(FILL_MS);
   intro.classList.add('is-open');
   await later(OPEN_MS);
   intro.classList.add('is-gone');
