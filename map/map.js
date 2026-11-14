@@ -438,6 +438,7 @@ export function createMapView(data, { onPickTarget }) {
   }).setView([data.meta.home.lat, data.meta.home.lon], 13);
 
   const blindLayer = addLayers(map, data, box, onPickTarget);
+  const setRouteAlt = routeLine(map, CREAM, 2, '4 6'); // comparison route, created first so orange stays on top
   const setRouteOut = routeLine(map, ACCENT, 4);
   const setRouteHome = routeLine(map, CREAM, 3, '8 6');
   const haze = L.rectangle(box, { stroke: false, fillColor: DUST, fillOpacity: 0, interactive: false }).addTo(map);
@@ -470,6 +471,7 @@ export function createMapView(data, { onPickTarget }) {
     uncertainty.setLatLng([a.lat, a.lon]).setRadius(derived.posUncertaintyM);
     renderWeather(store);
     setRouteHome(derived.routeHome?.ok ? derived.routeHome.points : []);
+    setRouteAlt(derived.routeAlt?.ok ? derived.routeAlt.points : []);
     setRouteOut(derived.routeOut?.ok ? derived.routeOut.points : []);
     view3d.render(store);
   }

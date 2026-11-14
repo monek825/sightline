@@ -471,3 +471,11 @@ h1, h2, .brand, .tab-title, .skyfix-head h2, .more h2 { font-family: var(--displ
 .skyfix-toggle { display: flex; flex-wrap: wrap; gap: var(--s2); }
 .skyfix-toggle .btn[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); font-weight: 600; }
 .skyfix-explain { margin: 0; font-size: 13px; color: var(--muted); }
+
+/* route comparison (Route tab): chosen mode solid, alternative dashed */
+.cmp { display: grid; gap: var(--s2); }
+.cmp-row { display: grid; grid-template-columns: 22px 1fr; gap: 2px var(--s2); align-items: center; font-size: 13px; }
+.cmp-line { height: 0; border-top: 3px solid var(--accent); }
+.cmp-line.dashed { border-top: 2px dashed var(--cream); }
+.cmp-nums { grid-column: 2; display: flex; flex-wrap: wrap; gap: 0 var(--s3); font: 12px var(--mono); color: var(--muted); }
+.cmp-note { margin: 0; font-size: 13px; color: var(--text); }
