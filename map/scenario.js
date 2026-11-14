@@ -34,11 +34,15 @@ function eventsUpTo(scenario, t) {
   return scenario.events.filter(e => e.tMin <= t);
 }
 
-/** Plan both legs once. Same inputs → same legs → same video every time. */
-export function prepareScenario(scenario, data, M) {
+/** Plan both legs once. Same inputs → same legs → same video every time.
+ *  targetOverride ({lat, lon, id?}) replaces the scripted target (clicked point drives the walk). */
+export function prepareScenario(scenario, data, M, targetOverride = null) {
   const C = data.C;
+  // a scripted skyline_fix belongs to the scripted site: drop it for any other target (copy, never mutate)
+  if (targetOverride && targetOverride.id !== scenario.target)
+    scenario = { ...scenario, events: scenario.events.filter(e => e.type !== 'skyline_fix') };
   const start = scenario.start || data.meta.home;
-  const target = data.targets.find(t => t.id === scenario.target) || data.meta.home;
+  const target = targetOverride || data.targets.find(t => t.id === scenario.target) || data.meta.home;
   const base = { ...DEFAULT_INPUTS, sol: scenario.sol, astronaut: { ...start, headingDeg: 0 } };
   const lim0 = M.computeLimits(base, C);
   const opts = { mode: 'safest', maxSlopeDeg: lim0.maxSlopeDeg, speedKmh: lim0.speedKmh };
@@ -59,7 +63,7 @@ export function prepareScenario(scenario, data, M) {
   }
   const end = scenario.events.find(e => e.type === 'eva_end')?.tMin ?? 200;
   return Object.freeze({
-    scenario, mPerMin, outPts, outLen: legLengthM(outPts), back, backLen: back ? legLengthM(back) : 0, sepT: sep?.tMin ?? null, endT: end,
+    scenario, mPerMin, outPts, outOk: out.ok, custom: Boolean(targetOverride), outLen: legLengthM(outPts), back, backLen: back ? legLengthM(back) : 0, sepT: sep?.tMin ?? null, endT: end,
     hourMin: C.mars_hour_min ?? MARS_HOUR_MIN
   });
 }
