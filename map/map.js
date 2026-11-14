@@ -7,8 +7,18 @@ const TILE_PATH = '/1.0.0/default/default028mm/{z}/{y}/{x}.png';
 const AFRAME_SRC = 'https://aframe.io/releases/1.6.0/aframe.min.js';
 const TERRAIN_SRC = 'lib/terrain.js';
 const MODELS_SRC = 'lib/models.js';
-const MODEL_SCALE = 30; // rover/habitat drawn 30x real size so they read from km away (labelled on screen)
-const ROVER_PARK_M = [14, 6]; // support rover parked beside the habitat [east, south], model metres
+const GROUND_SRC = 'lib/ground.js';
+// Rover/habitat size follows the zoom: true size (1x) when the camera is within ~170 m, growing to 30x from ~5 km out
+// so they still read from far away. The on-screen note says the current factor.
+const MODEL_SCALE = 30, MODEL_TRUE_SIZE_DIST_M = 170;
+const MIN_DIST_M = 25;  // closest zoom: about standing height above the astronaut's area
+// Close-up rocks (lib/ground.js), hidden once the camera is high enough that they would be sub-pixel.
+const MAP_ROCK_LAYERS = [
+  { count: 5000, radius: 30, cell: 1.2, min: 0.02, max: 0.1, rescatter: 8, detail: 0, color: 0x7d5f4c, sandAvoid: 0.6, clumpM: 6, maxCamH: 70, clearHome: 11 },
+  { count: 2000, radius: 110, cell: 5, min: 0.1, max: 0.6, rescatter: 25, detail: 1, color: 0x6f5444, sandAvoid: 0.85, clumpM: 25, maxCamH: 450, clearHome: 11 },
+  { count: 400, radius: 450, cell: 30, min: 0.5, max: 2.8, rescatter: 90, detail: 1, color: 0x6a4f40, sandAvoid: 0.9, clumpM: 90, maxCamH: 2500, clearHome: 14 }
+];
+const ROVER_PARK_M = [12, 6]; // support rover parked beside the habitat [east, south], model metres
 const EXAGGERATE = 2;
 const ASTRO_R = 25, BEACON_H = 400, LIFT_M = 15, ROUTE_R = 10, STEP_M = 60;
 const PITCH_MIN = 0.08, PITCH_MAX = 1.5, CAM_CLEARANCE_M = 40;
@@ -178,7 +188,7 @@ function registerOrbit() {
   if (AFRAME.components['orbit-camera']) return;
   const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
   AFRAME.registerComponent('orbit-camera', {
-    schema: { minDist: { default: 500 }, maxDist: { default: 25000 } },
+    schema: { minDist: { default: MIN_DIST_M }, maxDist: { default: 25000 } },
     init() {
       this.o = { yaw: 0.6, pitch: 0.3, dist: 5200, x: 0, y: 0, z: 0 };
       this.lastInput = 0;
@@ -216,9 +226,10 @@ function registerOrbit() {
       const cx = x + h * Math.sin(yaw), cz = z + h * Math.cos(yaw);
       let cy = y + dist * Math.sin(pitch);
       const ground = this.heightAt?.(cx, cz);
-      if (Number.isFinite(ground)) cy = Math.max(cy, ground + CAM_CLEARANCE_M);
+      if (Number.isFinite(ground)) cy = Math.max(cy, ground + Math.min(CAM_CLEARANCE_M, 1.5 + dist * 0.08));
       this.el.object3D.position.set(cx, cy, cz);
       this.el.object3D.rotation.set(-Math.atan2(cy - y, h), yaw, 0);
+      this.onTick?.(dist, cx, cy, cz, Number.isFinite(ground) ? cy - ground : cy - y);
     }
   });
 }
@@ -234,6 +245,8 @@ function buildScene() {
   const scene = document.createElement('a-scene');
   scene.setAttribute('embedded', '');
   scene.setAttribute('xr-mode-ui', 'enabled: false');
+  // log depth: the camera can now come within 25 m of the ground while the far plane stays at 80 km
+  scene.setAttribute('renderer', 'antialias: true; logarithmicDepthBuffer: true');
   scene.setAttribute('background', 'color: #e3a76a');
   const flat = color => `color: ${color}; shader: flat; side: double`;
   const hemi = mk('a-entity', { light: 'type: hemisphere; color: #ffd9b0; groundColor: #4a2a18; intensity: 0.75' }, scene);
@@ -245,7 +258,7 @@ function buildScene() {
   return {
     scene, hemi, sun, sky, landmarks: mk('a-entity', {}, scene),
     terrain: mk('a-entity', { 'heightgrid-terrain': `exaggerate: ${EXAGGERATE}` }, scene),
-    cam: mk('a-entity', { camera: 'fov: 55; near: 10; far: 80000', 'orbit-camera': '' }, scene),
+    cam: mk('a-entity', { camera: 'fov: 55; near: 0.5; far: 80000', 'orbit-camera': '' }, scene),
     home: mk('a-cylinder', { radius: 6, height: BEACON_H, material: flat(CREAM) }, scene),
     astro,
     ring: mk('a-entity', { rotation: '-90 0 0', geometry: 'primitive: ring; radiusInner: 1; radiusOuter: 2', material: flat(ACCENT) }, scene),
@@ -274,13 +287,14 @@ function worldToLatLon(terrain, b, x, z) {
   return { lat: fit(lat, b.latMin, b.latMax), lon: fit(lon, b.lonMin, b.lonMax) };
 }
 
-function setRoute(s, terrain, name, route, color) {
+// k shrinks the tube and its lift when zoomed in close (1 = far view)
+function setRoute(s, terrain, name, route, color, k = 1) {
   const old = s.routes.getObject3D(name);
   old?.geometry.dispose();
   if (!route?.ok || route.points.length < 2) { if (old) s.routes.removeObject3D(name); return; }
   const T = AFRAME.THREE;
-  const pts = drape(terrain, route.points).map(p => new T.Vector3(p.x, p.y + LIFT_M, p.z));
-  const geo = new T.TubeGeometry(new T.CatmullRomCurve3(pts), Math.min(pts.length * 2, 1200), ROUTE_R, 5, false);
+  const pts = drape(terrain, route.points).map(p => new T.Vector3(p.x, p.y + LIFT_M * k, p.z));
+  const geo = new T.TubeGeometry(new T.CatmullRomCurve3(pts), Math.min(pts.length * 2, 1200), ROUTE_R * k, 5, false);
   s.routes.setObject3D(name, new T.Mesh(geo, new T.MeshBasicMaterial({ color })));
 }
 
@@ -307,9 +321,46 @@ function sunPosition(ltst) {
 
 function createView3D(data, onPickTarget) {
   const host = $('view3d'), msg = $('v3-msg');
-  $('v3-note').textContent = `Vertical scale ×${EXAGGERATE} · rover and habitat ×${MODEL_SCALE} size`;
   let s = null, starting = null, terrain = null, last = null, lastHome, lastOut, lastRadius = -1, lastTau = null, lastSun = null, lastVis = null, blind3d = null;
+  let models = [], modelK = 0, routeK = 1, groundU = null, rocks = null, noteKey = '';
   const say = text => { msg.textContent = text; msg.hidden = !text; };
+  const setNote = k => {
+    const t = `Vertical scale ×${EXAGGERATE} · ` + (k <= 1.05 ? 'rover and habitat true size' : `rover and habitat ×${Math.round(k)} size`);
+    if (t !== noteKey) { noteKey = t; $('v3-note').textContent = t; }
+  };
+  setNote(MODEL_SCALE);
+
+  // Per frame from orbit-camera: model size, marker size, route thickness, near plane and close-up ground follow the zoom.
+  function onZoom(dist, cx, cy, cz, camH) {
+    const k = Math.min(MODEL_SCALE, Math.max(1, dist / MODEL_TRUE_SIZE_DIST_M));
+    if (Math.abs(k - modelK) > modelK * 0.03) {
+      modelK = k;
+      for (const m of models) {
+        m.el.setAttribute(m.name, 'scale', k);
+        if (m.park) {
+          const [px, pz] = m.park.map(v => v * k);
+          m.el.object3D.position.set(px, terrain.heightAt(px, pz), pz);
+        }
+      }
+      setNote(k);
+    }
+    const a = Math.min(1, Math.max(0.016, dist / 5200));      // astronaut cone 25 m tall from afar, ~0.4 m up close
+    s.astro.object3D.scale.setScalar(a);
+    s.home.object3D.scale.set(a, 1, a);
+    const rk = Math.min(1, Math.pow(2, Math.round(Math.log2(Math.max(0.02, dist / 2500)))));   // power-of-2 steps: rebuild rarely
+    if (rk !== routeK && last) {
+      routeK = rk;
+      setRoute(s, terrain, 'home', last.derived.routeHome, CREAM, rk);
+      setRoute(s, terrain, 'out', last.derived.routeOut, ACCENT, rk);
+      update();
+    }
+    const cam = s.scene.camera;
+    const near = Math.min(10, Math.max(0.1, dist * 0.004));
+    if (cam && Math.abs(cam.near - near) > near * 0.1) { cam.near = near; cam.updateProjectionMatrix(); }
+    if (groundU) groundU.uGCam.value.set(cx, cy, cz);
+    const o = s.cam.components['orbit-camera'].o;
+    if (rocks) rocks.update(o.x, o.z, 0, 0, camH);
+  }
 
   // Blind zones draped on the terrain: a second mesh sharing the terrain geometry, transparent, drawn on top.
   function updateBlind(vis, key) {
@@ -336,16 +387,17 @@ function createView3D(data, onPickTarget) {
     const { inputs: { astronaut: a }, derived: d } = last;
     const p = terrain.toWorld(a.lat, a.lon);
     s.astro.object3D.position.set(p.x, p.y, p.z);
-    s.ring.object3D.position.set(p.x, p.y + LIFT_M, p.z);
+    s.ring.object3D.position.set(p.x, p.y + Math.max(0.1, LIFT_M * routeK), p.z);
     const r = Math.max(5, Math.round(d.posUncertaintyM));
-    if (r !== lastRadius) {
-      lastRadius = r;
-      s.ring.setAttribute('geometry', `primitive: ring; radiusInner: ${r - Math.max(4, r * 0.05)}; radiusOuter: ${r}; segmentsTheta: 64`);
+    if (r + routeK * 1e6 !== lastRadius) {      // line width follows the zoom (thin when close)
+      lastRadius = r + routeK * 1e6;
+      const w = Math.min(r * 0.5, Math.max(4 * routeK, r * 0.05 * routeK, 0.15));
+      s.ring.setAttribute('geometry', `primitive: ring; radiusInner: ${r - w}; radiusOuter: ${r}; segmentsTheta: 96`);
     }
     const orbit = s.cam.components['orbit-camera'];
     if (orbit) { orbit.setTarget(p.x, p.y, p.z); orbit.heightAt = (x, z) => terrain.heightAt(x, z); }
-    if (d.routeHome !== lastHome) { lastHome = d.routeHome; setRoute(s, terrain, 'home', d.routeHome, CREAM); }
-    if (d.routeOut !== lastOut) { lastOut = d.routeOut; setRoute(s, terrain, 'out', d.routeOut, ACCENT); }
+    if (d.routeHome !== lastHome) { lastHome = d.routeHome; setRoute(s, terrain, 'home', d.routeHome, CREAM, routeK); }
+    if (d.routeOut !== lastOut) { lastOut = d.routeOut; setRoute(s, terrain, 'out', d.routeOut, ACCENT, routeK); }
     const ltst = Math.round(last.inputs.ltst * 4) / 4;
     if (ltst !== lastSun) { lastSun = ltst; s.sun.setAttribute('position', sunPosition(ltst).map(Math.round).join(' ')); }
     const tau = Math.round(last.inputs.tau * 10) / 10;
@@ -371,6 +423,7 @@ function createView3D(data, onPickTarget) {
       await loadScript(TERRAIN_SRC);
       await loadScript(MODELS_SRC);
     } catch (err) { say(`3D view unavailable: ${err.message}`); starting = null; return; }
+    try { await loadScript(GROUND_SRC); } catch (err) { console.warn('3D view: close-up ground detail unavailable', err); }
     registerOrbit();
     s = buildScene();
     s.terrain.addEventListener('terrain-loaded', e => {
@@ -378,14 +431,27 @@ function createView3D(data, onPickTarget) {
       say('');
       s.home.object3D.position.set(0, terrain.heightAt(0, 0) + BEACON_H / 2, 0);
       const h0 = terrain.heightAt(0, 0);
-      mk('a-entity', { 'mars-habitat': `scale: ${MODEL_SCALE}`, position: `0 ${h0} 0` }, s.scene);
+      models = [{ name: 'mars-habitat', el: mk('a-entity', { 'mars-habitat': `scale: ${MODEL_SCALE}`, position: `0 ${h0} 0` }, s.scene) }];
       const [rx, rz] = ROVER_PARK_M.map(v => v * MODEL_SCALE);
-      mk('a-entity', { 'mars-rover': `scale: ${MODEL_SCALE}`, position: `${rx} ${terrain.heightAt(rx, rz)} ${rz}`, rotation: '0 -30 0' }, s.scene);
+      models.push({ name: 'mars-rover', park: ROVER_PARK_M, el: mk('a-entity', { 'mars-rover': `scale: ${MODEL_SCALE}`, position: `${rx} ${terrain.heightAt(rx, rz)} ${rz}`, rotation: '0 -30 0' }, s.scene) });
       const end = data.traverse?.at?.(-1); // Perseverance's latest position on its real traverse
       if (end) {
         const q = terrain.toWorld(end[0] ?? end.lat, end[1] ?? end.lon);
-        if (Number.isFinite(q.y)) mk('a-entity', { 'mars-rover': `scale: ${MODEL_SCALE}`, position: `${q.x} ${q.y} ${q.z}`, rotation: '0 70 0' }, s.scene);
+        if (Number.isFinite(q.y)) models.push({ name: 'mars-rover', el: mk('a-entity', { 'mars-rover': `scale: ${MODEL_SCALE}`, position: `${q.x} ${q.y} ${q.z}`, rotation: '0 70 0' }, s.scene) });
       }
+      modelK = MODEL_SCALE;
+      const G = window.SightlineGround, tm = s.terrain.getObject3D('mesh');
+      if (G && tm) {
+        const det = G.detail(AFRAME.THREE);
+        groundU = G.patchTerrain(AFRAME.THREE, tm.material, det, { near: 60, far: 900 });
+        const maxA = s.scene.renderer?.capabilities.getMaxAnisotropy() ?? 8;
+        det.tex.anisotropy = maxA;
+        if (tm.material.map) { tm.material.map.anisotropy = maxA; tm.material.map.needsUpdate = true; }
+        rocks = G.rocks(AFRAME.THREE, (x, z) => terrain.heightAt(x, z), det, MAP_ROCK_LAYERS);
+        s.scene.object3D.add(rocks.group);
+      }
+      const orbit = s.cam.components['orbit-camera'];
+      if (orbit) orbit.onTick = onZoom;
       for (const lm of data.landmarks ?? []) {
         if (lm.id === 'home') continue;
         const q = terrain.toWorld(lm.lat, lm.lon);

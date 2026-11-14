@@ -12,17 +12,31 @@ const LOS_STEP_M = 20;
 const ROUTE_STEP_M = 15, ROUTE_W_M = 1.5, ROUTE_W_STORM_M = 2.5, ROUTE_LIFT_M = 0.25, POST_EVERY_M = 75, MAX_ROUTE_PTS = 5000;
 const OFFSCREEN_X = 0.92;
 // Visual-only constants (colours, sizes, animation times). No science numbers here.
-const HABITAT_CLEAR_M = 16;       // the habitat model is ~14 m wide: start views stand just outside it, facing it
-const ROVER_PARK_M = [14, 6];     // support rover beside the habitat [east, south], metres (same as the main 3D view)
+const HABITAT_SCALE = 1;          // true size (lib/models.js: 8 m dome on a 20 m pad)
+const HABITAT_CLEAR_M = 30;       // start views stand back from the habitat so it fits in view, facing it
+const ROVER_PARK_M = [12, 6];     // support rover beside the habitat pad [east, south], metres (same as the main 3D view)
 const ROUTE_FADE_M = 10;          // route ribbon fades in over its first metres so it is not huge at the feet
 const CAM_SMOOTH_S = 0.25, CAM_SNAP_M = 400, MAX_DT_S = 0.1;
 const BEACON_PULSE_S = 3.2;
 const NEAR_HOME_M = 60;           // visual: this close to the habitat you can see it, so the beacon pillar and HOME label are hidden
 const SKY_CLEAR = [227, 167, 106], SKY_DUSTY = [168, 120, 84], ZENITH_CLEAR = [128, 86, 62], TAU_DUSTY = 8, SUN_DIST = 30000;
 const LTST_DEFAULT = 9.0;
-// Realism layer (visual only). Rocks: instanced dodecahedra scattered around the camera, hashed per world-grid cell so they stay put.
-const ROCK_COUNT = 1500, ROCK_RADIUS_M = 60, ROCK_CELL_M = 5, ROCK_RESCATTER_M = 25, ROCK_CLEAR_HOME_M = 20;
-const ROCK_MIN_M = 0.08, ROCK_MAX_M = 0.7, ROCK_COLOR = 0x8a6a52;
+// Realism layer (visual only, lib/ground.js). Three rock layers around the view, hashed per world cell so they stay put:
+// gravel at your feet, rocks out to 75 m, boulders out to 280 m. Clumped, and sparse on the sand patches the ground shader draws.
+const ROCK_LAYERS = [
+  { count: 9000, radius: 24, cell: 1, min: 0.012, max: 0.09, rescatter: 6, detail: 0, color: 0x7d5f4c, cast: false, sandAvoid: 0.6, clumpM: 6, clearHome: 11 },
+  { count: 2400, radius: 75, cell: 4, min: 0.1, max: 0.6, rescatter: 15, detail: 1, color: 0x6f5444, cast: true, sandAvoid: 0.85, clumpM: 25, clearHome: 11 },
+  { count: 320, radius: 280, cell: 20, min: 0.5, max: 2.8, rescatter: 50, detail: 1, color: 0x6a4f40, cast: true, sandAvoid: 0.9, clumpM: 90, clearHome: 14 }
+];
+const GROUND_NEAR_M = 40, GROUND_FAR_M = 400;     // close-up grain and ripples fade out over this range
+// Zoom (binocular view): mouse wheel, pinch, + / - keys, 0 resets. 80 deg = normal, 4 deg = 20x.
+const FOV_DEFAULT = 80, FOV_MIN = 4, ZOOM_SMOOTH_S = 0.12;
+// Sun disc: Mars sees the sun ~0.35 deg wide (2/3 of Earth's). Halo = forward scattering by dust, stronger with tau.
+const SUN_SPRITE_D = 40000, SUN_ANG_DEG = 0.35, HALO_ANG_DEG = 34;
+// Blowing dust (visual): count and wind scale with tau. Not a wind measurement; the app has no wind data.
+const DUST_N = 14000, DUST_BOX_M = 50, DUST_H_M = 14, DUST_TAU_FULL = 4, DUST_WIND_DEG = 60;
+// Dust devils during the dust-devil hours from data/crew_constants.json (illustrative, not forecast positions).
+const DEVIL_N = 3, DEVIL_MIN_M = 700, DEVIL_MAX_M = 2600, DEVIL_RESPAWN_M = 3200;
 // Sun shadows (rocks + models cast, terrain receives). One switch; auto-off if frames are slow.
 const SHADOWS = true;
 const SHADOW_MAP = 1024, SHADOW_HALF_M = 110, SHADOW_STEP_M = 35, SHADOW_SNAP_M = 20, SHADOW_LIGHT_DIST_M = 1500;
@@ -50,7 +64,11 @@ const camT = { x: 0, z: 0, yaw: 0, eye: 1.7, snap: true };
 let envKey = '', lastLevel = null, homeTxtKey = '', homeCls = '';
 let skyCtx = null, skyTex = null, skyMesh = null, beacon = null, beaconMat = null, lmPoleGeo = null, lmPoleMat = null;
 let sunEl = null, hemiEl = null, terrainEl = null;
-let rocks = null, rockCx = 1e9, rockCz = 1e9, beaconDash = null, dashMat = null;
+let rocks = null, groundU = null, beaconDash = null, dashMat = null;
+let sunDisc = null, sunHalo = null, sunVis = { disc: 1, halo: 0.3, blue: 0 };
+let veil = null, veilU = null, veilWind = 0;
+let dust = null, dustU = null, devils = [], devilU = null, devilHours = [11, 14], tauNow = 0.4, ltstNow = LTST_DEFAULT;
+let fov = FOV_DEFAULT, fovT = FOV_DEFAULT, lookPrev = null, zoomEl = null;
 let shadowOn = false, shadowCx = 1e9, shadowCz = 1e9, shadowDirty = true, shadowLight = null, shadowTarget = null, shadowT0 = -1, shadowSum = 0, shadowN = 0;
 const sunDir = [0.5, 0.7, 0.5];
 let stripW = 600, tapeX = NaN, headTxt = -1, homeTapeX = NaN, homeTapeCls = '';
@@ -161,6 +179,13 @@ function setEnv(tau, ltst, visKm) {
   const far = Math.min(FOG_FAR_MAX_M, Math.max(FOG_NEAR_M + 50, v * 1000));
   const near = Math.min(FOG_NEAR_M, Math.round(far * 0.15));
   sceneEl.setAttribute('fog', `type: linear; color: ${horCss}; near: ${near}; far: ${Math.round(far)}`);
+  tauNow = t; ltstNow = l;
+  sunLook(t);
+  dustLook(t);
+  if (devilU) devilU.uFar.value = Math.min(8000, far);
+  // shader materials write their colour as-is (no colour-space conversion), so these are sRGB 0..1 values
+  if (dustU) dustU.uColor.value.setRGB(hor[0] / 255 * 1.05, hor[1] / 255, hor[2] / 255 * 0.95);
+  if (devilU) devilU.uColor.value.setRGB(hor[0] / 255 * 0.95, hor[1] / 255 * 0.86, hor[2] / 255 * 0.8);
 }
 
 // Home beacon: plain three.js mesh so fog:false / depthTest:false really apply (A-Frame warned about material props set too early).
@@ -189,57 +214,271 @@ function makeBeacon() {
   sceneEl.object3D.add(beaconDash);
 }
 
-// ---------- rocks: one InstancedMesh, deterministic per world-grid cell ----------
-const rockDummy = { o: null, c: null };
-function hash01(ix, iz, salt) {      // integer hash -> [0,1)
-  let h = Math.imul(ix | 0, 374761393) ^ Math.imul(iz | 0, 668265263) ^ Math.imul(salt | 0, 2246822519);
-  h = Math.imul(h ^ (h >>> 13), 1274126177);
-  h ^= h >>> 16;
-  return (h >>> 0) / 4294967296;
+// ---------- ground: close-up detail on the terrain + rock layers (lib/ground.js) ----------
+function makeGround() {
+  const G = window.SightlineGround;
+  if (!G) { note('Ground detail unavailable (lib/ground.js not loaded).'); return; }
+  const det = G.detail(THREE);
+  const tm = terrainEl && terrainEl.getObject3D('mesh');
+  if (tm && tm.material) {
+    groundU = G.patchTerrain(THREE, tm.material, det, { near: GROUND_NEAR_M, far: GROUND_FAR_M });
+    const maxA = sceneEl.renderer ? sceneEl.renderer.capabilities.getMaxAnisotropy() : 8;
+    det.tex.anisotropy = maxA;
+    if (tm.material.map) { tm.material.map.anisotropy = maxA; tm.material.map.needsUpdate = true; }
+  }
+  rocks = G.rocks(THREE, (x, z) => terrain.heightAt(x, z), det, ROCK_LAYERS);
+  sceneEl.object3D.add(rocks.group);
 }
-function makeRocks() {
-  const cap = Math.ceil(ROCK_COUNT * 1.2);
-  const mat = new THREE.MeshStandardMaterial({ color: ROCK_COLOR, roughness: 1, metalness: 0, flatShading: true });
-  rocks = new THREE.InstancedMesh(new THREE.DodecahedronGeometry(1, 0), mat, cap);
-  rocks.frustumCulled = false;      // instances move on re-scatter; bounding sphere would go stale
-  rocks.count = 0;
-  rocks.castShadow = true; rocks.receiveShadow = true;
-  rockDummy.o = new THREE.Object3D();
-  rockDummy.c = new THREE.Color();
-  rocks.setColorAt(0, rockDummy.c.setRGB(1, 1, 1));   // allocates the colour buffer once
-  sceneEl.object3D.add(rocks);
+
+// ---------- sun disc + dust halo (sprites that follow the camera, like the sky) ----------
+function radialTex(stops) {
+  const c = document.createElement('canvas');
+  c.width = c.height = 128;
+  const g = c.getContext('2d'), gr = g.createRadialGradient(64, 64, 0, 64, 64, 64);
+  for (const [t, col] of stops) gr.addColorStop(t, col);
+  g.fillStyle = gr; g.fillRect(0, 0, 128, 128);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
 }
-function scatterRocks(cx, cz) {
-  rockCx = cx; rockCz = cz;
-  const cap = rocks.instanceMatrix.count;
-  const perCell = ROCK_COUNT / (Math.PI * ROCK_RADIUS_M * ROCK_RADIUS_M / (ROCK_CELL_M * ROCK_CELL_M));
-  const i0 = Math.floor((cx - ROCK_RADIUS_M) / ROCK_CELL_M), i1 = Math.floor((cx + ROCK_RADIUS_M) / ROCK_CELL_M);
-  const j0 = Math.floor((cz - ROCK_RADIUS_M) / ROCK_CELL_M), j1 = Math.floor((cz + ROCK_RADIUS_M) / ROCK_CELL_M);
-  const o = rockDummy.o, col = rockDummy.c, r2 = ROCK_RADIUS_M * ROCK_RADIUS_M, clr2 = ROCK_CLEAR_HOME_M * ROCK_CLEAR_HOME_M;
-  let n = 0;
-  for (let j = j0; j <= j1 && n < cap; j++) for (let i = i0; i <= i1 && n < cap; i++) {
-    const k = Math.floor(perCell + hash01(i, j, 1));
-    for (let q = 0; q < k && n < cap; q++) {
-      const x = (i + hash01(i, j, 10 + q * 9)) * ROCK_CELL_M, z = (j + hash01(i, j, 11 + q * 9)) * ROCK_CELL_M;
-      if ((x - cx) * (x - cx) + (z - cz) * (z - cz) > r2 || x * x + z * z < clr2) continue;
-      const u = hash01(i, j, 12 + q * 9), sz = ROCK_MIN_M + (ROCK_MAX_M - ROCK_MIN_M) * u * u;   // many pebbles, few boulders
-      const sq = hash01(i, j, 13 + q * 9), sq2 = hash01(i, j, 14 + q * 9);
-      const sy = sz * (0.45 + 0.4 * sq);
-      const g = terrain.heightAt(x, z);
-      o.position.set(x, (fin(g) ? g : 0) + sy * 0.25, z);     // slightly sunk
-      o.rotation.set(hash01(i, j, 15 + q * 9) * 6.283, hash01(i, j, 16 + q * 9) * 6.283, hash01(i, j, 17 + q * 9) * 6.283);
-      o.scale.set(sz * (0.8 + 0.5 * sq2), sy, sz * (0.8 + 0.5 * (1 - sq)));
-      o.updateMatrix();
-      rocks.setMatrixAt(n, o.matrix);
-      const v = 0.7 + 0.4 * hash01(i, j, 18 + q * 9);
-      rocks.setColorAt(n, col.setRGB(v, v * 0.97, v * 0.94));
-      n++;
+function makeSun() {
+  const disc = radialTex([[0, 'rgba(255,252,245,1)'], [0.42, 'rgba(255,250,238,1)'], [0.5, 'rgba(255,240,215,0.55)'], [0.75, 'rgba(255,225,190,0.12)'], [1, 'rgba(255,220,180,0)']]);
+  const halo = radialTex([[0, 'rgba(255,255,255,1)'], [0.04, 'rgba(255,255,255,0.85)'], [0.15, 'rgba(255,255,255,0.4)'], [0.4, 'rgba(255,255,255,0.12)'], [1, 'rgba(255,255,255,0)']]);
+  const mk = (map, ang, add) => {
+    const s = new THREE.Sprite(new THREE.SpriteMaterial({ map, transparent: true, depthWrite: false, fog: false, blending: add ? THREE.AdditiveBlending : THREE.NormalBlending }));
+    s.scale.setScalar(2 * SUN_SPRITE_D * Math.tan(ang * Math.PI / 360));
+    s.frustumCulled = false;
+    s.renderOrder = -0.5;
+    sceneEl.object3D.add(s);
+    return s;
+  };
+  sunHalo = mk(halo, HALO_ANG_DEG, false);    // normal blend: it can tint the orange sky (blue at sunset)
+  sunDisc = mk(disc, SUN_ANG_DEG * 2, true);  // texture disc is half the sprite width
+}
+// brightness from extinction along the slant path (exp(-tau / sin(elevation))); bluish halo near the horizon (Mars sunset)
+function sunLook(tau) {
+  const el = Math.max(0.02, sunDir[1]);
+  const trans = Math.exp(-tau / el);
+  sunVis.disc = Math.min(1, trans * 2.2);
+  sunVis.halo = Math.min(0.85, 0.6 + 0.06 * tau);   // the aureole stays even when the disc itself is dimmed
+  sunVis.blue = Math.max(0, 1 - el / 0.3);   // below ~17 deg the forward-scattered light near the sun turns blue
+  if (sunDisc) sunDisc.material.opacity = sunVis.disc;
+  if (sunHalo) {
+    sunHalo.material.opacity = sunVis.halo;
+    const b = sunVis.blue;
+    sunHalo.material.color.setRGB(1 - 0.45 * b, 0.97 - 0.2 * b, 0.9 - 0.02 * b, THREE.SRGBColorSpace);
+  }
+}
+
+// ---------- blowing dust: GPU-animated points in a box that wraps around the camera ----------
+function makeDust() {
+  const pos = new Float32Array(DUST_N * 3), seed = new Float32Array(DUST_N);
+  const H = window.SightlineGround ? window.SightlineGround.hash01 : (a, b, c) => Math.random();
+  for (let i = 0; i < DUST_N; i++) { pos[i * 3] = H(i, 1, 3); pos[i * 3 + 1] = H(i, 2, 3); pos[i * 3 + 2] = H(i, 3, 3); seed[i] = H(i, 4, 3); }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  g.setAttribute('aSeed', new THREE.BufferAttribute(seed, 1));
+  dustU = {
+    uTime: { value: 0 }, uCam: { value: new THREE.Vector3() }, uGround: { value: 0 },
+    uWind: { value: new THREE.Vector2(1, 0) }, uBox: { value: DUST_BOX_M }, uH: { value: DUST_H_M },
+    uOpacity: { value: 0 }, uColor: { value: new THREE.Color(0xd9a77a) }, uPx: { value: 500 }
+  };
+  const mat = new THREE.ShaderMaterial({
+    uniforms: dustU, transparent: true, depthWrite: false, fog: false,
+    vertexShader: `
+      attribute float aSeed;
+      uniform float uTime, uGround, uBox, uH, uPx; uniform vec3 uCam; uniform vec2 uWind;
+      varying float vA;
+      void main() {
+        float h = pow(position.y, 2.4) * uH;                       // most grains stay near the ground
+        float sp = (0.6 + 0.8 * aSeed) * (1.2 - 0.5 * position.y);   // faster low down, slower aloft
+        vec2 xz = position.xz * uBox + uWind * uTime * sp;
+        xz += vec2(sin(uTime * 1.3 + aSeed * 37.0), cos(uTime * 1.1 + aSeed * 53.0)) * (0.4 + h * 0.08);
+        vec2 lo = uCam.xz - 0.5 * uBox;
+        xz = mod(xz - lo, uBox) + lo;
+        float y = uGround + h + 0.15 * sin(uTime * 2.1 + aSeed * 19.0);
+        vec4 mv = modelViewMatrix * vec4(xz.x, y, xz.y, 1.0);
+        float d = length(xz - uCam.xz);
+        vA = (1.0 - smoothstep(0.32 * uBox, 0.5 * uBox, d)) * smoothstep(0.8, 2.5, -mv.z);
+        gl_PointSize = clamp(uPx * (0.03 + 0.09 * aSeed * aSeed) / -mv.z, 1.5, 10.0);
+        gl_Position = projectionMatrix * mv;
+      }`,
+    fragmentShader: `
+      uniform float uOpacity; uniform vec3 uColor; varying float vA;
+      void main() {
+        float r = length(gl_PointCoord - 0.5) * 2.0;
+        float a = (1.0 - r * r) * vA * uOpacity;
+        if (a < 0.01) discard;
+        gl_FragColor = vec4(uColor, a);
+      }`
+  });
+  dust = new THREE.Points(g, mat);
+  dust.frustumCulled = false;
+  dust.renderOrder = 5;
+  dust.visible = false;
+  sceneEl.object3D.add(dust);
+  // dust veil: a full-screen layer of drifting dust sheets (noise from the ground detail texture), slid by wind and view turn
+  const det = window.SightlineGround ? window.SightlineGround.detail(THREE) : null;
+  if (!det) return;
+  veilU = { uTex: { value: det.tex }, uAmt: { value: 0 }, uOff: { value: new THREE.Vector2() }, uTime: { value: 0 },
+    uAspect: { value: 1 }, uColor: { value: new THREE.Color() } };
+  veil = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.ShaderMaterial({
+    uniforms: veilU, transparent: true, depthTest: false, depthWrite: false, fog: false,
+    vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }',
+    fragmentShader: `
+      uniform sampler2D uTex; uniform float uAmt, uTime, uAspect; uniform vec2 uOff; uniform vec3 uColor; varying vec2 vUv;
+      void main() {
+        vec2 p = vec2(vUv.x * uAspect, vUv.y);
+        float a = texture2D(uTex, p * vec2(0.35, 0.6) + uOff * vec2(1.0, 0.15) + vec2(0.0, uTime * 0.004)).g;
+        float b = texture2D(uTex, p * vec2(0.8, 1.3) + uOff * vec2(1.7, 0.3) + 0.37).b;
+        float n = a * 0.6 + b * 0.4;
+        float sheet = smoothstep(0.36, 0.7, n);
+        float low = mix(1.0, 0.6, smoothstep(0.2, 0.9, vUv.y));         // denser near the ground
+        float alpha = uAmt * (0.16 + 0.5 * sheet) * low;
+        gl_FragColor = vec4(uColor * (0.92 + 0.16 * sheet), alpha);
+      }`
+  }));
+  veil.frustumCulled = false;
+  veil.renderOrder = 20;
+  veil.visible = false;
+  sceneEl.object3D.add(veil);
+}
+// amount 0..1 from tau: clear sky = none, regional storm (tau ~4+) = full blowing dust
+let dustAmt = 0;
+function dustLook(tau) {
+  if (!dust) return;
+  const amt = Math.min(1, Math.max(0, (tau - 0.6) / (DUST_TAU_FULL - 0.6)));
+  dustAmt = amt;
+  dust.visible = amt > 0.01;
+  dust.geometry.setDrawRange(0, Math.round(DUST_N * (0.25 + 0.75 * amt)));
+  dustU.uOpacity.value = 0.35 + 0.55 * amt;
+  const w = 3 + 15 * amt, a = DUST_WIND_DEG * Math.PI / 180;   // m/s, towards DUST_WIND_DEG (same drift as the map's devils)
+  dustU.uWind.value.set(Math.sin(a) * w, -Math.cos(a) * w);
+  if (veil) { veil.visible = amt > 0.05; veilU.uAmt.value = amt; }
+}
+// per frame: slide the veil with the wind as seen across the view, and with the view heading so turning moves it
+function updateVeil(dt, t, fx, fz) {
+  if (!veil || !veil.visible) return;
+  const fl = Math.hypot(fx, fz) || 1, rx = -fz / fl, rz = fx / fl;   // screen-right direction on the ground
+  const wv = dustU.uWind.value;
+  if (!reduceMotionQ.matches) veilWind -= (wv.x * rx + wv.y * rz) * dt * 0.012;
+  // one full turn slides the layer ~2.5 screen widths, so turning your head moves the dust the right way
+  veilU.uOff.value.set(veilWind + Math.atan2(fx, -fz) * 0.4 * vw / vh, 0);
+  veilU.uTime.value = reduceMotionQ.matches ? 0 : t;
+  veilU.uAspect.value = vw / vh;
+  veilU.uColor.value.copy(dustU.uColor.value);
+}
+
+// ---------- dust devils: translucent spinning columns drifting with the wind ----------
+function makeDevils() {
+  devilU = { uTime: { value: 0 }, uFar: { value: 8000 }, uCam: { value: new THREE.Vector3() }, uColor: { value: new THREE.Color(0xc79a74) } };
+  for (let i = 0; i < DEVIL_N; i++) {
+    const g = new THREE.CylinderGeometry(1.9, 0.55, 1, 28, 24, true);
+    g.translate(0, 0.5, 0);
+    const mat = new THREE.ShaderMaterial({
+      uniforms: Object.assign({ uSeed: { value: i * 7.3 } }, devilU), transparent: true, depthWrite: false, side: THREE.DoubleSide, fog: false,
+      vertexShader: `
+        uniform float uTime, uSeed; varying vec2 vUv; varying vec3 vW;
+        void main() {
+          vUv = uv;
+          vec3 p = position;
+          float sway = sin(p.y * 3.0 + uTime * 0.7 + uSeed) * 0.35 * p.y;   // the column leans and snakes
+          p.x += sway; p.z += cos(p.y * 2.3 + uTime * 0.5 + uSeed) * 0.25 * p.y;
+          vec4 w = modelMatrix * vec4(p, 1.0);
+          vW = w.xyz;
+          gl_Position = projectionMatrix * viewMatrix * w;
+        }`,
+      fragmentShader: `
+        uniform float uTime, uSeed, uFar; uniform vec3 uCam, uColor; varying vec2 vUv; varying vec3 vW;
+        void main() {
+          float a = vUv.x * 6.2832, y = vUv.y;
+          float sw = sin(a * 3.0 + y * 14.0 - uTime * 5.0 + uSeed) * 0.5 + 0.5;
+          sw *= sin(a * 5.0 - y * 9.0 - uTime * 3.3) * 0.25 + 0.75;
+          float prof = smoothstep(0.0, 0.05, y) * pow(1.0 - y, 1.4);         // dense at the base, thinning upward
+          float d = length(vW.xz - uCam.xz);
+          float alpha = (0.18 + 0.32 * sw) * prof * (1.0 - smoothstep(0.55 * uFar, uFar, d));
+          if (alpha < 0.005) discard;
+          gl_FragColor = vec4(uColor * (0.85 + 0.25 * sw), alpha);
+        }`
+    });
+    const m = new THREE.Mesh(g, mat);
+    m.frustumCulled = false;
+    m.visible = false;
+    m.renderOrder = 4;
+    sceneEl.object3D.add(m);
+    devils.push({ m, x: 0, z: 0, live: false, i });
+  }
+}
+function spawnDevil(dv, cx, cz, upwind) {
+  const H = window.SightlineGround ? window.SightlineGround.hash01 : () => Math.random();
+  const k = (Date.now() / 1000 | 0) + dv.i * 101;
+  const wa = DUST_WIND_DEG * Math.PI / 180;
+  // first spawn: anywhere around; respawn: upwind so it drifts back into view
+  const ang = upwind ? wa + Math.PI + (H(k, 1, 9) - 0.5) * 1.6 : H(k, 2, 9) * 6.283;
+  const r = DEVIL_MIN_M + (DEVIL_MAX_M - DEVIL_MIN_M) * H(k, 3, 9);
+  dv.x = cx + Math.sin(ang) * r; dv.z = cz - Math.cos(ang) * r;
+  const w = 6 + 30 * H(k, 4, 9) ** 2, h = 250 + 550 * H(k, 5, 9);   // tens of metres wide, a few hundred metres tall
+  dv.m.scale.set(w, h, w);
+  dv.live = true;
+}
+function updateDevils(dt, t, cx, cz) {
+  if (!devils.length) return;
+  const on = ltstNow >= devilHours[0] && ltstNow <= devilHours[1] && !reduceMotionQ.matches;
+  devilU.uTime.value = t; devilU.uCam.value.set(cx, 0, cz);
+  const speed = constants && constants.get('dust_devil_drift_ms') ? constants.get('dust_devil_drift_ms').value : 5;
+  const wa = DUST_WIND_DEG * Math.PI / 180;
+  for (const dv of devils) {
+    if (!on) { dv.m.visible = false; dv.live = false; continue; }
+    if (!dv.live) spawnDevil(dv, cx, cz, false);
+    dv.x += Math.sin(wa) * speed * dt; dv.z -= Math.cos(wa) * speed * dt;
+    if (Math.hypot(dv.x - cx, dv.z - cz) > DEVIL_RESPAWN_M) spawnDevil(dv, cx, cz, true);
+    const g = terrain.heightAt(dv.x, dv.z);
+    dv.m.position.set(dv.x, (fin(g) ? g : 0) - 2, dv.z);
+    dv.m.rotation.y = t * 1.5 + dv.i;
+    dv.m.visible = true;
+  }
+}
+
+// ---------- zoom: wheel / pinch / keys change the field of view; look speed scales with it ----------
+function setupZoom() {
+  const clampF = (v) => Math.min(FOV_DEFAULT, Math.max(FOV_MIN, v));
+  addEventListener('wheel', (e) => { e.preventDefault(); fovT = clampF(fovT * Math.exp(e.deltaY * 0.0015)); }, { passive: false });
+  let pinch = 0;
+  const span = (ts) => Math.hypot(ts[0].clientX - ts[1].clientX, ts[0].clientY - ts[1].clientY);
+  addEventListener('touchstart', (e) => { if (e.touches.length === 2) pinch = span(e.touches); }, { passive: true });
+  addEventListener('touchmove', (e) => {
+    if (e.touches.length !== 2 || !pinch) return;
+    const d = span(e.touches);
+    fovT = clampF(fovT * pinch / d); pinch = d;
+  }, { passive: true });
+  addEventListener('touchend', () => { pinch = 0; }, { passive: true });
+  addEventListener('keydown', (e) => {
+    if (e.target && /input|textarea|select/i.test(e.target.tagName)) return;
+    if (e.key === '+' || e.key === '=') fovT = clampF(fovT / 1.4);
+    else if (e.key === '-' || e.key === '_') fovT = clampF(fovT * 1.4);
+    else if (e.key === '0') fovT = FOV_DEFAULT;
+  });
+}
+function updateZoom(dt) {
+  const cam = sceneEl.camera;
+  if (!cam) return;
+  if (Math.abs(fovT - fov) > 0.01) {
+    fov = reduceMotionQ.matches ? fovT : fov + (fovT - fov) * (1 - Math.exp(-dt / ZOOM_SMOOTH_S));
+    if (Math.abs(fovT - fov) < 0.02) fov = fovT;
+    cam.fov = fov; cam.updateProjectionMatrix();
+    if (zoomEl) {
+      const x = Math.tan(FOV_DEFAULT * Math.PI / 360) / Math.tan(fov * Math.PI / 360);
+      zoomEl.hidden = x < 1.05;
+      zoomEl.textContent = '×' + (x < 10 ? x.toFixed(1) : Math.round(x)) + '  ·  0 to reset';
     }
   }
-  rocks.count = n;
-  rocks.instanceMatrix.needsUpdate = true;
-  if (rocks.instanceColor) rocks.instanceColor.needsUpdate = true;
-  shadowDirty = true;
+  // drag-to-look moves the view by the same screen distance at any zoom: scale this frame's look change by fov/default
+  const lc = camEl.components && camEl.components['look-controls'];
+  if (!lc || !lc.pitchObject || !lc.yawObject) return;
+  const p = lc.pitchObject.rotation, y = lc.yawObject.rotation, k = fov / FOV_DEFAULT;
+  if (lookPrev && k < 0.999) { p.x = lookPrev.x + (p.x - lookPrev.x) * k; y.y = lookPrev.y + (y.y - lookPrev.y) * k; }
+  if (!lookPrev) lookPrev = { x: 0, y: 0 };
+  lookPrev.x = p.x; lookPrev.y = y.y;
 }
 
 // ---------- sun shadows ----------
@@ -320,10 +559,10 @@ function fpsTick(timeMs, dt) {
   if (n) fpsEl.textContent = (1000 * n / sum).toFixed(0) + ' fps  worst ' + worst.toFixed(0) + ' ms' + (shadowOn ? '  shadows' : '');
 }
 
-function placeModel(name, x, y, z, rotY) {
+function placeModel(name, x, y, z, rotY, scale = 1) {
   if (!AFRAME.components[name]) { note('Model ' + name + ' unavailable (lib/models.js not loaded).'); return; }
   const el = document.createElement('a-entity');
-  el.setAttribute(name, 'scale: 1');
+  el.setAttribute(name, 'scale: ' + scale);
   el.setAttribute('position', `${x} ${y} ${z}`);
   el.setAttribute('rotation', `0 ${rotY} 0`);
   sceneEl.appendChild(el);
@@ -332,7 +571,7 @@ function placeModel(name, x, y, z, rotY) {
 }
 function makeModels() {
   const h0 = terrain.heightAt(0, 0);
-  placeModel('mars-habitat', 0, h0, 0, 0);
+  placeModel('mars-habitat', 0, h0, 0, 0, HABITAT_SCALE);
   const [rx, rz] = ROVER_PARK_M;
   placeModel('mars-rover', rx, terrain.heightAt(rx, rz), rz, -30);
   // Perseverance at its latest real position (last point of data/traverse.json)
@@ -589,8 +828,26 @@ function frame(timeMs, deltaMs) {
   if (!current || !terrain || !sceneEl.camera) return;
   const dt = Math.min(MAX_DT_S, (deltaMs || 16) / 1000);
   smoothCamera(dt);
+  updateZoom(dt);
   const cp = rig.object3D.position;
-  if (rocks && Math.hypot(cp.x - rockCx, cp.z - rockCz) > ROCK_RESCATTER_M) scatterRocks(cp.x, cp.z);
+  const cam = sceneEl.camera;
+  cam.getWorldDirection(tmpV);
+  const fwdX = tmpV.x, fwdZ = tmpV.z;
+  if (rocks && rocks.update(cp.x, cp.z, fwdX, fwdZ, camT.eye)) shadowDirty = true;
+  if (groundU) groundU.uGCam.value.set(cp.x, cp.y, cp.z);
+  const tS = timeMs / 1000;
+  if (sunDisc) {
+    sunDisc.position.set(cp.x + sunDir[0] * SUN_SPRITE_D, cp.y + sunDir[1] * SUN_SPRITE_D, cp.z + sunDir[2] * SUN_SPRITE_D);
+    sunHalo.position.copy(sunDisc.position);
+  }
+  if (dustU) {
+    dustU.uTime.value = reduceMotionQ.matches ? 0 : tS;
+    dustU.uCam.value.set(cp.x, cp.y, cp.z);
+    dustU.uGround.value = cp.y - camT.eye;
+    dustU.uPx.value = vh / (2 * Math.tan(fov * Math.PI / 360));
+  }
+  updateVeil(dt, tS, fwdX, fwdZ);
+  updateDevils(dt, tS, cp.x, cp.z);
   updateShadows(cp.x, cp.y, cp.z, timeMs, deltaMs || 16);
   const nearHome = homeInfo.distM < NEAR_HOME_M;
   if (beacon) {
@@ -607,7 +864,6 @@ function frame(timeMs, deltaMs) {
       }
     }
   }
-  const cam = sceneEl.camera;
   cam.getWorldDirection(tmpV);
   const viewHeading = (Math.atan2(tmpV.x, -tmpV.z) * 180 / Math.PI + 360) % 360;
   const rel = ((homeInfo.bearing - viewHeading + 540) % 360) - 180;
@@ -702,9 +958,12 @@ function onTerrain(t) {
   routeHolder = document.createElement('a-entity');
   sceneEl.appendChild(routeHolder);
   makeSky();
+  makeSun();
   makeModels();
   makeBeacon();
-  makeRocks();
+  makeGround();
+  makeDust();
+  makeDevils();
   makeLandmarks();
   setupShadows();
   if (pending) { try { apply(pending); } catch (e) { console.error('helmet apply failed', e); note('Display error: ' + e.message); } }
@@ -767,7 +1026,8 @@ async function boot() {
   AFRAME.registerComponent('helmet-tick', { tick(t, dt) { fpsTick(t, dt); try { frame(t, dt); } catch (e) { /* keep rendering */ } } });
   buildTape();
   if (params.get('fps') === '1') { fpsEl = $('fps'); fpsEl.hidden = false; }
-  sunEl = $('sun'); hemiEl = $('hemi');
+  sunEl = $('sun'); hemiEl = $('hemi'); zoomEl = $('zoom');
+  setupZoom();
   setupPause();
   sceneEl.setAttribute('helmet-tick', '');
 
@@ -785,7 +1045,12 @@ async function boot() {
 
   // optional files: failure is shown as a note, not fatal
   constP = fetchJSON('../data/crew_constants.json')
-    .then((rows) => { constants = new Map(rows.map((r) => [r.key, r])); if (current) hud(current.inputs, current.derived); })
+    .then((rows) => {
+      constants = new Map(rows.map((r) => [r.key, r]));
+      const a = constants.get('dust_devil_peak_start_ltst'), b = constants.get('dust_devil_peak_end_ltst');
+      if (a && b && fin(a.value) && fin(b.value)) devilHours = [a.value, b.value];
+      if (current) hud(current.inputs, current.derived);
+    })
     .catch((e) => note('Source tags unavailable: ' + e.message));
   traverseP = fetchJSON('../data/traverse.json').catch((e) => { note('Perseverance position unavailable: ' + e.message); return null; });
   fetchJSON('../data/landmarks.json')
