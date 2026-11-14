@@ -37,10 +37,13 @@ const DEVIL_TIMELAPSE = 30;        // shown 30x faster than real time so the dri
 const DEVIL_WIND_DEG = 60;         // drift direction (towards ENE); illustrative
 const DEVIL_RESPAWN_M = 3500;      // a devil that drifts this far away is replaced upwind
 const DEVIL_WIDTH_M = 150;         // drawn width; Newman et al. 2022 saw devils up to ~270 m wide
+const DEVIL_HEIGHT_M = 800;        // 3D column height; illustrative (Jezero devils are typically hundreds of metres to over a kilometre tall)
+const DEVIL_NOTE = 'Dust devils: illustrative, not a forecast';
 const M_PER_DEG = 2 * Math.PI * 3396190 / 360;
 const DEVIL_SVG = '<svg viewBox="-20 -20 40 40" aria-hidden="true"><circle r="15"/><path d="M0-16A16 16 0 0 1 14 8M0 16A16 16 0 0 1-14-8"/><path d="M0-9A9 9 0 0 1 8 4M0 9A9 9 0 0 1-8-4"/></svg>';
 
-// Moving dust devils: one rAF loop, runs only while visible (devil hours, 2D map shown, tab visible).
+// Moving dust devils: the single source of their positions (lat/lon, drawn on the 2D map and in the 3D view).
+// One rAF loop, runs only while visible (devil hours, 2D map or 3D view shown, tab visible).
 function createDevils(map, C) {
   const layer = L.layerGroup().addTo(map);
   const speedMs = C.dust_devil_drift_ms ?? 5;
@@ -61,24 +64,25 @@ function createDevils(map, C) {
       const m = L.marker(place(anchor.lat, anchor.lon, off), { icon: icon(), keyboard: false, interactive: true })
         .bindTooltip(`Dust-devil hours (illustrative, not a forecast). Drifting with the wind at ~${speedMs} m/s, shown ${DEVIL_TIMELAPSE}× faster.`)
         .addTo(layer);
-      return { m, off };
+      const [lat, lon] = place(anchor.lat, anchor.lon, off);
+      return { m, off, lat, lon };
     });
   }
   function frame(now) {
     const dt = Math.min(0.1, (now - last) / 1000); last = now;
     const step = speedMs * DEVIL_TIMELAPSE * dt;
     for (const it of items) {
-      const ll = it.m.getLatLng();
-      let [lat, lon] = place(ll.lat, ll.lng, [Math.sin(rad) * step, Math.cos(rad) * step]);
+      let [lat, lon] = place(it.lat, it.lon, [Math.sin(rad) * step, Math.cos(rad) * step]);
       const dE = (lon - anchor.lon) * M_PER_DEG * Math.cos(anchor.lat * Math.PI / 180), dN = (lat - anchor.lat) * M_PER_DEG;
       if (Math.hypot(dE, dN) > DEVIL_RESPAWN_M) [lat, lon] = place(anchor.lat, anchor.lon, [-Math.sin(rad) * 2500 + it.off[1] * 0.5, -Math.cos(rad) * 2500 + it.off[0] * 0.5]);
+      it.lat = lat; it.lon = lon;
       it.m.setLatLng([lat, lon]);
     }
     raf = requestAnimationFrame(frame);
   }
   const run = () => {
     cancelAnimationFrame(raf);
-    if (on && !reduce && !document.hidden && !$('map').hidden) { last = performance.now(); raf = requestAnimationFrame(frame); }
+    if (on && !reduce && !document.hidden && (!$('map').hidden || !$('view3d').hidden)) { last = performance.now(); raf = requestAnimationFrame(frame); }
   };
   map.on('zoomend', () => { const ic = icon(); items.forEach(it => it.m.setIcon(ic)); });
   document.addEventListener('visibilitychange', run);
@@ -91,7 +95,9 @@ function createDevils(map, C) {
       on = active;
       run();
     },
-    refresh: run
+    refresh: run,
+    active: () => on,
+    positions: () => items   // live [{lat, lon}, …]; read-only for callers
   };
 }
 const $ = id => document.getElementById(id);
@@ -322,12 +328,84 @@ function sunPosition(ltst) {
   return [Math.sin(az) * Math.cos(el) * SUN_DIST, Math.sin(el) * SUN_DIST, -Math.cos(az) * Math.cos(el) * SUN_DIST];
 }
 
-function createView3D(data, onPickTarget) {
+// Translucent spinning dust-devil columns (illustrative). One lathe geometry (tapered, wider and fainter at the top,
+// flared base skirt), uniforms shared by all columns. Copied and adapted from helmet/helmet.js makeDevils().
+function makeDevilColumns(T, parent) {
+  const U = { uTime: { value: 0 }, uFar: { value: 8000 }, uCam: { value: new T.Vector3() }, uColor: { value: new T.Color(0xc79a74) } };
+  const prof = [];
+  for (let i = 0; i <= 24; i++) { const t = i / 24; prof.push(new T.Vector2(0.55 + 0.45 * t + 0.9 * Math.exp(-t * 28), t)); }
+  const geo = new T.LatheGeometry(prof, 32);   // unit height; radius 1 = half the width
+  const meshes = [];
+  for (let i = 0; i < DEVIL_SPAWN_M.length; i++) {
+    const mat = new T.ShaderMaterial({
+      uniforms: Object.assign({ uSeed: { value: i * 7.3 } }, U), transparent: true, depthWrite: false, side: T.DoubleSide, fog: false,
+      vertexShader: `
+        #include <common>
+        #include <logdepthbuf_pars_vertex>
+        uniform float uTime, uSeed; varying vec2 vUv; varying vec3 vW;
+        void main() {
+          vUv = uv;
+          vec3 p = position;
+          float lean = smoothstep(0.0, 1.0, p.y);
+          p.x += sin(p.y * 3.0 + uTime * 0.7 + uSeed) * 0.3 * lean;   // the column leans and snakes
+          p.z += cos(p.y * 2.3 + uTime * 0.5 + uSeed) * 0.2 * lean;
+          vec4 w = modelMatrix * vec4(p, 1.0);
+          vW = w.xyz;
+          gl_Position = projectionMatrix * viewMatrix * w;
+          #include <logdepthbuf_vertex>
+        }`,
+      fragmentShader: `
+        #include <common>
+        #include <logdepthbuf_pars_fragment>
+        uniform float uTime, uSeed, uFar; uniform vec3 uCam, uColor; varying vec2 vUv; varying vec3 vW;
+        void main() {
+          #include <logdepthbuf_fragment>
+          float a = vUv.x * 6.2832, y = vUv.y;
+          float sw = sin(a * 3.0 + y * 14.0 - uTime * 5.0 + uSeed) * 0.5 + 0.5;
+          sw *= sin(a * 5.0 - y * 9.0 - uTime * 3.3) * 0.25 + 0.75;
+          float body = smoothstep(0.0, 0.03, y) * (1.0 - 0.7 * y);         // faint towards the top
+          float skirt = exp(-y * 22.0) * 0.5;                              // soft base skirt of dust
+          float d = length(vW.xz - uCam.xz);
+          float alpha = ((0.24 + 0.36 * sw) * body + skirt * (0.5 + 0.5 * sw)) * (1.0 - smoothstep(0.55 * uFar, uFar, d));
+          if (alpha < 0.005) discard;
+          gl_FragColor = vec4(uColor * (0.85 + 0.25 * sw), alpha);
+          #include <colorspace_fragment>
+        }`
+    });
+    const m = new T.Mesh(geo, mat);
+    m.frustumCulled = false; m.visible = false; m.renderOrder = 4;
+    parent.add(m);
+    meshes.push(m);
+  }
+  return { U, meshes };
+}
+
+function createView3D(data, onPickTarget, devils) {
   const host = $('view3d'), msg = $('v3-msg');
   let s = null, starting = null, terrain = null, last = null, lastHome, lastOut, lastRadius = -1, lastTau = null, lastSun = null, lastVis = null, blind3d = null;
   let routeK = 1, retried = false, groundU = null, rocks = null;
   const say = text => { msg.textContent = text; msg.hidden = !text; };
-  $('v3-note').textContent = `Vertical scale ×${EXAGGERATE} (true) · rover and habitat true size`;
+  const noteBase = `Vertical scale ×${EXAGGERATE} (true) · rover and habitat true size`;
+  let noteDevils = null, dv3 = null, dvAff = null, dvT0 = performance.now();
+  const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const setNote = on => { if (on === noteDevils) return; noteDevils = on; $('v3-note').textContent = on ? `${noteBase} · ${DEVIL_NOTE}` : noteBase; };
+  setNote(false);
+
+  // Per frame: stand each column on the ground at the 2D map's devil position (affine lat/lon → world, no allocation).
+  function updateDevils3D(cx, cy, cz) {
+    if (!dv3) return;
+    const act = devils.active(), pos = devils.positions(), hours = act && terrain?.ready && pos.length > 0;
+    dv3.U.uTime.value = reduceMotion ? 0 : (performance.now() - dvT0) / 1000;
+    dv3.U.uCam.value.set(cx, cy, cz);
+    for (let i = 0; i < dv3.meshes.length; i++) {
+      const m = dv3.meshes[i], it = pos[i];
+      if (!hours || !it) { m.visible = false; continue; }
+      const x = dvAff.x0 + (it.lon - dvAff.lon0) * dvAff.kx, z = dvAff.z0 + (it.lat - dvAff.lat0) * dvAff.kz, g = terrain.heightAt(x, z);
+      if (!Number.isFinite(g)) { m.visible = false; continue; }
+      m.position.set(x, g - 2, z);
+      m.visible = true;
+    }
+  }
 
   // Per frame from orbit-camera: marker size, route thickness, near plane and close-up ground follow the zoom.
   function onZoom(dist, cx, cy, cz, camH) {
@@ -347,6 +425,7 @@ function createView3D(data, onPickTarget) {
     if (groundU) groundU.uGCam.value.set(cx, cy, cz);
     const o = s.cam.components['orbit-camera'].o;
     if (rocks) rocks.update(o.x, o.z, 0, 0, camH);
+    updateDevils3D(cx, cy, cz);
   }
 
   // Blind zones draped on the terrain: a second mesh sharing the terrain geometry, transparent, drawn on top.
@@ -371,6 +450,8 @@ function createView3D(data, onPickTarget) {
   function update() {
     if (!terrain?.ready || !last) return;
     updateBlind(last.derived.vis, last.derived.visKey);
+    setNote(devils.active());
+    if (!devils.active() && dv3) for (const m of dv3.meshes) m.visible = false;
     const { inputs: { astronaut: a }, derived: d } = last;
     const p = terrain.toWorld(a.lat, a.lon);
     s.astro.object3D.position.set(p.x, p.y, p.z);
@@ -394,6 +475,7 @@ function createView3D(data, onPickTarget) {
       const sky = SKY_CLEAR.map((c, i) => Math.round(c + (SKY_DUSTY[i] - c) * f));
       const color = `rgb(${sky.join(',')})`;
       const far = Math.max(3000, d.limits.visibilityKm * 1000);
+      if (dv3) { dv3.U.uColor.value.set(`rgb(${sky.map(c => Math.round(c * 0.8)).join(',')})`); dv3.U.uFar.value = far; }
       s.scene.setAttribute('background', `color: ${color}`);
       s.sky.setAttribute('material', `shader: flat; fog: false; src: url(${skyGradient(sky, f)})`);
       s.sun.setAttribute('light', 'intensity', (1.6 * Math.exp(-tau / 5) + 0.25).toFixed(2));
@@ -436,6 +518,11 @@ function createView3D(data, onPickTarget) {
         rocks = G.rocks(AFRAME.THREE, (x, z) => terrain.heightAt(x, z), det, MAP_ROCK_LAYERS);
         s.scene.object3D.add(rocks.group);
       }
+      dv3 = makeDevilColumns(AFRAME.THREE, s.scene.object3D);
+      for (const m of dv3.meshes) m.scale.set(DEVIL_WIDTH_M / 2, DEVIL_HEIGHT_M, DEVIL_WIDTH_M / 2);
+      const bb = data.bounds, nw = terrain.toWorld(bb.latMax, bb.lonMin), se = terrain.toWorld(bb.latMin, bb.lonMax);
+      dvAff = { lon0: bb.lonMin, lat0: bb.latMax, x0: nw.x, z0: nw.z, kx: (se.x - nw.x) / (bb.lonMax - bb.lonMin), kz: (se.z - nw.z) / (bb.latMin - bb.latMax) };
+      lastTau = null;   // re-run the sky pass so the columns pick up the current colour
       const orbit = s.cam.components['orbit-camera'];
       if (orbit) orbit.onTick = onZoom;
       for (const lm of data.landmarks ?? []) {
@@ -530,7 +617,7 @@ export function createMapView(data, { onPickTarget }) {
   const astro = L.marker([0, 0], { icon: astronautIcon(0), keyboard: false, zIndexOffset: 1000 }).addTo(map);
   map.on('click', e => onPickTarget({ lat: e.latlng.lat, lon: e.latlng.lng }));
 
-  const view3d = createView3D(data, onPickTarget);
+  const view3d = createView3D(data, onPickTarget, devils);
   setupToggle(map, view3d);
   for (const id of ['v-2d', 'v-3d']) $(id).addEventListener('click', () => devils.refresh()); // pause/resume the devil loop
 
