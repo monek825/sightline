@@ -30,7 +30,7 @@ const ROCK_LAYERS = [
 ];
 const GROUND_NEAR_M = 40, GROUND_FAR_M = 400;     // close-up grain and ripples fade out over this range
 // Zoom (binocular view): mouse wheel, pinch, + / - keys, 0 resets. 80 deg = normal, 4 deg = 20x.
-const FOV_DEFAULT = 80, FOV_MIN = 4, ZOOM_SMOOTH_S = 0.12;
+const FOV_DEFAULT = 80, FOV_PORTRAIT_MAX = 95, FOV_MIN = 4, ZOOM_SMOOTH_S = 0.12;
 // Sun disc: Mars sees the sun ~0.35 deg wide (2/3 of Earth's). Halo = forward scattering by dust, stronger with tau.
 const SUN_SPRITE_D = 40000, SUN_ANG_DEG = 0.35, HALO_ANG_DEG = 34;
 // Blowing dust (visual): count and wind scale with tau. Not a wind measurement; the app has no wind data.
@@ -56,7 +56,12 @@ let haveState = false, fatal = null;
 let homeInfo = { distM: 0, bearing: 0, hidden: false, beyondVis: false };
 const lmEls = [];                 // { lm, label, pole, ... }
 let lmOrder = [];                 // visible landmarks, nearest first (for label de-cluttering)
-let boxX = new Float32Array(2), boxY = new Float32Array(2), boxW = new Float32Array(2), boxH = new Float32Array(2);
+// HUD panels landmark labels must not cover (rects re-read twice a second; cheap, and they only move on resize / text change)
+const HUD_BOX_IDS = ['strip', 'panel-time', 'panel-status', 'storm', 'panel-env', 'panel-factors', 'home-card'];
+const HUD_BOX_PAD = 4, HUD_BOX_EVERY_MS = 500;
+const hudBox = new Float32Array(HUD_BOX_IDS.length * 4);
+let hudBoxN = 0, hudBoxNext = 0;
+let boxX = new Float32Array(2 + HUD_BOX_IDS.length), boxY = new Float32Array(2 + HUD_BOX_IDS.length), boxW = new Float32Array(2 + HUD_BOX_IDS.length), boxH = new Float32Array(2 + HUD_BOX_IDS.length);
 let routeKey = '', routeObj = null, constP = Promise.resolve(), traverseP = Promise.resolve(null);
 const reduceMotionQ = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : { matches: false };
 // camera target (smoothed towards in frame())
@@ -68,7 +73,7 @@ let rocks = null, groundU = null, beaconDash = null, dashMat = null;
 let sunDisc = null, sunHalo = null, sunVis = { disc: 1, halo: 0.3, blue: 0 };
 let veil = null, veilU = null, veilWind = 0;
 let dust = null, dustU = null, devils = [], devilU = null, devilHours = [11, 14], tauNow = 0.4, ltstNow = LTST_DEFAULT;
-let fov = FOV_DEFAULT, fovT = FOV_DEFAULT, lookPrev = null, zoomEl = null;
+let fov = FOV_DEFAULT, fovT = FOV_DEFAULT, fovBase = FOV_DEFAULT, lookPrev = null, zoomEl = null;
 let shadowOn = false, shadowCx = 1e9, shadowCz = 1e9, shadowDirty = true, shadowLight = null, shadowTarget = null, shadowT0 = -1, shadowSum = 0, shadowN = 0;
 const sunDir = [0.5, 0.7, 0.5];
 let stripW = 600, tapeX = NaN, headTxt = -1, homeTapeX = NaN, homeTapeCls = '';
@@ -440,8 +445,25 @@ function updateDevils(dt, t, cx, cz) {
 }
 
 // ---------- zoom: wheel / pinch / keys change the field of view; look speed scales with it ----------
+// Unzoomed vertical field of view. 80 deg on landscape screens; on a portrait phone that leaves only ~43 deg across,
+// so widen it (up to 95 deg) to keep ~54 deg or more side to side.
+function baseFov() {
+  const aspect = vw / Math.max(1, vh);
+  if (aspect >= 1) return FOV_DEFAULT;
+  const v = 2 * Math.atan(Math.tan(28 * Math.PI / 180) / aspect) * 180 / Math.PI;
+  return Math.min(FOV_PORTRAIT_MAX, Math.max(FOV_DEFAULT, v));
+}
+function rebaseFov() {               // on resize/rotate: keep the same zoom factor against the new base
+  const nb = baseFov();
+  if (Math.abs(nb - fovBase) < 0.01) return;
+  const z = Math.tan(fovBase * Math.PI / 360) / Math.tan(fovT * Math.PI / 360);
+  fovBase = nb;
+  fovT = Math.max(FOV_MIN, Math.min(fovBase, 2 * Math.atan(Math.tan(fovBase * Math.PI / 360) / z) * 180 / Math.PI));
+}
 function setupZoom() {
-  const clampF = (v) => Math.min(FOV_DEFAULT, Math.max(FOV_MIN, v));
+  fovBase = baseFov(); fovT = fovBase; fov = -1;   // fov -1: first frame applies the base to the camera
+  addEventListener('resize', rebaseFov);
+  const clampF = (v) => Math.min(fovBase, Math.max(FOV_MIN, v));
   addEventListener('wheel', (e) => { e.preventDefault(); fovT = clampF(fovT * Math.exp(e.deltaY * 0.0015)); }, { passive: false });
   let pinch = 0;
   const span = (ts) => Math.hypot(ts[0].clientX - ts[1].clientX, ts[0].clientY - ts[1].clientY);
@@ -456,18 +478,18 @@ function setupZoom() {
     if (e.target && /input|textarea|select/i.test(e.target.tagName)) return;
     if (e.key === '+' || e.key === '=') fovT = clampF(fovT / 1.4);
     else if (e.key === '-' || e.key === '_') fovT = clampF(fovT * 1.4);
-    else if (e.key === '0') fovT = FOV_DEFAULT;
+    else if (e.key === '0') fovT = fovBase;
   });
 }
 function updateZoom(dt) {
   const cam = sceneEl.camera;
   if (!cam) return;
-  if (Math.abs(fovT - fov) > 0.01) {
-    fov = reduceMotionQ.matches ? fovT : fov + (fovT - fov) * (1 - Math.exp(-dt / ZOOM_SMOOTH_S));
+  if (Math.abs(fovT - fov) > 0.01 || cam.fov !== fov) {
+    fov = reduceMotionQ.matches || fov < 0 ? fovT : fov + (fovT - fov) * (1 - Math.exp(-dt / ZOOM_SMOOTH_S));
     if (Math.abs(fovT - fov) < 0.02) fov = fovT;
     cam.fov = fov; cam.updateProjectionMatrix();
     if (zoomEl) {
-      const x = Math.tan(FOV_DEFAULT * Math.PI / 360) / Math.tan(fov * Math.PI / 360);
+      const x = Math.tan(fovBase * Math.PI / 360) / Math.tan(fov * Math.PI / 360);
       zoomEl.hidden = x < 1.05;
       zoomEl.textContent = '×' + (x < 10 ? x.toFixed(1) : Math.round(x)) + '  ·  0 to reset';
     }
@@ -475,7 +497,7 @@ function updateZoom(dt) {
   // drag-to-look moves the view by the same screen distance at any zoom: scale this frame's look change by fov/default
   const lc = camEl.components && camEl.components['look-controls'];
   if (!lc || !lc.pitchObject || !lc.yawObject) return;
-  const p = lc.pitchObject.rotation, y = lc.yawObject.rotation, k = fov / FOV_DEFAULT;
+  const p = lc.pitchObject.rotation, y = lc.yawObject.rotation, k = fov / fovBase;
   if (lookPrev && k < 0.999) { p.x = lookPrev.x + (p.x - lookPrev.x) * k; y.y = lookPrev.y + (y.y - lookPrev.y) * k; }
   if (!lookPrev) lookPrev = { x: 0, y: 0 };
   lookPrev.x = p.x; lookPrev.y = y.y;
@@ -602,7 +624,7 @@ function makeLandmarks() {
     holder.appendChild(label);
     lmEls.push({ lm, label, pole, pos: { x: p.x, y: p.y + 70, z: p.z }, km: 0, show: false, vis: false, w: 60, text: '', px: -1, py: -1 });
   }
-  const n = lmEls.length + 2;
+  const n = lmEls.length + 2 + HUD_BOX_IDS.length;
   boxX = new Float32Array(n); boxY = new Float32Array(n); boxW = new Float32Array(n); boxH = new Float32Array(n);
 }
 
@@ -803,6 +825,9 @@ function landmarkVisibility(a, visKm) {
 // ---------- per-frame: camera smoothing, beacon pulse, heading arrow, label placement ----------
 const clamp01 = (v) => Math.min(1, Math.max(0, v));
 function setMarkClass(el, cls) { if (el.className !== cls) el.className = cls; }
+// centred labels near the left/right edge would run off a narrow screen: keep the whole box inside
+const LABEL_EDGE_PX = 8;
+function clampLabelX(x, w) { return Math.min(vw - w / 2 - LABEL_EDGE_PX, Math.max(w / 2 + LABEL_EDGE_PX, x)); }
 
 function smoothCamera(dt) {
   const o = rig.object3D;
@@ -895,15 +920,32 @@ function frame(timeMs, deltaMs) {
     const se = $('home-sub'); se.textContent = sub; se.hidden = !sub;
   }
   setMarkClass(homeLabel, cls);
+  const hw = Math.max(mainTxt.length, sub.length) * (LABEL_CHAR_W + 1) + LABEL_PAD * 2, hh = sub ? 2 * LABEL_H + 4 : LABEL_H + 6;
   let sx, sy;
-  if (onScreen) { sx = (tmpV.x + 1) / 2 * vw; sy = (1 - tmpV.y) / 2 * vh; }
+  if (onScreen) { sx = clampLabelX((tmpV.x + 1) / 2 * vw, hw); sy = (1 - tmpV.y) / 2 * vh; }
   else { sx = rel > 0 ? vw - 16 : 16; sy = vh / 2; }
   homeLabel.style.left = sx + 'px'; homeLabel.style.top = sy + 'px';
   homeLabel.hidden = nearHome;
   // reserve the home label's box so landmark labels keep clear of it
-  const hw = Math.max(mainTxt.length, sub.length) * (LABEL_CHAR_W + 1) + LABEL_PAD * 2, hh = sub ? 2 * LABEL_H + 4 : LABEL_H + 6;
   let nb = 0;
   boxX[nb] = onScreen ? sx : (rel > 0 ? sx - hw / 2 : sx + hw / 2); boxY[nb] = sy; boxW[nb] = hw; boxH[nb] = hh; nb++;
+  if (timeMs >= hudBoxNext) {
+    hudBoxNext = timeMs + HUD_BOX_EVERY_MS;
+    hudBoxN = 0;
+    for (const id of HUD_BOX_IDS) {
+      const el = $(id);
+      if (!el || el.hidden) continue;
+      const r = el.getBoundingClientRect();
+      if (r.width < 1 || r.height < 1) continue;
+      const k = hudBoxN * 4;
+      hudBox[k] = r.left + r.width / 2; hudBox[k + 1] = r.top + r.height / 2;
+      hudBox[k + 2] = r.width + 2 * HUD_BOX_PAD; hudBox[k + 3] = r.height + 2 * HUD_BOX_PAD;
+      hudBoxN++;
+    }
+  }
+  for (let i = 0; i < hudBoxN; i++) {
+    boxX[nb] = hudBox[i * 4]; boxY[nb] = hudBox[i * 4 + 1]; boxW[nb] = hudBox[i * 4 + 2]; boxH[nb] = hudBox[i * 4 + 3]; nb++;
+  }
 
   // landmark labels: nearest first; a colliding label is staggered up/down, else hidden
   for (const e of lmEls) if (!e.show && e.vis) { e.vis = false; e.label.hidden = true; }
@@ -912,7 +954,7 @@ function frame(timeMs, deltaMs) {
     tmpV.set(e.pos.x, e.pos.y, e.pos.z).project(cam);
     let placed = false;
     if (tmpV.z < 1 && Math.abs(tmpV.x) < OFFSCREEN_X && Math.abs(tmpV.y) < 1) {
-      const lx = (tmpV.x + 1) / 2 * vw, ly = (1 - tmpV.y) / 2 * vh;
+      const lx = clampLabelX((tmpV.x + 1) / 2 * vw, e.w), ly = (1 - tmpV.y) / 2 * vh;
       for (let s = 0; s < LABEL_STAGGER.length && !placed; s++) {
         const cy = ly + LABEL_STAGGER[s];
         let clash = false;
