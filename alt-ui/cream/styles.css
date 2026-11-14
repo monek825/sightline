@@ -29,6 +29,9 @@
   --devil-b: #c98a55;
   --devil-fill: rgba(240, 192, 138, .35);
   --haze-fill: #c98a55;
+  --map-route: #ff8a3d;        /* map/map.js ACCENT: chosen route line */
+  --map-route-alt: #fff4e0;    /* map/map.js CREAM: alternative route line */
+  --map-casing: #1a110c;       /* map/map.js INK: dark casing drawn under every route line */
 
   /* aliases used by the original rules */
   --text: var(--ink);
@@ -73,7 +76,8 @@ h1, h2 { margin: 0; font-weight: 400; color: var(--ink); }
 .leaflet-container { font-family: var(--font); background: var(--canvas-soft); }
 .blind-overlay { image-rendering: auto; }
 
-/* leaflet controls: keep clear of our floating chrome */
+/* leaflet controls: keep clear of our floating chrome (no notch overlaps the map here, so no bottom offset) */
+.leaflet-bottom { bottom: 0; }
 .leaflet-top.leaflet-left { top: 76px; }
 .leaflet-top.leaflet-right { right: calc(var(--panel-w) + var(--s5)); }
 .leaflet-bar, .leaflet-control-layers {
@@ -83,6 +87,12 @@ h1, h2 { margin: 0; font-weight: 400; color: var(--ink); }
 .leaflet-bar a:hover { background: var(--canvas-soft); }
 .leaflet-control-attribution { background: var(--surface-card) !important; color: var(--muted) !important; border-top-left-radius: var(--r-sm); }
 .leaflet-control-attribution a { color: var(--ink) !important; text-decoration: underline; }
+/* scale bar: white card with hairline, ink bottom rule */
+.leaflet-control-scale { margin: 0 0 var(--s4) var(--s4) !important; }
+.leaflet-control-scale-line {
+  border: 1px solid var(--hairline-strong) !important; border-bottom: 2px solid var(--ink) !important; background: var(--surface-card) !important;
+  color: var(--ink) !important; font: 500 11px var(--mono); padding: 3px 8px 2px !important; border-radius: var(--r-sm) var(--r-sm) var(--r-xs) var(--r-xs);
+}
 .leaflet-touch .leaflet-bar a { width: 40px; height: 40px; line-height: 40px; }
 .leaflet-popup-content-wrapper, .leaflet-tooltip {
   background: var(--surface-card); color: var(--ink); border: 1px solid var(--hairline-strong); border-radius: var(--r-md); box-shadow: none;
@@ -104,14 +114,22 @@ h1, h2 { margin: 0; font-weight: 400; color: var(--ink); }
 /* 2D / 3D toggle */
 .view-toggle {
   position: absolute; top: var(--s4); left: 50%; transform: translateX(-50%); z-index: 1000;
-  display: flex; gap: var(--s1); padding: var(--s1);
+  display: grid; grid-template-columns: 1fr 1fr; gap: var(--s1); padding: var(--s1);
 }
+/* selected view: an ink pill slides under the pressed button (follows the markup's aria-pressed) */
+.view-toggle::before {
+  content: ""; position: absolute; top: var(--s1); bottom: var(--s1); left: var(--s1); width: calc(50% - var(--s1) * 1.5);
+  border-radius: var(--r-md); background: var(--ink); transition: transform .25s ease-out; z-index: 0;
+}
+.view-toggle:has(#v-3d[aria-pressed="true"])::before { transform: translateX(calc(100% + var(--s1))); }
 .view-toggle button {
+  position: relative; z-index: 1;
   font: 500 14px/1 var(--font); color: var(--ink); background: var(--surface-card); border: 1px solid transparent; border-radius: var(--r-md);
   min-height: 36px; padding: 0 var(--s4); cursor: pointer; transition: background .15s, border-color .15s;
 }
 .view-toggle button:hover { background: var(--canvas-soft); border-color: var(--hairline-strong); }
-.view-toggle button[aria-pressed="true"] { background: var(--ink); color: var(--canvas); border-color: var(--ink); }
+.view-toggle button[aria-pressed="true"]:hover { background: transparent; border-color: transparent; }
+.view-toggle button[aria-pressed="true"] { background: transparent; color: var(--canvas); border-color: transparent; }
 
 .banner {
   position: absolute; top: 72px; left: 50%; transform: translateX(-50%); z-index: 1000;
@@ -120,7 +138,7 @@ h1, h2 { margin: 0; font-weight: 400; color: var(--ink); }
 }
 
 .legend {
-  position: absolute; left: var(--s4); bottom: var(--s6); z-index: 900;
+  position: absolute; left: var(--s4); bottom: 52px; z-index: 900; /* sits above the scale bar */
   padding: var(--s3) var(--s4); font-size: 13px; color: var(--body); display: grid; gap: 6px;
 }
 .legend span { display: flex; align-items: center; gap: var(--s2); }
@@ -198,18 +216,37 @@ h1, h2 { margin: 0; font-weight: 400; color: var(--ink); }
 .tag-nasa { background: var(--surface-strong); color: var(--ink); }
 .tag-est { background: var(--surface-strong); color: var(--ink); box-shadow: none; border: 1px dashed var(--hairline-strong); }
 
-/* icon tab bar */
+/* icon tab bar: icon-only tabs, label shown as a hover/focus tooltip (.tip); selected tab inverted to ink */
 .tabbar { display: flex; justify-content: space-between; gap: var(--s2); padding: var(--s3) var(--s4) var(--s4); border-top: 1px solid var(--hairline); }
 .tabbar [role="tab"] {
-  position: relative; flex: 1; display: grid; justify-items: center; gap: var(--s1); padding: var(--s2) 0;
+  position: relative; flex: 1; display: grid; place-items: center; height: 44px; padding: 0;
   background: transparent; border: 1px solid transparent; border-radius: var(--r-md); color: var(--muted); cursor: pointer;
-  font: 500 11px/1.4 var(--font); transition: background .15s, color .15s, border-color .15s;
+  transition: background .15s, color .15s, border-color .15s;
 }
 .tabbar svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .tabbar [role="tab"]:hover { background: var(--canvas-soft); color: var(--ink); border-color: var(--hairline); }
-.tabbar [role="tab"][aria-selected="true"] { background: var(--canvas-soft); color: var(--ink); border-color: var(--hairline-strong); }
+.tabbar [role="tab"][aria-selected="true"] { background: var(--ink); color: var(--canvas); border-color: var(--ink); }
+.tabbar [role="tab"]:active { background: var(--surface-strong); color: var(--ink); }
+/* tooltip: white card with hairline above the tab; arrow is a rotated square with two hairline edges */
+.tip {
+  position: absolute; bottom: calc(100% + 10px); left: 50%; transform: translate(-50%, 4px); z-index: 3;
+  padding: 6px 10px; border-radius: var(--r-md); background: var(--surface-card); color: var(--ink); border: 1px solid var(--hairline-strong);
+  font: 500 12px/1.2 var(--font); white-space: nowrap; pointer-events: none; opacity: 0; transition: opacity .15s, transform .15s;
+}
+.tip::after {
+  content: ""; position: absolute; top: 100%; left: 50%; width: 8px; height: 8px; margin: -5px 0 0 -4px; transform: rotate(45deg);
+  background: var(--surface-card); border: solid var(--hairline-strong); border-width: 0 1px 1px 0;
+}
+.tabbar [role="tab"]:first-child .tip { left: 0; transform: translate(-6px, 4px); }
+.tabbar [role="tab"]:first-child .tip::after { left: 23px; }
+.tabbar [role="tab"]:last-child .tip { left: auto; right: 0; transform: translate(6px, 4px); }
+.tabbar [role="tab"]:last-child .tip::after { left: auto; right: 17px; }
+.tabbar [role="tab"]:is(:hover, :focus-visible) .tip { opacity: 1; transform: translate(-50%, 0); }
+.tabbar [role="tab"]:first-child:is(:hover, :focus-visible) .tip { transform: translate(-6px, 0); }
+.tabbar [role="tab"]:last-child:is(:hover, :focus-visible) .tip { transform: translate(6px, 0); }
+/* attention badge (status dot) for tabs whose category is AMBER or RED */
 .tabbar [role="tab"][data-level="RED"]::after, .tabbar [role="tab"][data-level="AMBER"]::after {
-  content: ""; position: absolute; top: 6px; right: calc(50% - 18px); width: 8px; height: 8px; border-radius: 50%;
+  content: ""; position: absolute; top: 5px; right: 5px; width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--surface-card);
 }
 .tabbar [role="tab"][data-level="RED"]::after { background: var(--red); }
 .tabbar [role="tab"][data-level="AMBER"]::after { background: var(--amber); }
@@ -227,6 +264,11 @@ h1, h2 { margin: 0; font-weight: 400; color: var(--ink); }
 #t-play { background: var(--primary); color: var(--on-primary); border-color: var(--primary); }
 #t-play:hover { background: var(--primary); border-color: var(--primary); }
 #t-play:active { background: var(--primary-active); border-color: var(--primary-active); }
+/* welcome card covers the screen while open, so its play button may also be orange (never shown together with #t-play as the primary action) */
+#w-play { background: var(--primary); color: var(--on-primary); border-color: var(--primary); }
+#w-play:hover { background: var(--primary); border-color: var(--primary); }
+#w-play:active { background: var(--primary-active); border-color: var(--primary-active); }
+#w-play:focus-visible { outline-color: var(--ink); }
 .wide { width: 100%; }
 
 /* bottom drawer with notch */
@@ -344,3 +386,116 @@ body.video :is(.drawer, .view-toggle, .leaflet-control-container) { display: non
 }
 /* Chrome leaves hairline gaps between transformed tiles; the transparent outline closes them */
 .leaflet-tile-container img.leaflet-tile { outline: 1px solid transparent; }
+
+/* ---------- additions that follow the current main app ---------- */
+
+/* motion: short, quiet transitions (no springs, no glow) */
+.tab:not([hidden]) > * { animation: rise .35s ease-out both; }
+.tab:not([hidden]) > :nth-child(2) { animation-delay: .03s; }
+.tab:not([hidden]) > :nth-child(3) { animation-delay: .06s; }
+.tab:not([hidden]) > :nth-child(4) { animation-delay: .09s; }
+.tab:not([hidden]) > :nth-child(n+5) { animation-delay: .12s; }
+@keyframes rise { from { opacity: 0; transform: translateY(6px); } }
+.more:not([hidden]) { animation: rise .3s ease-out both; }
+/* values that just changed (class set by map/motion.js, removed on animationend) */
+.bump { animation: bump .5s ease-out; }
+@keyframes bump { 0% { opacity: .35; } 100% { opacity: 1; } }
+.headline.bump { animation: pop .45s ease-out; }
+@keyframes pop { 0% { transform: scale(.96); opacity: .4; } 100% { transform: none; opacity: 1; } }
+.banner:not([hidden]) { animation: drop .35s ease-out both; }
+@keyframes drop { from { opacity: 0; transform: translate(-50%, -8px); } }
+.skyfix[open], .dlg[open] { animation: card-in .3s ease-out both; }
+@keyframes card-in { from { opacity: 0; transform: translateY(6px); } }
+.notch svg { transition: transform .25s; }
+.cp-dot { transition: transform .25s, background-color .2s, border-color .2s; }
+.factors li:hover, .alerts li:hover { transform: translateX(2px); }
+
+/* story caption: centred above the bottom edge while the demo runs */
+.caption {
+  position: absolute; left: 50%; bottom: var(--s4); transform: translateX(-50%); z-index: 1000;
+  width: max-content; max-width: min(620px, calc(100% - var(--panel-w) * 2 - 48px)); margin: 0;
+  padding: var(--s3) var(--s4); font-size: 15px; line-height: 1.4; color: var(--ink); text-align: center; text-wrap: balance;
+}
+.caption:not([hidden]) { animation: lift-in .35s ease-out both; }
+@keyframes lift-in { from { opacity: 0; translate: 0 8px; } }
+.map-wrap:has(.skyfix[open]) :is(.caption, .legend) { display: none; }
+
+/* welcome card */
+.welcome {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 1060;
+  width: min(520px, calc(100% - var(--panel-w) - 64px)); padding: var(--s6); display: grid; gap: var(--s4);
+}
+.welcome:not([hidden]) { animation: lift-in .4s ease-out both; }
+.welcome h2 { font-size: clamp(1.6rem, 2.4vw, 2.1rem); line-height: 1.15; letter-spacing: var(--ls-display-lg); }
+.welcome p { margin: 0; color: var(--body); font-size: 16px; }
+.welcome-keys { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s2); font-size: 14px; color: var(--body); }
+.welcome-keys li { display: flex; align-items: center; gap: var(--s3); }
+.status-chip {
+  padding: 2px 10px; border-radius: var(--r-pill); background: var(--surface-strong); color: var(--green);
+  font: 600 11px/1.4 var(--font); text-transform: uppercase; letter-spacing: var(--ls-label);
+}
+.welcome-ctl { display: flex; flex-wrap: wrap; gap: var(--s2); margin-top: var(--s2); }
+@media (max-width: 1023px) {
+  .caption { max-width: calc(100% - 32px); bottom: var(--s4); font-size: 13px; }
+  .welcome { width: calc(100% - 24px); top: 50%; padding: var(--s5); }
+}
+
+/* Skyline Fix: non-modal card over the map so the search heat map stays visible */
+.skyfix {
+  position: absolute; left: var(--s4); top: 76px; z-index: 1050; margin: 0; padding: var(--s4) var(--s5) var(--s5);
+  width: min(460px, calc(100% - var(--panel-w) - 56px)); max-height: calc(100% - 76px - var(--s4)); overflow-y: auto; color: var(--body);
+}
+.skyfix[open] { display: grid; gap: var(--s3); }
+.skyfix-head { display: flex; justify-content: space-between; align-items: center; gap: var(--s3); }
+.skyfix-head h2 { font-size: 18px; line-height: 1.4; letter-spacing: var(--ls-display-sm); }
+.skyfix-top { display: flex; align-items: center; gap: var(--s4); }
+.skyfix-compass { width: 64px; height: 64px; flex: none; }
+.skyfix-compass .ring { fill: var(--canvas-soft); stroke: var(--hairline-strong); stroke-width: 2; }
+.skyfix-compass .tick { stroke: var(--muted); stroke-width: 3; stroke-linecap: round; }
+.skyfix-compass .sweep { stroke: var(--ink); stroke-width: 2.5; stroke-linecap: round; }
+.skyfix-compass .lbl { fill: var(--muted); font: 500 12px var(--mono); }
+.skyfix-step { margin: 0; font-weight: 500; color: var(--ink); }
+.skyfix-chart { width: 100%; height: auto; background: var(--canvas-soft); border: 1px solid var(--hairline); border-radius: var(--r-md); }
+.skyfix-chart .zero { stroke: var(--hairline-strong); stroke-dasharray: 4 4; }
+.skyfix-chart polyline { fill: none; stroke-width: 2; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+.skyfix-chart .obs { stroke: var(--ink); }
+.skyfix-chart .best { stroke: var(--amber); stroke-width: 2.5; }
+.skyfix-legend { display: flex; gap: var(--s4); margin: 0; font-size: 12px; color: var(--muted); }
+.skyfix-legend span::before { content: ""; display: inline-block; width: 14px; height: 3px; margin-right: 6px; vertical-align: middle; border-radius: 2px; }
+.k-obs::before { background: var(--ink); }
+.k-best::before { background: var(--amber); }
+.skyfix-result p { margin: 0 0 var(--s2); font-size: 13px; color: var(--muted); }
+.skyfix-big { color: var(--ink) !important; }
+.skyfix-big strong { font: 500 1.7rem/1.2 var(--mono); color: var(--green); letter-spacing: -0.04em; }
+.skyfix-note { color: var(--amber) !important; }
+.skyfix-how summary { cursor: pointer; font-size: 13px; color: var(--ink); text-decoration: underline; }
+.skyfix-how p { margin: var(--s2) 0 0; font-size: 13px; color: var(--muted); }
+@media (max-width: 1023px) { .skyfix { left: var(--s2); right: var(--s2); top: 112px; width: auto; max-height: calc(62vh - 120px); } }
+.skyfix-lead { margin: 0; font-size: 14px; color: var(--body); }
+.skyfix-prog { display: grid; gap: var(--s2); min-width: 0; }
+.skyfix-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.skyfix-steps li {
+  padding: 2px 10px; border-radius: var(--r-pill); background: var(--surface-strong); color: var(--muted);
+  font: 600 11px/1.4 var(--font); text-transform: uppercase; letter-spacing: var(--ls-label); transition: background-color .2s, color .2s;
+}
+.skyfix-steps li.now { background: var(--ink); color: var(--canvas); }
+.skyfix-steps li.done { background: var(--surface-card); color: var(--green); border: 1px solid var(--green); padding: 1px 9px; }
+.skyfix-status { margin: 0; font-size: 14px; color: var(--ink); }
+.skyfix-axis { display: flex; justify-content: space-between; margin: -6px 8px 0; font: 400 11px var(--mono); color: var(--muted); }
+.skyfix-why { display: grid; gap: var(--s2); margin-top: var(--s3); }
+.skyfix-why h3 { margin: 0; font: 600 14px/1.4 var(--font); color: var(--ink); }
+.skyfix-toggle { display: flex; flex-wrap: wrap; gap: var(--s2); }
+.skyfix-toggle .btn[aria-pressed="true"] { background: var(--ink); color: var(--canvas); border-color: var(--ink); }
+.skyfix-explain { margin: 0; font-size: 13px; color: var(--muted); }
+
+/* route comparison (Route tab): chosen mode solid, alternative dashed. Samples reuse the map's line colours on the map's dark casing,
+   so the cream alternative stays readable on a white card. */
+.cmp { display: grid; gap: var(--s2); }
+#r-cmp-rows { display: grid; gap: var(--s2); }
+.cmp-row { display: grid; grid-template-columns: 28px 1fr; gap: 2px var(--s2); align-items: center; font-size: 13px; }
+.cmp-line { position: relative; display: block; height: 8px; border-radius: var(--r-xs); background: var(--map-casing); }
+.cmp-line::before { content: ""; position: absolute; left: 2px; right: 2px; top: 50%; height: 0; margin-top: -2px; border-top: 4px solid var(--map-route); }
+.cmp-line.dashed::before { margin-top: -1px; border-top: 2px dashed var(--map-route-alt); }
+.cmp-mode { font-weight: 600; color: var(--ink); }
+.cmp-nums { grid-column: 2; display: flex; flex-wrap: wrap; gap: 0 var(--s3); font: 400 12px var(--mono); color: var(--muted); }
+.cmp-note { margin: 0; font-size: 13px; color: var(--ink); }

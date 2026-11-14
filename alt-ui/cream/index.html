@@ -39,6 +39,20 @@
       </div>
 
       <div id="banner" class="banner" role="alert" hidden></div>
+      <p id="caption" class="caption frost" aria-live="polite" hidden></p>
+      <section id="welcome" class="welcome frost" aria-labelledby="welcome-h" hidden>
+        <h2 id="welcome-h">Can this astronaut still get home?</h2>
+        <p>Mars has no GPS. Sightline shows where an astronaut on a spacewalk in Jezero Crater can still find the way back, using NASA terrain, dust and radiation data.</p>
+        <ul class="welcome-keys">
+          <li><i class="sw sw-red"></i>Red: no landmark in sight, easy to get lost</li>
+          <li><i class="sw sw-ring"></i>Ring: how far the astronaut can see in the dust</li>
+          <li><b class="status-chip">GO</b>The status panel answers the question, live</li>
+        </ul>
+        <div class="welcome-ctl">
+          <button type="button" id="w-play" class="btn btn-accent">Play the 100-second story</button>
+          <button type="button" id="w-close" class="btn">Explore the map</button>
+        </div>
+      </section>
 
       <div class="legend frost" id="legend">
         <span><i class="sw sw-red"></i>No landmark in sight</span>
@@ -78,7 +92,7 @@
               <div><dt>Walked since fix</dt><dd id="p-since">–</dd></div>
               <div><dt>Fix accuracy</dt><dd id="p-acc">–</dd></div>
             </dl>
-            <button type="button" id="btn-skyline" class="btn btn-accent wide">Run Skyline Fix</button>
+            <button type="button" id="btn-skyline" class="btn btn-accent wide" data-magnetic>Run Skyline Fix</button>
             <ul class="factors" data-group="pos"></ul>
           </section>
 
@@ -101,22 +115,26 @@
                 <option value="homeInSight">Keep home in sight</option>
                 <option value="shortest">Shortest</option>
               </select></label>
+            <div id="r-cmp" class="cmp" hidden>
+              <div id="r-cmp-rows"></div>
+              <p id="r-cmp-note" class="cmp-note"></p>
+            </div>
             <p class="hint">Click the map or a science target to plan a route there.</p>
             <button type="button" id="btn-helmet" class="btn wide">Open helmet view</button>
           </section>
         </div>
 
         <nav class="tabbar" role="tablist" aria-label="Categories">
-          <button type="button" role="tab" id="t-home" aria-controls="tab-home" aria-selected="true" title="Get home">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11 12 4l9 7v9h-6v-6H9v6H3z"/></svg><span>Home</span></button>
-          <button type="button" role="tab" id="t-dust" aria-controls="tab-dust" aria-selected="false" tabindex="-1" title="Dust and visibility">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8h11a3 3 0 1 0-3-3M3 12h16a3 3 0 1 1-3 3M3 16h8"/></svg><span>Dust</span></button>
-          <button type="button" role="tab" id="t-pos" aria-controls="tab-pos" aria-selected="false" tabindex="-1" title="Position">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="7"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg><span>Position</span></button>
-          <button type="button" role="tab" id="t-body" aria-controls="tab-body" aria-selected="false" tabindex="-1" title="Crew body">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="5" r="2.5"/><path d="M12 8v7M7 11h10M9 22l3-7 3 7"/></svg><span>Body</span></button>
-          <button type="button" role="tab" id="t-route" aria-controls="tab-route" aria-selected="false" tabindex="-1" title="Route">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="19" r="2.5"/><circle cx="19" cy="5" r="2.5"/><path d="M7.5 19H15a3.5 3.5 0 0 0 0-7H9a3.5 3.5 0 0 1 0-7h7.5"/></svg><span>Route</span></button>
+          <button type="button" role="tab" id="t-home" aria-controls="tab-home" aria-selected="true">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11 12 4l9 7v9h-6v-6H9v6H3z"/></svg><span class="tip">Home · can I get back?</span></button>
+          <button type="button" role="tab" id="t-dust" aria-controls="tab-dust" aria-selected="false" tabindex="-1">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8h11a3 3 0 1 0-3-3M3 12h16a3 3 0 1 1-3 3M3 16h8"/></svg><span class="tip">Dust · how far can I see?</span></button>
+          <button type="button" role="tab" id="t-pos" aria-controls="tab-pos" aria-selected="false" tabindex="-1">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="7"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg><span class="tip">Position · where am I?</span></button>
+          <button type="button" role="tab" id="t-body" aria-controls="tab-body" aria-selected="false" tabindex="-1">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="5" r="2.5"/><path d="M12 8v7M7 11h10M9 22l3-7 3 7"/></svg><span class="tip">Body · am I OK?</span></button>
+          <button type="button" role="tab" id="t-route" aria-controls="tab-route" aria-selected="false" tabindex="-1">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="19" r="2.5"/><circle cx="19" cy="5" r="2.5"/><path d="M7.5 19H15a3.5 3.5 0 0 0 0-7H9a3.5 3.5 0 0 1 0-7h7.5"/></svg><span class="tip">Route · which way?</span></button>
         </nav>
       </aside>
     </section>
@@ -129,7 +147,7 @@
 
       <div class="timeline" id="timeline">
         <div class="dock-ctl">
-          <button type="button" id="t-play" class="btn btn-accent" aria-label="Play demo">Play demo</button>
+          <button type="button" id="t-play" class="btn btn-accent" data-magnetic aria-label="Play demo">Play demo</button>
           <button type="button" id="t-reset" class="btn">Restart</button>
         </div>
         <div class="scrub-wrap">
@@ -144,6 +162,7 @@
           <h2 id="why-h">Every factor</h2>
           <ul id="alerts" class="alerts"></ul>
           <p id="vis-stat" class="stat"></p>
+          <p class="stat credit">Map imagery: CTX mosaic NASA/JPL-Caltech/MSSS, HiRISE mosaic NASA/JPL-Caltech/UArizona, via NASA Mars Trek. Map library: Leaflet.</p>
         </section>
         <section class="controls" aria-labelledby="cond-h">
           <h2 id="cond-h">Change conditions</h2>
