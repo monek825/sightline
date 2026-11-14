@@ -1,23 +1,23 @@
 <!-- Written with AI assistance (Claude / GitHub Copilot) -->
-# Prompt for Edward: polish the helmet view + add a 3D rover
+# Prompt for Sean: polish the helmet view (rover + habitat models are ready)
 
-Paste the code block into GitHub Copilot Chat (agent mode) with the repo open.
+Paste the code block into Claude Code with the repo open (use the frugal-fable skill if on Fable).
 
 ```
 Repo: monek825/sightline (NASA Space Apps 2026 hackathon, deadline Sun 15 Nov 23:59 WIB, feature freeze Sun 16:00).
 First read CLAUDE.md, README.md, ARCHITECTURE.md §9 (postMessage protocol) and helmet/README.md.
-The helmet view already works (helmet/index.html, helmet/helmet.js, helmet/helmet.css; Sean built v1). Your job: POLISH it and ADD A ROVER. Don't rewrite it.
+The helmet view already works (helmet/index.html, helmet/helmet.js, helmet/helmet.css). Your job: POLISH it. Don't rewrite it.
 
-Rules: plain HTML/CSS/JS, A-Frame 1.6.0 from CDN, no npm/build step, no runtime API calls. Only edit helmet/* plus the one new file lib/rover.js. Don't edit lib/terrain.js or map/*. Insert data text with textContent, never innerHTML. No NASA logos/meatball/patches anywhere. New files start with: // Written with AI assistance (Claude / GitHub Copilot). Work on branch feat/helmet-polish, commit small, open a PR to main.
+Rules: plain HTML/CSS/JS, A-Frame 1.6.0 from CDN, no npm/build step, no runtime API calls. Only edit helmet/*. Don't edit lib/* or map/*. Insert data text with textContent, never innerHTML. No NASA logos/meatball/patches anywhere. New files start with: // Written with AI assistance (Claude / GitHub Copilot). Work on branch feat/helmet-polish, commit small, open a PR to main.
 
-1. 3D Mars rover (new file lib/rover.js, an A-Frame component `mars-rover` so Brayden can reuse it in the main 3D view):
-   - Preferred: NASA's public-domain Perseverance model (.glb) from NASA 3D Resources (science.nasa.gov/3d-resources, or github.com/nasa/NASA-3D-Resources). Save it as assets/rover/perseverance.glb, max 8 MB (if it's bigger, use a lower-detail version or option B). Open it and check that no NASA logo/meatball decal is visible; if one is, use option B. Load it with A-Frame's gltf-model. Scale to real size (~3 m long, 2.2 m tall).
-   - Option B (fallback, no download): build an original rover from A-Frame primitives: body box, 6 wheels (cylinders) on rocker arms, a mast with a camera head, an RTG box at the back. Dusty white/grey materials. It must look intentional, not like a few boxes.
-   - Place it parked ~25 m east of the habitat (home), glued to the ground with terrain.heightAt, wheels on the ground. Optional: if the state has `inputs.astronaut`, place a second rover 15 m from the astronaut's start point as a "support rover".
-   - Credit: add the model source + "public domain, NASA/JPL-Caltech" line to data/sources.md.
+1. Models (already built, just place them): load ../lib/models.js after ../lib/terrain.js. It registers A-Frame components `mars-habitat` and `mars-rover` (original, primitives, metres at scale 1, origin = ground). In the helmet use scale 1 (real size):
+   - habitat at home: position (0, terrain.heightAt(0,0), 0)
+   - a support rover parked beside it: (14, heightAt(14,6), 6), rotation 0 -30 0
+   - Perseverance at its latest real position: last point of ../data/traverse.json ({lat, lon}) via terrain.toWorld
+   From the habitat start view the astronaut should see the dome, solar wings and rover up close.
 
 2. Match the main app's 3D look (see map/map.js createView3D for reference values):
-   - terrain tint: set terrain.material.color to #f0b483 after 'terrain-loaded'
+   - terrain tint + fine ground grain are now automatic in lib/terrain.js (no code needed); check the ground no longer looks flat grey
    - lights: a hemisphere light (sky #ffd9b0, ground #4a2a18) + a directional sun. Place the sun from inputs.ltst (rises east at 06:00, highest at noon, sets west at 18:00); dim it as tau rises
    - sky: an a-sky with a vertical gradient (darker zenith #80563e, lighter butterscotch horizon); under dust (high tau) both go the same dusty colour
    - fog: linear, colour = horizon colour, far = derived.limits.visibilityKm * 1000. This is the key "dust storm" moment in the video, so the fog must close in visibly when tau goes to 6
