@@ -5,7 +5,7 @@ import { loadAll } from '../lib/data.js';
 import { createPipeline } from '../lib/pipeline.js';
 import { initStore, setInputs, subscribe, getStore } from '../lib/store.js';
 import { initVisibility, visibilityArrays } from './visibility.js';
-import { prepareScenario, stateAt } from './scenario.js';
+import { prepareScenario, stateAt, pathUpTo } from './scenario.js';
 import { createMapView } from './map.js';
 import { createPanels } from './panels.js';
 import * as stubs from './stubs.js';
@@ -135,12 +135,15 @@ function setupScenario(data, M, sky) {
   document.addEventListener('visibilitychange', () => { if (document.hidden) stop(); });
   // re-plan the walk for a target + mode; an unreachable one keeps the old walk
   const replan = (target, mode) => {
-    const next = prepareScenario(data.scenario, data, M, target, mode);
+    // already out walking (before the turn-back): re-plan from the astronaut's position, keep the clock
+    const walking = t > 0 && (prep.sepT === null || t <= prep.sepT) && t < prep.endT;
+    const from = walking ? { prefix: pathUpTo(prep.outPts, Math.min(prep.mPerMin * t, prep.outLen)), tMin: t } : null;
+    const next = prepareScenario(data.scenario, data, M, target, mode, from);
     if (!next.outOk) return;
     const wasPlaying = playing;
     stop();
     prep = next; fixEvents = fixesOf(prep);
-    scrub.max = prep.endT; t = 0; apply();
+    scrub.max = prep.endT; if (!from) t = 0; apply();
     if (wasPlaying) start();
   };
   // changing the route mode after picking a target re-plans the walk too (value from the event, not listener order)
