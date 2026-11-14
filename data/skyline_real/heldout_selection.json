@@ -1,0 +1,1962 @@
+{
+ "rule": "scan waypoints (sorted by sol, site, drive; unique site+drive) ascending; first two that are (a) >= 3 km from both development positions and from each other, (b) >= 2 km inside the CTX DTM bounds, (c) have usable daytime Navcam-left frames whose greedy-selected footprint coverage (metadata only) is >= 270 deg",
+ "examined": 325,
+ "log": [
+  {
+   "site": 3,
+   "drive": 0,
+   "sol": 13,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 3,
+   "drive": 110,
+   "sol": 14,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 3,
+   "drive": 386,
+   "sol": 15,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 3,
+   "drive": 578,
+   "sol": 16,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 3,
+   "drive": 770,
+   "sol": 20,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 3,
+   "drive": 792,
+   "sol": 23,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 3,
+   "drive": 828,
+   "sol": 29,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 3,
+   "drive": 1044,
+   "sol": 31,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 3,
+   "drive": 1266,
+   "sol": 32,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 3,
+   "drive": 1374,
+   "sol": 33,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 3,
+   "drive": 1392,
+   "sol": 34,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 3,
+   "drive": 1398,
+   "sol": 43,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 3,
+   "drive": 1416,
+   "sol": 44,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 3,
+   "drive": 1708,
+   "sol": 47,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 3,
+   "drive": 1850,
+   "sol": 48,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 3,
+   "drive": 1950,
+   "sol": 49,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 3,
+   "drive": 2046,
+   "sol": 52,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 3,
+   "drive": 2150,
+   "sol": 65,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 3,
+   "drive": 2208,
+   "sol": 66,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 3,
+   "drive": 2346,
+   "sol": 72,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 3,
+   "drive": 2430,
+   "sol": 73,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 4,
+   "drive": 0,
+   "sol": 84,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 4,
+   "drive": 48,
+   "sol": 86,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 4,
+   "drive": 136,
+   "sol": 91,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 4,
+   "drive": 218,
+   "sol": 99,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 4,
+   "drive": 372,
+   "sol": 102,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 4,
+   "drive": 430,
+   "sol": 103,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 4,
+   "drive": 510,
+   "sol": 104,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 4,
+   "drive": 592,
+   "sol": 105,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 4,
+   "drive": 644,
+   "sol": 107,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 4,
+   "drive": 738,
+   "sol": 108,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 4,
+   "drive": 822,
+   "sol": 109,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 4,
+   "drive": 922,
+   "sol": 110,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 4,
+   "drive": 1062,
+   "sol": 113,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 4,
+   "drive": 1250,
+   "sol": 116,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 4,
+   "drive": 1422,
+   "sol": 122,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 4,
+   "drive": 1644,
+   "sol": 123,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 4,
+   "drive": 1712,
+   "sol": 124,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 4,
+   "drive": 1776,
+   "sol": 126,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 4,
+   "drive": 1860,
+   "sol": 127,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 4,
+   "drive": 1878,
+   "sol": 128,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 4,
+   "drive": 2222,
+   "sol": 129,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 5,
+   "drive": 0,
+   "sol": 130,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 5,
+   "drive": 500,
+   "sol": 131,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 5,
+   "drive": 894,
+   "sol": 134,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 5,
+   "drive": 1388,
+   "sol": 135,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 5,
+   "drive": 1572,
+   "sol": 136,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 5,
+   "drive": 1812,
+   "sol": 137,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 5,
+   "drive": 2296,
+   "sol": 153,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 5,
+   "drive": 2512,
+   "sol": 155,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 6,
+   "drive": 0,
+   "sol": 157,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 6,
+   "drive": 170,
+   "sol": 168,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 6,
+   "drive": 410,
+   "sol": 169,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 6,
+   "drive": 892,
+   "sol": 170,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 6,
+   "drive": 1450,
+   "sol": 171,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 6,
+   "drive": 1648,
+   "sol": 173,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 6,
+   "drive": 1752,
+   "sol": 175,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 6,
+   "drive": 2250,
+   "sol": 177,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 6,
+   "drive": 2666,
+   "sol": 178,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 7,
+   "drive": 0,
+   "sol": 180,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 7,
+   "drive": 346,
+   "sol": 199,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 7,
+   "drive": 1172,
+   "sol": 200,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 7,
+   "drive": 1358,
+   "sol": 201,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 7,
+   "drive": 1556,
+   "sol": 202,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 7,
+   "drive": 1716,
+   "sol": 203,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 7,
+   "drive": 1836,
+   "sol": 204,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 7,
+   "drive": 2050,
+   "sol": 210,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 7,
+   "drive": 2246,
+   "sol": 237,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 7,
+   "drive": 2326,
+   "sol": 238,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 7,
+   "drive": 2440,
+   "sol": 239,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 8,
+   "drive": 0,
+   "sol": 248,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 8,
+   "drive": 64,
+   "sol": 278,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 8,
+   "drive": 256,
+   "sol": 280,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 8,
+   "drive": 410,
+   "sol": 281,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 8,
+   "drive": 458,
+   "sol": 283,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 8,
+   "drive": 734,
+   "sol": 285,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 9,
+   "drive": 0,
+   "sol": 286,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 9,
+   "drive": 82,
+   "sol": 328,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 9,
+   "drive": 178,
+   "sol": 333,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 9,
+   "drive": 276,
+   "sol": 335,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 9,
+   "drive": 364,
+   "sol": 340,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 9,
+   "drive": 1064,
+   "sol": 340,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 9,
+   "drive": 1554,
+   "sol": 340,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 9,
+   "drive": 1914,
+   "sol": 341,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 9,
+   "drive": 2304,
+   "sol": 341,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 9,
+   "drive": 2818,
+   "sol": 341,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 9,
+   "drive": 2858,
+   "sol": 342,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 9,
+   "drive": 2948,
+   "sol": 343,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 9,
+   "drive": 2982,
+   "sol": 343,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 9,
+   "drive": 3478,
+   "sol": 350,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 9,
+   "drive": 5156,
+   "sol": 351,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 9,
+   "drive": 5676,
+   "sol": 352,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 9,
+   "drive": 6214,
+   "sol": 353,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 9,
+   "drive": 6884,
+   "sol": 353,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 9,
+   "drive": 7344,
+   "sol": 354,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 9,
+   "drive": 7758,
+   "sol": 354,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 9,
+   "drive": 7894,
+   "sol": 354,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 9,
+   "drive": 9314,
+   "sol": 355,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 9,
+   "drive": 9436,
+   "sol": 358,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 10,
+   "drive": 0,
+   "sol": 359,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 10,
+   "drive": 516,
+   "sol": 360,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 10,
+   "drive": 1114,
+   "sol": 360,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 11,
+   "drive": 0,
+   "sol": 361,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 11,
+   "drive": 108,
+   "sol": 362,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 11,
+   "drive": 1110,
+   "sol": 379,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 11,
+   "drive": 2472,
+   "sol": 380,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 12,
+   "drive": 0,
+   "sol": 381,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 13,
+   "drive": 0,
+   "sol": 382,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 13,
+   "drive": 1280,
+   "sol": 383,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 13,
+   "drive": 2448,
+   "sol": 384,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 14,
+   "drive": 0,
+   "sol": 385,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 14,
+   "drive": 1176,
+   "sol": 386,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 15,
+   "drive": 0,
+   "sol": 387,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 15,
+   "drive": 1334,
+   "sol": 388,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 16,
+   "drive": 0,
+   "sol": 389,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 17,
+   "drive": 0,
+   "sol": 394,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 17,
+   "drive": 1064,
+   "sol": 395,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 18,
+   "drive": 0,
+   "sol": 396,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 18,
+   "drive": 320,
+   "sol": 397,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 18,
+   "drive": 1622,
+   "sol": 398,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 19,
+   "drive": 0,
+   "sol": 399,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 19,
+   "drive": 1126,
+   "sol": 400,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 19,
+   "drive": 2066,
+   "sol": 401,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 20,
+   "drive": 0,
+   "sol": 402,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 20,
+   "drive": 1422,
+   "sol": 404,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 21,
+   "drive": 0,
+   "sol": 405,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 21,
+   "drive": 1126,
+   "sol": 407,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 21,
+   "drive": 2560,
+   "sol": 408,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 21,
+   "drive": 2746,
+   "sol": 409,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 22,
+   "drive": 0,
+   "sol": 409,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 22,
+   "drive": 412,
+   "sol": 413,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 22,
+   "drive": 532,
+   "sol": 413,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 22,
+   "drive": 634,
+   "sol": 413,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 22,
+   "drive": 788,
+   "sol": 413,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 22,
+   "drive": 822,
+   "sol": 414,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 23,
+   "drive": 0,
+   "sol": 414,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 23,
+   "drive": 824,
+   "sol": 415,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 23,
+   "drive": 1180,
+   "sol": 416,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 23,
+   "drive": 2096,
+   "sol": 418,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 23,
+   "drive": 2532,
+   "sol": 419,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 23,
+   "drive": 2872,
+   "sol": 420,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 23,
+   "drive": 3142,
+   "sol": 421,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 24,
+   "drive": 0,
+   "sol": 422,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 24,
+   "drive": 902,
+   "sol": 426,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 24,
+   "drive": 1328,
+   "sol": 427,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 24,
+   "drive": 1970,
+   "sol": 428,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 24,
+   "drive": 1992,
+   "sol": 430,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 24,
+   "drive": 2770,
+   "sol": 432,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 24,
+   "drive": 2824,
+   "sol": 433,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 24,
+   "drive": 2932,
+   "sol": 433,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 24,
+   "drive": 3076,
+   "sol": 433,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 24,
+   "drive": 3170,
+   "sol": 433,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 24,
+   "drive": 3204,
+   "sol": 434,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 24,
+   "drive": 3256,
+   "sol": 434,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 24,
+   "drive": 3290,
+   "sol": 434,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 24,
+   "drive": 3900,
+   "sol": 436,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 24,
+   "drive": 4232,
+   "sol": 437,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 24,
+   "drive": 4308,
+   "sol": 439,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 24,
+   "drive": 4358,
+   "sol": 439,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 24,
+   "drive": 4412,
+   "sol": 441,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 24,
+   "drive": 4470,
+   "sol": 441,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 24,
+   "drive": 4516,
+   "sol": 441,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 25,
+   "drive": 0,
+   "sol": 441,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 25,
+   "drive": 94,
+   "sol": 443,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 25,
+   "drive": 214,
+   "sol": 443,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 25,
+   "drive": 294,
+   "sol": 448,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 25,
+   "drive": 446,
+   "sol": 448,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 26,
+   "drive": 0,
+   "sol": 449,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 26,
+   "drive": 96,
+   "sol": 455,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 26,
+   "drive": 160,
+   "sol": 456,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 26,
+   "drive": 218,
+   "sol": 456,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 26,
+   "drive": 282,
+   "sol": 460,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 26,
+   "drive": 470,
+   "sol": 460,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 26,
+   "drive": 522,
+   "sol": 461,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 26,
+   "drive": 630,
+   "sol": 461,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 26,
+   "drive": 694,
+   "sol": 464,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 26,
+   "drive": 756,
+   "sol": 464,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 26,
+   "drive": 850,
+   "sol": 474,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 26,
+   "drive": 1004,
+   "sol": 477,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 26,
+   "drive": 1110,
+   "sol": 501,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 26,
+   "drive": 1154,
+   "sol": 501,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 26,
+   "drive": 1222,
+   "sol": 502,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 26,
+   "drive": 1652,
+   "sol": 535,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 26,
+   "drive": 2018,
+   "sol": 536,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 26,
+   "drive": 2142,
+   "sol": 537,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 26,
+   "drive": 2216,
+   "sol": 538,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 26,
+   "drive": 2548,
+   "sol": 538,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 26,
+   "drive": 3008,
+   "sol": 539,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 26,
+   "drive": 3482,
+   "sol": 541,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 26,
+   "drive": 4200,
+   "sol": 542,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 26,
+   "drive": 5150,
+   "sol": 543,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 26,
+   "drive": 5214,
+   "sol": 548,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 26,
+   "drive": 5226,
+   "sol": 551,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 26,
+   "drive": 6236,
+   "sol": 555,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 27,
+   "drive": 0,
+   "sol": 555,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 27,
+   "drive": 186,
+   "sol": 556,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 27,
+   "drive": 230,
+   "sol": 556,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 28,
+   "drive": 0,
+   "sol": 557,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 29,
+   "drive": 0,
+   "sol": 565,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 29,
+   "drive": 58,
+   "sol": 592,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 29,
+   "drive": 144,
+   "sol": 592,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 30,
+   "drive": 0,
+   "sol": 593,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 30,
+   "drive": 1096,
+   "sol": 606,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 30,
+   "drive": 1172,
+   "sol": 609,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 30,
+   "drive": 1344,
+   "sol": 629,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 30,
+   "drive": 1524,
+   "sol": 629,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 30,
+   "drive": 1776,
+   "sol": 629,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 30,
+   "drive": 2188,
+   "sol": 629,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 30,
+   "drive": 2224,
+   "sol": 632,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 30,
+   "drive": 2252,
+   "sol": 632,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 30,
+   "drive": 2310,
+   "sol": 632,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 31,
+   "drive": 0,
+   "sol": 632,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 31,
+   "drive": 466,
+   "sol": 641,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 31,
+   "drive": 500,
+   "sol": 641,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 31,
+   "drive": 856,
+   "sol": 645,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 31,
+   "drive": 1710,
+   "sol": 646,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 31,
+   "drive": 2154,
+   "sol": 647,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 32,
+   "drive": 0,
+   "sol": 648,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 32,
+   "drive": 94,
+   "sol": 652,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 32,
+   "drive": 148,
+   "sol": 652,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 32,
+   "drive": 172,
+   "sol": 654,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 32,
+   "drive": 250,
+   "sol": 654,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 32,
+   "drive": 274,
+   "sol": 658,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 32,
+   "drive": 378,
+   "sol": 658,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 32,
+   "drive": 402,
+   "sol": 663,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 32,
+   "drive": 432,
+   "sol": 663,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 32,
+   "drive": 482,
+   "sol": 663,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 32,
+   "drive": 506,
+   "sol": 667,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 32,
+   "drive": 580,
+   "sol": 667,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 32,
+   "drive": 604,
+   "sol": 670,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 32,
+   "drive": 672,
+   "sol": 670,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 32,
+   "drive": 696,
+   "sol": 674,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 32,
+   "drive": 774,
+   "sol": 674,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 32,
+   "drive": 798,
+   "sol": 678,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 32,
+   "drive": 862,
+   "sol": 678,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 32,
+   "drive": 896,
+   "sol": 678,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 32,
+   "drive": 920,
+   "sol": 681,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 32,
+   "drive": 1038,
+   "sol": 681,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 32,
+   "drive": 1062,
+   "sol": 684,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 32,
+   "drive": 1174,
+   "sol": 684,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 32,
+   "drive": 1184,
+   "sol": 686,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 32,
+   "drive": 1208,
+   "sol": 693,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 32,
+   "drive": 1214,
+   "sol": 693,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 32,
+   "drive": 1394,
+   "sol": 693,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 32,
+   "drive": 2340,
+   "sol": 694,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 33,
+   "drive": 0,
+   "sol": 695,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 33,
+   "drive": 212,
+   "sol": 698,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 33,
+   "drive": 262,
+   "sol": 698,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 33,
+   "drive": 366,
+   "sol": 700,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 33,
+   "drive": 402,
+   "sol": 702,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 33,
+   "drive": 430,
+   "sol": 706,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 33,
+   "drive": 580,
+   "sol": 707,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 33,
+   "drive": 612,
+   "sol": 707,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 33,
+   "drive": 1756,
+   "sol": 708,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 33,
+   "drive": 2864,
+   "sol": 709,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 33,
+   "drive": 3878,
+   "sol": 713,
+   "skipped": "(a) < 3 km from a development position"
+  },
+  {
+   "site": 33,
+   "drive": 4752,
+   "sol": 714,
+   "usableFrames": 36,
+   "selectedFrames": 5,
+   "footprintCoverageDeg": 358.0,
+   "chosen": true
+  },
+  {
+   "site": 34,
+   "drive": 0,
+   "sol": 715,
+   "skipped": "(a) < 3 km from the first held-out position"
+  },
+  {
+   "site": 34,
+   "drive": 952,
+   "sol": 716,
+   "skipped": "(a) < 3 km from the first held-out position"
+  },
+  {
+   "site": 34,
+   "drive": 2098,
+   "sol": 717,
+   "skipped": "(a) < 3 km from the first held-out position"
+  },
+  {
+   "site": 34,
+   "drive": 3196,
+   "sol": 718,
+   "skipped": "(a) < 3 km from the first held-out position"
+  },
+  {
+   "site": 34,
+   "drive": 4394,
+   "sol": 719,
+   "skipped": "(a) < 3 km from the first held-out position"
+  },
+  {
+   "site": 34,
+   "drive": 5120,
+   "sol": 721,
+   "skipped": "(a) < 3 km from the first held-out position"
+  },
+  {
+   "site": 35,
+   "drive": 0,
+   "sol": 726,
+   "skipped": "(a) < 3 km from the first held-out position"
+  },
+  {
+   "site": 36,
+   "drive": 0,
+   "sol": 727,
+   "skipped": "(a) < 3 km from the first held-out position"
+  },
+  {
+   "site": 36,
+   "drive": 334,
+   "sol": 731,
+   "skipped": "(a) < 3 km from the first held-out position"
+  },
+  {
+   "site": 36,
+   "drive": 1610,
+   "sol": 731,
+   "skipped": "(a) < 3 km from the first held-out position"
+  },
+  {
+   "site": 36,
+   "drive": 3294,
+   "sol": 732,
+   "skipped": "(a) < 3 km from the first held-out position"
+  },
+  {
+   "site": 36,
+   "drive": 3368,
+   "sol": 736,
+   "skipped": "(a) < 3 km from the first held-out position"
+  },
+  {
+   "site": 36,
+   "drive": 3398,
+   "sol": 736,
+   "skipped": "(a) < 3 km from the first held-out position"
+  },
+  {
+   "site": 37,
+   "drive": 0,
+   "sol": 736,
+   "skipped": "(a) < 3 km from the first held-out position"
+  },
+  {
+   "site": 37,
+   "drive": 1798,
+   "sol": 753,
+   "skipped": "(a) < 3 km from the first held-out position"
+  },
+  {
+   "site": 37,
+   "drive": 2462,
+   "sol": 755,
+   "skipped": "(a) < 3 km from the first held-out position"
+  },
+  {
+   "site": 37,
+   "drive": 2562,
+   "sol": 755,
+   "skipped": "(a) < 3 km from the first held-out position"
+  },
+  {
+   "site": 37,
+   "drive": 3758,
+   "sol": 759,
+   "skipped": "(a) < 3 km from the first held-out position"
+  },
+  {
+   "site": 37,
+   "drive": 4972,
+   "sol": 762,
+   "skipped": "(a) < 3 km from the first held-out position"
+  },
+  {
+   "site": 38,
+   "drive": 0,
+   "sol": 763,
+   "skipped": "(a) < 3 km from the first held-out position"
+  },
+  {
+   "site": 38,
+   "drive": 944,
+   "sol": 764,
+   "skipped": "(a) < 3 km from the first held-out position"
+  },
+  {
+   "site": 38,
+   "drive": 1808,
+   "sol": 765,
+   "skipped": "(a) < 3 km from the first held-out position"
+  },
+  {
+   "site": 38,
+   "drive": 2102,
+   "sol": 766,
+   "skipped": "(a) < 3 km from the first held-out position"
+  },
+  {
+   "site": 38,
+   "drive": 2208,
+   "sol": 766,
+   "skipped": "(a) < 3 km from the first held-out position"
+  },
+  {
+   "site": 39,
+   "drive": 0,
+   "sol": 768,
+   "skipped": "(a) < 3 km from the first held-out position"
+  },
+  {
+   "site": 39,
+   "drive": 650,
+   "sol": 770,
+   "skipped": "(a) < 3 km from the first held-out position"
+  },
+  {
+   "site": 39,
+   "drive": 690,
+   "sol": 775,
+   "skipped": "(a) < 3 km from the first held-out position"
+  },
+  {
+   "site": 39,
+   "drive": 858,
+   "sol": 784,
+   "skipped": "(a) < 3 km from the first held-out position"
+  },
+  {
+   "site": 39,
+   "drive": 926,
+   "sol": 784,
+   "skipped": "(a) < 3 km from the first held-out position"
+  },
+  {
+   "site": 39,
+   "drive": 1036,
+   "sol": 793,
+   "skipped": "(a) < 3 km from the first held-out position"
+  },
+  {
+   "site": 39,
+   "drive": 1112,
+   "sol": 795,
+   "skipped": "(a) < 3 km from the first held-out position"
+  },
+  {
+   "site": 39,
+   "drive": 1170,
+   "sol": 797,
+   "skipped": "(a) < 3 km from the first held-out position"
+  },
+  {
+   "site": 39,
+   "drive": 1294,
+   "sol": 816,
+   "skipped": "(a) < 3 km from the first held-out position"
+  },
+  {
+   "site": 39,
+   "drive": 1418,
+   "sol": 816,
+   "skipped": "(a) < 3 km from the first held-out position"
+  },
+  {
+   "site": 39,
+   "drive": 1550,
+   "sol": 818,
+   "skipped": "(a) < 3 km from the first held-out position"
+  },
+  {
+   "site": 40,
+   "drive": 0,
+   "sol": 818,
+   "skipped": "(a) < 3 km from the first held-out position"
+  },
+  {
+   "site": 40,
+   "drive": 70,
+   "sol": 821,
+   "skipped": "(a) < 3 km from the first held-out position"
+  },
+  {
+   "site": 40,
+   "drive": 132,
+   "sol": 821,
+   "skipped": "(a) < 3 km from the first held-out position"
+  },
+  {
+   "site": 40,
+   "drive": 992,
+   "sol": 836,
+   "skipped": "(a) < 3 km from the first held-out position"
+  },
+  {
+   "site": 40,
+   "drive": 1608,
+   "sol": 838,
+   "skipped": "(a) < 3 km from the first held-out position"
+  },
+  {
+   "site": 40,
+   "drive": 1706,
+   "sol": 843,
+   "skipped": "(a) < 3 km from the first held-out position"
+  },
+  {
+   "site": 41,
+   "drive": 0,
+   "sol": 843,
+   "skipped": "(a) < 3 km from the first held-out position"
+  },
+  {
+   "site": 41,
+   "drive": 80,
+   "sol": 848,
+   "skipped": "(a) < 3 km from the first held-out position"
+  },
+  {
+   "site": 41,
+   "drive": 188,
+   "sol": 848,
+   "skipped": "(a) < 3 km from the first held-out position"
+  },
+  {
+   "site": 41,
+   "drive": 562,
+   "sol": 854,
+   "skipped": "(a) < 3 km from the first held-out position"
+  },
+  {
+   "site": 41,
+   "drive": 672,
+   "sol": 856,
+   "skipped": "(a) < 3 km from the first held-out position"
+  },
+  {
+   "site": 42,
+   "drive": 0,
+   "sol": 856,
+   "skipped": "(a) < 3 km from the first held-out position"
+  },
+  {
+   "site": 42,
+   "drive": 776,
+   "sol": 866,
+   "skipped": "(a) < 3 km from the first held-out position"
+  },
+  {
+   "site": 42,
+   "drive": 1460,
+   "sol": 868,
+   "skipped": "(a) < 3 km from the first held-out position"
+  },
+  {
+   "site": 42,
+   "drive": 2266,
+   "sol": 870,
+   "skipped": "(a) < 3 km from the first held-out position"
+  },
+  {
+   "site": 42,
+   "drive": 2360,
+   "sol": 871,
+   "skipped": "(a) < 3 km from the first held-out position"
+  },
+  {
+   "site": 42,
+   "drive": 2700,
+   "sol": 871,
+   "skipped": "(a) < 3 km from the first held-out position"
+  },
+  {
+   "site": 43,
+   "drive": 0,
+   "sol": 872,
+   "skipped": "(a) < 3 km from the first held-out position"
+  },
+  {
+   "site": 43,
+   "drive": 554,
+   "sol": 884,
+   "skipped": "(a) < 3 km from the first held-out position"
+  },
+  {
+   "site": 43,
+   "drive": 1270,
+   "sol": 885,
+   "skipped": "(a) < 3 km from the first held-out position"
+  },
+  {
+   "site": 44,
+   "drive": 0,
+   "sol": 886,
+   "skipped": "(a) < 3 km from the first held-out position"
+  },
+  {
+   "site": 44,
+   "drive": 820,
+   "sol": 896,
+   "skipped": "(a) < 3 km from the first held-out position"
+  },
+  {
+   "site": 44,
+   "drive": 830,
+   "sol": 897,
+   "skipped": "(a) < 3 km from the first held-out position"
+  },
+  {
+   "site": 44,
+   "drive": 898,
+   "sol": 899,
+   "skipped": "(a) < 3 km from the first held-out position"
+  },
+  {
+   "site": 44,
+   "drive": 1012,
+   "sol": 903,
+   "skipped": "(a) < 3 km from the first held-out position"
+  },
+  {
+   "site": 44,
+   "drive": 2062,
+   "sol": 905,
+   "skipped": "(a) < 3 km from the first held-out position"
+  },
+  {
+   "site": 44,
+   "drive": 2148,
+   "sol": 907,
+   "skipped": "(a) < 3 km from the first held-out position"
+  },
+  {
+   "site": 44,
+   "drive": 2208,
+   "sol": 907,
+   "skipped": "(a) < 3 km from the first held-out position"
+  },
+  {
+   "site": 44,
+   "drive": 2258,
+   "sol": 907,
+   "skipped": "(a) < 3 km from the first held-out position"
+  },
+  {
+   "site": 44,
+   "drive": 3978,
+   "sol": 909,
+   "skipped": "(a) < 3 km from the first held-out position"
+  },
+  {
+   "site": 44,
+   "drive": 4864,
+   "sol": 909,
+   "skipped": "(a) < 3 km from the first held-out position"
+  },
+  {
+   "site": 44,
+   "drive": 4982,
+   "sol": 911,
+   "skipped": "(a) < 3 km from the first held-out position"
+  },
+  {
+   "site": 45,
+   "drive": 0,
+   "sol": 911,
+   "usableFrames": 36,
+   "selectedFrames": 4,
+   "footprintCoverageDeg": 340.0,
+   "chosen": true
+  }
+ ]
+}

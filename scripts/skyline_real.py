@@ -21,7 +21,7 @@ import numpy as np
 from PIL import Image
 
 import skyline as sk
-from dtm import DATA, EW_M, PX_M, ROOT, LAT_MAX, LAT_MIN, LON_MAX, LON_MIN, latlon_to_px, load_dtm, px_to_latlon
+from dtm import DATA, EW_M, PX_M, ROOT, LAT_MAX, LAT_MID, LAT_MIN, LON_MAX, LON_MIN, latlon_to_px, load_dtm, px_to_latlon
 
 CASES = {
     # Test 1 (legacy): chosen by rule before any matching: earliest sol with a single traverse.json waypoint; middle frame of a 21-frame strip.
@@ -408,10 +408,549 @@ def run_case(case: dict) -> None:
     print("VERDICT:", verdict)
 
 
+# ======================================================================================================================
+# Panorama + MOLA-backdrop method (second round).  Legacy single-frame code above is untouched (sol204.json / sol1946.json).
+# ======================================================================================================================
+import time
+import warnings
+
+import mola as mo
+
+WP_URL = "https://mars.nasa.gov/mmgis-maps/M20/Layers/json/M20_waypoints.json"
+WP_FILE = ROOT / "raw" / "waypoints.json"
+PANO_SEED = SEED                                 # same prior seed as the single-frame tests (rng(2021): 1-2 km offset, random direction)
+# --- parameters fixed from the brief BEFORE any panorama result was seen; never tuned ---
+HDG_MAX_DEG = 10.0                               # heading known to +-10 deg (11 shifts of 2 deg), as in the single-frame tests
+ELEV_OFFSET_MAX_DEG = 0.5                        # one elevation offset per candidate, bounded to +-0.5 deg (absorbs pitch error)
+NEAR_FIELD_M = 150.0                             # azimuths whose predicted horizon forms closer than this at a candidate are not scored
+CTX_STEP_M, CTX_MAX_M = 40.0, 15000.0            # CTX horizon sampling (as skyline.py)
+MOLA_STEP_M, MOLA_MAX_M = 250.0, 120000.0        # MOLA backdrop sampling
+MIN_CELL_POINTS = 10                             # traced columns needed inside a 2-deg azimuth cell
+MIN_SCORED_AZ = 20                               # a candidate needs at least this many scored azimuths (40 deg) ...
+MIN_SCORED_FRAC = 0.5                            # ... and at least this fraction of the valid azimuths (added after the first development run, which
+                                                 #     showed the near-field exclusion letting a candidate "win" by dropping most of a single frame; see assumptions)
+FRAME_SPACING_DEG = 40.0                         # frames used for a panorama: greedy, boresight azimuths >= 40 deg apart (download budget)
+FRAME_MASTEL_MAX, FRAME_LTST = 8.0, (9.0, 16.0)  # frame usability rule (same as the single-frame tests): |mastEl| <= 8 deg, local solar time 9-16 h
+FRAME_WIDTH_PX = 5120                            # full-width strips only (subframeRect width)
+COVERAGE_MIN_DEG = 270.0                         # held-out rule (c)
+HELDOUT_MIN_SEP_M, HELDOUT_EDGE_M = 3000.0, 2000.0
+SUCCESS_ERR_M, SUCCESS_UNC_M = 500.0, 1000.0    # verdict rule: "fix achieved" only if error <= 500 m AND uncertainty radius <= 1000 m (fixed before held-out)
+HW_MASK = None                                   # rover-frame azimuth sector (lo, hi) deg masked as rover hardware; see hw_masked()
+MPD_LAT = 2 * math.pi * sk.R_MARS / 360.0        # metres per degree latitude
+N_DOWNLOADS = [0]
+
+
+def fetch_count(url: str, dest):
+    if not dest.exists():
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        dest.write_bytes(urllib.request.urlopen(req, timeout=120).read())
+        N_DOWNLOADS[0] += 1
+    return dest
+
+
+def load_waypoints() -> list:
+    if not WP_FILE.exists():
+        WP_FILE.parent.mkdir(parents=True, exist_ok=True)
+        WP_FILE.write_bytes(urllib.request.urlopen(urllib.request.Request(WP_URL, headers={"User-Agent": "Mozilla/5.0"}), timeout=120).read())
+    feats = json.loads(WP_FILE.read_text(encoding="utf-8"))["features"]
+    wps = [{k: f["properties"][k] for k in ("site", "drive", "sol", "lat", "lon", "yaw", "pitch", "roll", "elev_geoid")} for f in feats]
+    wps.sort(key=lambda w: (w["sol"], w["site"], w["drive"]))
+    return wps
+
+
+def find_wp(wps, site: int, drive: int) -> dict:
+    m = [w for w in wps if w["site"] == site and w["drive"] == drive]
+    assert len(m) == 1, f"waypoint site {site} drive {drive}: {len(m)} matches"
+    return m[0]
+
+
+def next_sol(wps, w) -> int:
+    later = [x["sol"] for x in wps if (x["sol"], x["site"], x["drive"]) > (w["sol"], w["site"], w["drive"]) and (x["site"], x["drive"]) != (w["site"], w["drive"])]
+    return min(later) if later else w["sol"]
+
+
+def sol_listing(sol: int) -> list:
+    p = RAW / f"list_sol{sol}.json"
+    if not p.exists():
+        RAW.mkdir(parents=True, exist_ok=True)
+        url = f"https://mars.nasa.gov/rss/api/?feed=raw_images&category=mars2020&feedtype=json&sol={sol}&camera=NAVCAM_LEFT&per_page=100&page=0"
+        p.write_bytes(urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"}), timeout=120).read())
+        time.sleep(0.5)
+    d = json.loads(p.read_text(encoding="utf-8"))
+    return [i for i in d.get("images", []) if i["camera"]["instrument"] == "NAVCAM_LEFT"]
+
+
+def rot_from_wp(w: dict) -> np.ndarray:
+    """rover->site (north-east-down) rotation from the waypoint's yaw/pitch/roll (Z-Y-X); verified equal to the frame quaternion."""
+    y, p, r = (math.radians(w[k]) for k in ("yaw", "pitch", "roll"))
+    Rz = np.array([[math.cos(y), -math.sin(y), 0], [math.sin(y), math.cos(y), 0], [0, 0, 1]])
+    Ry = np.array([[math.cos(p), 0, math.sin(p)], [0, 1, 0], [-math.sin(p), 0, math.cos(p)]])
+    Rx = np.array([[1, 0, 0], [0, math.cos(r), -math.sin(r)], [0, math.sin(r), math.cos(r)]])
+    return Rz @ Ry @ Rx
+
+
+def tup(s: str):
+    return tuple(float(v) for v in s.strip("()").split(","))
+
+
+def ltst_hours(im: dict) -> float:
+    t = im["date_taken_mars"].split("M")[1]
+    h, m, s = (float(v) for v in t.split(":"))
+    return h + m / 60 + s / 3600
+
+
+def frame_footprint(im: dict, R: np.ndarray):
+    """(boresight true azimuth, half-width deg at the principal row) from the camera model + waypoint attitude; metadata only, no image."""
+    cam = Cahvore(im["camera"]["camera_model_component_list"])
+    dimw = int(tup(im["extended"]["dimension"])[0])
+    xs = np.array([0.0, dimw / 2 - 0.5, dimw - 1.0])
+    rays = cam.ray(xs, np.full(3, cam.vc)) @ R.T
+    az = np.degrees(np.arctan2(rays[:, 1], rays[:, 0])) % 360
+    half = abs((az[2] - az[0] + 180) % 360 - 180) / 2
+    return float(az[1]), float(half)
+
+
+def usable_frames(wp: dict, wps: list) -> list:
+    """All NAVCAM_LEFT frames of this site+drive passing the usability rule, with true boresight azimuth (waypoint attitude)."""
+    R = rot_from_wp(wp)
+    out, seen = [], set()
+    for sol in range(wp["sol"], min(next_sol(wps, wp), wp["sol"] + 4) + 1):
+        for im in sol_listing(sol):
+            if int(im["site"]) != wp["site"] or int(im["drive"]) != wp["drive"] or im["sample_type"] != "Full" or im["imageid"] in seen:
+                continue
+            seen.add(im["imageid"])
+            ex = im["extended"]
+            if int(tup(ex["subframeRect"])[2]) != FRAME_WIDTH_PX or abs(float(ex["mastEl"])) > FRAME_MASTEL_MAX:
+                continue
+            if not (FRAME_LTST[0] <= ltst_hours(im) <= FRAME_LTST[1]):
+                continue
+            az, half = frame_footprint(im, R)
+            out.append(dict(im=im, az=az, half=half, sclk=float(ex["sclk"])))
+    return out
+
+
+def select_frames(cands: list, seed_id: str | None = None) -> list:
+    """Greedy, deterministic: start at the seed frame (given id, else the earliest sclk), walk clockwise taking the first frame >= 40 deg beyond the last taken."""
+    if not cands:
+        return []
+    seed = next((c for c in cands if c["im"]["imageid"] == seed_id), None) if seed_id else None
+    seed = seed or min(cands, key=lambda c: c["sclk"])
+    rest = sorted((((c["az"] - seed["az"]) % 360, c["sclk"], i, c) for i, c in enumerate(cands) if c is not seed), key=lambda t: t[:3])
+    sel, last = [seed], 0.0
+    for off, _, _, c in rest:
+        if off >= last + FRAME_SPACING_DEG and off <= 360 - FRAME_SPACING_DEG:
+            sel.append(c)
+            last = off
+    return sel
+
+
+def footprint_coverage(sel: list) -> float:
+    """Degrees of azimuth covered by the union of the selected frames' footprints (metadata only)."""
+    cov = np.zeros(360, bool)
+    for c in sel:
+        for a in np.arange(c["az"] - c["half"], c["az"] + c["half"], 0.5):
+            cov[int(math.floor(a)) % 360] = True
+    return float(cov.sum())
+
+
+def hw_masked(az_rover_deg: np.ndarray) -> np.ndarray:
+    """True where a ray (rover-frame azimuth, deg) is inside the rover-hardware sector declared in HW_MASK."""
+    if HW_MASK is None:
+        return np.zeros(len(az_rover_deg), bool)
+    lo, hi = HW_MASK
+    return ((az_rover_deg - lo) % 360) <= ((hi - lo) % 360)
+
+
+def trace_frame(c: dict, wp: dict) -> dict:
+    """Download (cached) + trace one frame with the fixed edge settings; returns per-2-deg-cell elevations (NaN where no trace) in true azimuth."""
+    im = c["im"]
+    png = fetch_count(im["image_files"]["full_res"], RAW / f"{im['imageid']}.png")
+    g = np.asarray(Image.open(png).convert("L"), dtype=np.float64)
+    H, W = g.shape
+    rows = trace_skyline(g)
+    ok = clean_trace(rows)
+    rr = np.where(ok, rows, np.nan)
+    sm = rr.copy()
+    for col in range(W):
+        w = rr[max(0, col - 2):col + 3]
+        w = w[np.isfinite(w)]
+        sm[col] = np.median(w) if len(w) >= 3 else np.nan
+    good = np.isfinite(sm)
+    cam = Cahvore(im["camera"]["camera_model_component_list"])
+    cols = np.arange(W, dtype=np.float64)
+    rays = cam.ray(cols[good], sm[good])
+    s = rays @ rot_from_wp(wp).T
+    az = np.degrees(np.arctan2(s[:, 1], s[:, 0])) % 360
+    el = np.degrees(np.arcsin(np.clip(-s[:, 2], -1, 1)))
+    az_rover = np.degrees(np.arctan2(rays[:, 1], rays[:, 0])) % 360
+    keep = ~hw_masked(az_rover)
+    az, el = az[keep], el[keep]
+    cell = np.floor((az + sk.AZ_STEP / 2) / sk.AZ_STEP).astype(int) % sk.NAZ
+    prof = np.full(sk.NAZ, np.nan)
+    for k in np.unique(cell):
+        m = cell == k
+        if m.sum() >= MIN_CELL_POINTS:
+            prof[k] = np.median(el[m])
+    return dict(imageId=im["imageid"], imageUrl=im["image_files"]["full_res"], mastAz=float(im["extended"]["mastAz"]), mastEl=float(im["extended"]["mastEl"]),
+                prof=prof, tracedCols=int(good.sum()), W=W, H=H, rows=sm, az_boresight=c["az"], img=g)
+
+
+def merge_frames(profs: list) -> np.ndarray:
+    """Median over frames per 2-deg cell (NaN = no frame / trace rejected -> not scored)."""
+    st = np.array(profs)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        return np.nanmedian(st, axis=0)
+
+
+def horizons_ext(z: np.ndarray, m: np.ndarray, rows: np.ndarray, cols: np.ndarray, batch: int = 40):
+    """Per observer (fractional DTM pixel) and 2-deg azimuth: CTX horizon (40 m to 15 km) with the distance of its forming sample,
+    and the MOLA horizon (250 m steps to 120 km, only samples outside the CTX footprint or beyond 15 km). -inf = no data."""
+    H, W = z.shape
+    NAZ = sk.NAZ
+    dc = np.arange(CTX_STEP_M, CTX_MAX_M + 1, CTX_STEP_M)
+    curv_c = dc ** 2 / (2 * sk.R_MARS)
+    dm = np.arange(MOLA_STEP_M, MOLA_MAX_M + 1, MOLA_STEP_M)
+    curv_m = dm ** 2 / (2 * sk.R_MARS)
+    sa, ca = np.sin(sk.AZ)[:, None], np.cos(sk.AZ)[:, None]
+    n = len(rows)
+    a_c, d_c, a_m = np.full((n, NAZ), -np.inf), np.zeros((n, NAZ)), np.full((n, NAZ), -np.inf)
+    dr, dcc = -ca * dc[None] / PX_M, sa * dc[None] / EW_M
+    for s in range(0, n, batch):
+        r0, c0 = rows[s:s + batch], cols[s:s + batch]
+        r = np.rint(r0[:, None, None] + dr[None]).astype(np.int64)
+        c = np.rint(c0[:, None, None] + dcc[None]).astype(np.int64)
+        ok = (r >= 0) & (r < H) & (c >= 0) & (c < W)
+        zz = z[np.clip(r, 0, H - 1), np.clip(c, 0, W - 1)].astype(np.float64)
+        eye = z[np.clip(np.rint(r0).astype(int), 0, H - 1), np.clip(np.rint(c0).astype(int), 0, W - 1)] + sk.EYE_M
+        ang = np.where(ok, np.degrees(np.arctan((zz - curv_c[None, None] - eye[:, None, None]) / dc[None, None])), -np.inf)
+        k = ang.argmax(axis=2)
+        a_c[s:s + batch] = np.take_along_axis(ang, k[..., None], 2)[..., 0]
+        d_c[s:s + batch] = dc[k]
+        lat0 = LAT_MAX - r0 / H * (LAT_MAX - LAT_MIN)
+        lon0 = LON_MIN + c0 / W * (LON_MAX - LON_MIN)
+        lat = lat0[:, None, None] + (ca * dm[None])[None] / MPD_LAT
+        lon = lon0[:, None, None] + (sa * dm[None])[None] / (MPD_LAT * np.cos(np.radians(lat)))
+        inctx = (lat > LAT_MIN) & (lat < LAT_MAX) & (lon > LON_MIN) & (lon < LON_MAX) & (dm[None, None] <= CTX_MAX_M)
+        mr = np.rint((mo.TOP_LAT - lat) * mo.PPD - 0.5 - mo.ROW0).astype(np.int64)
+        mc = np.rint(lon * mo.PPD - 0.5 - mo.COL0).astype(np.int64)
+        okm = (mr >= 0) & (mr < m.shape[0]) & (mc >= 0) & (mc < m.shape[1]) & ~inctx
+        zm = m[np.clip(mr, 0, m.shape[0] - 1), np.clip(mc, 0, m.shape[1] - 1)].astype(np.float64)
+        angm = np.where(okm, np.degrees(np.arctan((zm - curv_m[None, None] - eye[:, None, None]) / dm[None, None])), -np.inf)
+        a_m[s:s + batch] = angm.max(axis=2)
+    return a_c, d_c, a_m
+
+
+def combine(a_c, d_c, a_m, use_mola: bool):
+    """-> (horizon deg, forming distance m) as the matcher uses it; no-data azimuths -> 0 deg (as skyline.py)."""
+    if use_mola:
+        h = np.maximum(a_c, a_m)
+        d = np.where(a_m > a_c, 1e9, d_c)
+    else:
+        h, d = a_c, d_c
+    return np.where(np.isfinite(h), h, 0.0), d
+
+
+def score_grid(cand: np.ndarray, dist: np.ndarray, obs: np.ndarray):
+    """cand/dist (N, NAZ); obs (NAZ,) with NaN = not scored. Per candidate: min over 11 heading shifts (+-10 deg) of the RMS over valid
+    azimuths not excluded by the near-field rule, with one elevation offset clipped to +-0.5 deg. Returns rms, shift, offset, n_scored."""
+    valid = np.isfinite(obs)
+    o = np.where(valid, obs, 0.0)
+    N = len(cand)
+    best, bs, bo, bn = np.full(N, np.inf), np.zeros(N, int), np.zeros(N), np.zeros(N, int)
+    nsh = int(HDG_MAX_DEG // sk.AZ_STEP)
+    for s in range(-nsh, nsh + 1):
+        idx = (np.arange(sk.NAZ) + s) % sk.NAZ
+        use = valid[None] & (dist[:, idx] >= NEAR_FIELD_M)
+        n = use.sum(1)
+        diff = np.where(use, o[None] - cand[:, idx], 0.0)
+        mean = diff.sum(1) / np.maximum(n, 1)
+        off = np.clip(mean, -ELEV_OFFSET_MAX_DEG, ELEV_OFFSET_MAX_DEG)
+        r = np.sqrt((np.where(use, diff - off[:, None], 0.0) ** 2).sum(1) / np.maximum(n, 1))
+        r = np.where((n >= MIN_SCORED_AZ) & (n >= MIN_SCORED_FRAC * valid.sum()), r, np.inf)
+        better = r < best
+        best, bs, bo, bn = np.where(better, r, best), np.where(better, s, bs), np.where(better, off, bo), np.where(better, n, bn)
+    return best, bs, bo, bn
+
+
+DEV_SEEDS = {   # development set: the frame used in the legacy single-frame test is the seed (and the "single frame" of the ablation)
+    (7, 1716): "NLG_0204_0685053395_488ECM_N0071716NCAM00518_00_2I4J",
+    (90, 5110): "NLG_1946_0839690905_667ECM_N0905110NCAM00500_00_2I4J",
+}
+LEGACY_JSON = {(7, 1716): "sol204", (90, 5110): "sol1946"}
+ABLATION_ROWS = [("i_single_ctx", "single frame, CTX-only horizon (old horizon)"),
+                 ("ii_single_mola", "single frame + MOLA backdrop"),
+                 ("iii_pano_ctx", "panorama, CTX-only horizon"),
+                 ("iv_pano_mola_full", "panorama + MOLA backdrop (full method)")]
+_REG = {}
+
+
+def registration(z: np.ndarray, m: np.ndarray, n: int = 400, seed: int = 1) -> dict:
+    """CTX - MOLA at n random points inside the CTX DTM (nearest CTX pixel, bilinear MOLA)."""
+    if not _REG:
+        rng = np.random.default_rng(seed)
+        r, c = rng.uniform(0, z.shape[0] - 1, n), rng.uniform(0, z.shape[1] - 1, n)
+        lat, lon = px_to_latlon(r, c, z.shape)
+        d = z[np.rint(r).astype(int), np.rint(c).astype(int)].astype(np.float64) - mo.sample(m, lat, lon)
+        assert np.isfinite(d).all()
+        _REG.update(n=n, meanM=round(float(d.mean()), 1), stdM=round(float(d.std()), 1))
+    return dict(_REG)
+
+
+def ascii_plot(path, az, series, size=(900, 320)):
+    """Tiny JPEG: skyline elevation vs true azimuth. series = [(label, values, rgb, mode)]; mode 'dot' or 'line'."""
+    from PIL import ImageDraw
+    W, H = size
+    vals = np.concatenate([np.asarray(v, float)[np.isfinite(v)] for _, v, _, _ in series])
+    lo, hi = float(vals.min()) - 0.5, float(vals.max()) + 0.5
+    im = Image.new("RGB", size, "white")
+    d = ImageDraw.Draw(im)
+    X = lambda a: 40 + a / 360 * (W - 50)
+    Y = lambda e: H - 25 - (e - lo) / (hi - lo) * (H - 45)
+    for a in range(0, 361, 45):
+        d.line([(X(a), 10), (X(a), H - 25)], fill=(225, 225, 225))
+        d.text((X(a) - 8, H - 20), f"{a}", fill=(0, 0, 0))
+    for e in range(int(math.ceil(lo)), int(hi) + 1):
+        d.line([(40, Y(e)), (W - 10, Y(e))], fill=(225, 225, 225))
+        d.text((8, Y(e) - 5), f"{e}", fill=(0, 0, 0))
+    for k, (lab, v, col, mode) in enumerate(series):
+        v = np.asarray(v, float)
+        pts = [(X(a), Y(e)) for a, e in zip(az, v) if np.isfinite(e)]
+        if mode == "dot":
+            for x, y in pts:
+                d.ellipse([x - 2, y - 2, x + 2, y + 2], fill=col)
+        else:
+            d.line(pts, fill=col, width=2)
+        d.text((50 + 230 * k, 12), lab, fill=col)
+    im.save(path, quality=80, optimize=True)
+
+
+def run_pano(site: int, drive: int, set_name: str) -> dict:
+    t0 = time.time()
+    wps = load_waypoints()
+    wp = find_wp(wps, site, drive)
+    R = rot_from_wp(wp)
+    cands = usable_frames(wp, wps)
+    sel = select_frames(cands, DEV_SEEDS.get((site, drive)))
+    assert sel, "no usable frames"
+    cov_meta = footprint_coverage(sel)
+    n0 = N_DOWNLOADS[0]
+    tr_frames = [trace_frame(c, wp) for c in sel]
+    # attitude check: waypoint yaw/pitch/roll must reproduce the frame's own attitude quaternion
+    qR = quat_matrix([float(v) for v in sel[0]["im"]["attitude"].strip("()").split(",")])
+    att_diff = float(np.abs(qR - R).max())
+    obs_pano = merge_frames([t["prof"] for t in tr_frames])
+    obs_single = tr_frames[0]["prof"].copy()                      # seed frame (legacy frame for development; earliest-sclk frame otherwise)
+    valid_frac = float(np.isfinite(obs_pano).mean())
+
+    z = load_dtm()
+    m = mo.load()
+    reg = registration(z, m)
+    assert LAT_MIN < wp["lat"] < LAT_MAX and LON_MIN < wp["lon"] < LON_MAX
+    tr, tc = latlon_to_px(wp["lat"], wp["lon"], z.shape)
+    rng = np.random.default_rng(PANO_SEED)
+    dist, ang = rng.uniform(1000, 2000), rng.uniform(0, 2 * math.pi)   # identical draw to the single-frame tests
+    off_n, off_e = dist * math.cos(ang), dist * math.sin(ang)
+    pr, pc = tr - off_n / PX_M, tc + off_e / EW_M
+    n = sk.GRID_N
+    half, step = n // 2, sk.GRID_STEP
+    gn, ge = np.meshgrid((half - np.arange(n)) * step, (np.arange(n) - half) * step, indexing="ij")
+    grows, gcols = (pr - gn / PX_M).ravel(), (pc + ge / EW_M).ravel()
+    truth_n, truth_e = -off_n, -off_e
+    rows_all = np.concatenate([grows, [tr]])                       # last candidate = the waypoint itself (diagnostic only)
+    cols_all = np.concatenate([gcols, [tc]])
+    t1 = time.time()
+    a_c, d_c, a_m = horizons_ext(z, m, rows_all, cols_all)
+    # consistency of the CTX part with skyline.horizons (imported, unchanged)
+    chk = np.linspace(0, len(rows_all) - 1, 24).astype(int)
+    ref = sk.horizons(z, rows_all[chk], cols_all[chk])
+    ctx_diff = float(np.abs(np.where(np.isfinite(a_c[chk]), a_c[chk], 0.0) - ref).max())
+    assert ctx_diff < 1e-6, ctx_diff
+    print(f"[{site}/{drive}] frames {len(sel)} (downloads {N_DOWNLOADS[0] - n0}), valid az {valid_frac:.2f}; horizons {time.time() - t1:.0f}s; ctx-vs-skyline.horizons max diff {ctx_diff:.1e} deg")
+
+    hz = {False: combine(a_c, d_c, a_m, False), True: combine(a_c, d_c, a_m, True)}
+    rows_out = {}
+    for key, _ in ABLATION_ROWS:
+        obs = obs_single if key.startswith(("i_", "ii_")) else obs_pano
+        use_mola = key.startswith(("ii_", "iv_"))
+        cand, dd = hz[use_mola]
+        rms, sh, off, ns = score_grid(cand, dd, obs)
+        g = rms[:-1]
+        b = int(g.argmin())
+        bi, bj = divmod(b, n)
+        err = float(math.hypot(gn.ravel()[b] - truth_n, ge.ravel()[b] - truth_e))
+        unc = sk.uncertainty(g.reshape(n, n), bi, bj)
+        elat, elon = px_to_latlon(grows[b], gcols[b], z.shape)
+        rows_out[key] = dict(errorM=round(err), uncertaintyM=round(unc), minRmsDeg=round(float(g.min()), 3), estimate={"lat": round(elat, 5), "lon": round(elon, 5)},
+                             headingShiftDeg=int(sh[b]) * sk.AZ_STEP, elevOffsetDeg=round(float(off[b]), 3), scoredAzimuths=int(ns[b]),
+                             rmsAtWaypointDeg=round(float(rms[-1]), 3), headingShiftAtWaypointDeg=int(sh[-1]) * sk.AZ_STEP, elevOffsetAtWaypointDeg=round(float(off[-1]), 3),
+                             _b=b, _sh=int(sh[b]), _off=float(off[b]))
+        print(f"   {key:<18} error {err:6.0f} m  unc {unc:5.0f} m  min RMS {g.min():.3f} deg  (heading {int(sh[b]) * 2:+d}, offset {off[b]:+.2f}, {ns[b]} az)  | at waypoint RMS {rms[-1]:.3f}")
+    full = rows_out["iv_pano_mola_full"]
+
+    # residuals of the full method at the waypoint (diagnostic): observed - horizon(full) at shift/offset fitted there
+    azg = np.arange(sk.NAZ) * sk.AZ_STEP
+    hfull_w = hz[True][0][-1]
+    hctx_w = hz[False][0][-1]
+    s_w = full["headingShiftAtWaypointDeg"] // sk.AZ_STEP
+    idx_w = (np.arange(sk.NAZ) + s_w) % sk.NAZ
+    near_w = hz[True][1][-1][idx_w] < NEAR_FIELD_M
+    res_w = np.where(np.isfinite(obs_pano) & ~near_w, obs_pano - full["elevOffsetAtWaypointDeg"] - hfull_w[idx_w], np.nan)
+    res_valid = res_w[np.isfinite(res_w)]
+    near_n = int((np.isfinite(obs_pano) & near_w).sum())
+    mola_wins = float((a_m[-1] > a_c[-1])[np.isfinite(obs_pano)].mean())
+
+    def r3(a):
+        return [None if not np.isfinite(v) else round(float(v), 3) for v in np.asarray(a, float).ravel()]
+
+    legacy = None
+    lj = LEGACY_JSON.get((site, drive))
+    if lj and (OUT / f"{lj}.json").exists():
+        L = json.loads((OUT / f"{lj}.json").read_text(encoding="utf-8"))
+        legacy = {"file": f"data/skyline_real/{lj}.json", "errorM": L["errorM"], "uncertaintyM": L["uncertaintyM"], "note": "legacy single-frame run: sol-level traverse.json truth, quaternion attitude, no elevation offset, no near-field rule, CTX only"}
+    abl = {k: {kk: vv for kk, vv in v.items() if not kk.startswith("_")} for k, v in rows_out.items()}
+    grade = ("FIX ACHIEVED" if full["errorM"] <= SUCCESS_ERR_M and full["uncertaintyM"] <= SUCCESS_UNC_M else
+             "WEAK (better than the prior but not a usable fix)" if full["errorM"] < dist else "FAILED (no better than the prior)")
+    verdict = (f"{grade} (rule fixed before the held-out runs: FIX = error <= {SUCCESS_ERR_M:.0f} m and uncertainty <= {SUCCESS_UNC_M:.0f} m; WEAK = error below the prior offset). Full method (panorama of {len(sel)} frames, {valid_frac:.0%} of azimuths scored, CTX + MOLA backdrop): "
+               f"error {full['errorM']} m, uncertainty radius {full['uncertaintyM']} m, min RMS {full['minRmsDeg']:.3f} deg (prior offset {dist:.0f} m). "
+               f"Ablation errors (m): single/CTX {abl['i_single_ctx']['errorM']}, single+MOLA {abl['ii_single_mola']['errorM']}, panorama/CTX {abl['iii_pano_ctx']['errorM']}, full {full['errorM']}. "
+               f"At the waypoint itself the full-method RMS is {full['rmsAtWaypointDeg']:.3f} deg (residual median {float(np.median(res_valid)):+.2f}, 5-95% range {float(np.percentile(res_valid, 5)):+.2f} to {float(np.percentile(res_valid, 95)):+.2f} deg). "
+               f"One position, one run: not a statistical result.")
+    out = {
+        "id": f"site{site:03d}_drive{drive:04d}", "set": set_name,
+        "waypoint": {"site": site, "drive": drive, "sol": wp["sol"], "yaw": round(wp["yaw"], 3), "pitch": round(wp["pitch"], 3), "roll": round(wp["roll"], 3)},
+        "truth": {"lat": round(wp["lat"], 5), "lon": round(wp["lon"], 5)},
+        "estimate": full["estimate"], "errorM": full["errorM"], "uncertaintyM": full["uncertaintyM"], "minRmsDeg": full["minRmsDeg"],
+        "priorOffsetM": round(dist), "headingShiftOfBestDeg": full["headingShiftDeg"], "elevOffsetOfBestDeg": full["elevOffsetDeg"],
+        "rmsAtWaypointDeg": full["rmsAtWaypointDeg"],
+        "frames": [{"imageId": t["imageId"], "imageUrl": t["imageUrl"], "mastAzDeg": t["mastAz"], "mastElDeg": t["mastEl"],
+                    "trueBoresightAzDeg": round(t["az_boresight"], 1), "tracedColumns": t["tracedCols"], "imageSizePx": [t["W"], t["H"]]} for t in tr_frames],
+        "singleFrameId": tr_frames[0]["imageId"],
+        "validAzimuthFraction": round(valid_frac, 3), "footprintCoverageDeg": round(cov_meta, 1),
+        "backdrop": {"product": mo.PRODUCT, "labelVerified": "11520 x 5632, MSB_INTEGER 16 bit, 128 px/deg, 44N-0N x 0E-90E, metres above areoid, planetocentric (megt44n000hb.lbl)",
+                     "ctxMinusMolaRegistration": {"points": reg["n"], "meanM": reg["meanM"], "stdM": reg["stdM"]},
+                     "usedBeyond": f"samples outside the CTX footprint or farther than {CTX_MAX_M / 1000:.0f} km, every {MOLA_STEP_M:.0f} m out to {MOLA_MAX_M / 1000:.0f} km, nearest MOLA cell, same curvature term",
+                     "azimuthsWhereMolaFormsHorizonFraction": round(mola_wins, 3)},
+        "ablation": abl,
+        "legacySingleFrame": legacy,
+        "azimuthsDeg": [int(a) for a in azg],
+        "observed": r3(obs_pano), "observedSingleFrame": r3(obs_single),
+        "horizonAtWaypointCtx": r3(hctx_w), "horizonAtWaypointFull": r3(hfull_w),
+        "horizonAtBestFull": r3(hz[True][0][full["_b"]]),
+        "residualAtWaypointFull": r3(res_w),
+        "nearFieldExcludedAtWaypoint": near_n,
+        "fixedParameters": {"edgeSigmaPx": EDGE_SIGMA_PX, "edgeThreshold": EDGE_THRESH, "azStepDeg": sk.AZ_STEP, "headingUncertaintyDeg": HDG_MAX_DEG, "elevationOffsetMaxDeg": ELEV_OFFSET_MAX_DEG,
+                            "nearFieldM": NEAR_FIELD_M, "grid": "61 x 61 at 100 m, prior 1-2 km from the waypoint (seed 2021)", "uncertaintyRule": "RMS <= best + 0.05 deg, min 50 m",
+                            "ctxStepM": CTX_STEP_M, "ctxMaxKm": CTX_MAX_M / 1000, "molaStepM": MOLA_STEP_M, "molaMaxKm": MOLA_MAX_M / 1000, "minCellColumns": MIN_CELL_POINTS, "minScoredAzimuths": MIN_SCORED_AZ,
+                            "frameSpacingDeg": FRAME_SPACING_DEG, "frameRule": f"NAVCAM_LEFT, same site+drive, full-width ({FRAME_WIDTH_PX} px) strip, |mastEl| <= {FRAME_MASTEL_MAX:.0f} deg, LTST {FRAME_LTST[0]:.0f}-{FRAME_LTST[1]:.0f} h",
+                            "hardwareMaskRoverAzDeg": HW_MASK, "minScoredFractionOfValid": MIN_SCORED_FRAC,
+                            "successRule": f"FIX = error <= {SUCCESS_ERR_M:.0f} m and uncertainty <= {SUCCESS_UNC_M:.0f} m; WEAK = error < prior offset; else FAILED"},
+        "assumptions": [
+            "Truth position AND attitude come from NASA's M20_waypoints.json entry matched by site+drive (not by sol); the waypoint yaw/pitch/roll rotation equals each frame's own attitude quaternion "
+            f"(max matrix element difference {att_diff:.1e}). Waypoint = end-of-drive localization; its own accuracy is not stated by NASA in the file and is assumed to be metres to tens of metres.",
+            "Frames: all Navcam-left frames of this site+drive that pass the fixed usability rule; of those a deterministic greedy subset (boresight azimuths >= 40 deg apart, starting at the seed frame, clockwise) is downloaded to stay inside the download budget. "
+            f"{len(cands)} frames passed the rule, {len(sel)} used. Seed/'single frame' = {'the frame of the legacy single-frame test' if (site, drive) in DEV_SEEDS else 'the earliest-sclk usable frame'}.",
+            f"Skyline traced per frame with the SAME settings as the single-frame tests (sigma {EDGE_SIGMA_PX} px, threshold {EDGE_THRESH}, 5-px median smoothing, >12 px running-median outlier rejection); not tuned. "
+            f"Each frame's columns are converted to true azimuth/elevation with its own CAHVORE model and the waypoint attitude, binned to 2-deg cells (>= {MIN_CELL_POINTS} traced columns, median elevation); frames are merged per cell by median. "
+            "Cells with no frame or no accepted trace are NaN (null) and are not scored.",
+            f"Rover-hardware rule: {'a rover-frame azimuth sector ' + str(HW_MASK) + ' deg is masked' if HW_MASK else 'no azimuth sector is masked'}. On the development frames the rover deck/RTG appears only in the lowest part of the frame, well below the skyline, so the geometric rule is: nothing masked. Not examined for held-out frames before the run.",
+            f"Matching: heading known to +-{HDG_MAX_DEG:.0f} deg (11 shifts of 2 deg); one elevation offset per candidate (clipped to +-{ELEV_OFFSET_MAX_DEG} deg); azimuths whose predicted horizon forms closer than {NEAR_FIELD_M:.0f} m at the candidate are excluded for that candidate; score = RMS over scored azimuths. "
+            "The same near-field and offset rules are used in all four ablation rows; only the frame set and the backdrop change. "
+            f"A candidate must score at least {MIN_SCORED_AZ} azimuths AND {MIN_SCORED_FRAC:.0%} of the valid azimuths: this guard was added after the first development run, in which the single-frame best candidate scored only 20 of 48 azimuths because the near-field rule dropped the rest (a degenerate 'win'). It was not tuned on position error.",
+            f"Horizon = max over CTX samples (40 m, to 15 km) and MOLA samples (250 m, to 120 km, only outside the CTX footprint or beyond 15 km), Mars curvature term, eye 2 m above the CTX elevation at the candidate. "
+            f"CTX minus MOLA at {reg['n']} random points inside the DTM: mean {reg['meanM']} m, std {reg['stdM']} m, so no vertical offset is applied. MOLA is 463 m/pixel and median-binned: it cannot represent terrain finer than that.",
+            "CTX part of horizons_ext is checked equal to skyline.horizons (imported, unchanged) at 24 candidates every run (max difference < 1e-6 deg).",
+            "A 20 m DTM cannot contain metre-scale rocks in the foreground; those rows of the skyline are part of the photo but not of the model.",
+            f"Downloads this run: {N_DOWNLOADS[0] - n0} images (cached ones not counted).",
+        ],
+        "method": "Real Navcam frames (NASA/JPL-Caltech raw images), skyline traced and matched against CTX DTM + MOLA horizon; not simulated.",
+        "verdict": verdict,
+    }
+    path = OUT / f"site{site:03d}_drive{drive:04d}_pano.json"
+    path.write_text(json.dumps(out, separators=(",", ":"), allow_nan=False), encoding="utf-8")
+    ascii_plot(OUT / f"site{site:03d}_drive{drive:04d}_pano.jpg", azg,
+               [("observed (panorama)", obs_pano, (200, 0, 0), "dot"), ("CTX only @waypoint", hctx_w, (0, 90, 200), "line"), ("CTX+MOLA @waypoint", hfull_w, (0, 150, 60), "line")])
+    print(f"   wrote {path.name} (+ .jpg), {time.time() - t0:.0f}s total")
+    print("   VERDICT:", verdict)
+    return out
+
+
+def select_heldout(dev_positions: list, wps: list) -> list:
+    """Scan waypoints in ascending sol order; take the first two site+drive positions satisfying the held-out rules. Returns [(wp, log), ...]; the log is printed and returned."""
+    z_shape = (1512, 1596)
+    cosl = math.cos(math.radians(LAT_MID))
+    log, chosen = [], []
+
+    def dkm(a, b):
+        return math.hypot((a["lat"] - b["lat"]) * MPD_LAT, (a["lon"] - b["lon"]) * MPD_LAT * cosl)
+
+    dev = [find_wp(wps, s, d) for s, d in dev_positions]
+    seen = set()
+    for w in wps:
+        key = (w["site"], w["drive"])
+        if key in seen:
+            continue
+        seen.add(key)
+        entry = {"site": w["site"], "drive": w["drive"], "sol": w["sol"]}
+        reason = None
+        if any(dkm(w, d) < HELDOUT_MIN_SEP_M for d in dev):
+            reason = "(a) < 3 km from a development position"
+        elif any(dkm(w, c[0]) < HELDOUT_MIN_SEP_M for c in chosen):
+            reason = "(a) < 3 km from the first held-out position"
+        else:
+            e_ns = min(w["lat"] - LAT_MIN, LAT_MAX - w["lat"]) * MPD_LAT
+            e_ew = min(w["lon"] - LON_MIN, LON_MAX - w["lon"]) * MPD_LAT * cosl
+            if min(e_ns, e_ew) < HELDOUT_EDGE_M:
+                reason = f"(b) {min(e_ns, e_ew) / 1000:.1f} km from the DTM edge (< 2 km)"
+        if reason is None:
+            cands = usable_frames(w, wps)
+            sel = select_frames(cands)
+            cov = footprint_coverage(sel) if sel else 0.0
+            entry.update(usableFrames=len(cands), selectedFrames=len(sel), footprintCoverageDeg=cov)
+            if cov < COVERAGE_MIN_DEG:
+                reason = f"(c) usable frames {len(cands)}, merged footprint coverage {cov:.0f} deg < 270"
+        if reason:
+            entry["skipped"] = reason
+        else:
+            entry["chosen"] = True
+            chosen.append((w, entry))
+        log.append(entry)
+        if len(chosen) == 2:
+            break
+    return [(c[0], c[1]) for c in chosen], log
+
+
+def print_heldout_log(log):
+    for e in log:
+        print(f"  sol {e['sol']:4d} site {e['site']:3d} drive {e['drive']:5d}: " + ("CHOSEN" if e.get("chosen") else "skipped " + e["skipped"]))
+
+
 def main() -> None:
     args = sys.argv[1:]
     if "--screen" in args:
         screen(load_dtm(), 10)
+        return
+    if "--dev" in args:                               # development set: both positions (run_pano is deterministic)
+        for (site, drive) in DEV_SEEDS:
+            run_pano(site, drive, "development")
+        return
+    if "--pano" in args:                              # --pano SITE DRIVE [--set development|held-out]
+        k = args.index("--pano")
+        site, drive = int(args[k + 1]), int(args[k + 2])
+        set_name = args[args.index("--set") + 1] if "--set" in args else "development"
+        run_pano(site, drive, set_name)
+        return
+    if "--heldout-select" in args or "--heldout" in args:
+        wps = load_waypoints()
+        chosen, log = select_heldout(list(DEV_SEEDS), wps)
+        print_heldout_log(log)
+        print(f"examined {len(log)} site+drive positions; downloads so far {N_DOWNLOADS[0]}")
+        (OUT / "heldout_selection.json").write_text(json.dumps({"rule": "scan waypoints (sorted by sol, site, drive; unique site+drive) ascending; first two that are (a) >= 3 km from both development positions and from each other, "
+                                                                "(b) >= 2 km inside the CTX DTM bounds, (c) have usable daytime Navcam-left frames whose greedy-selected footprint coverage (metadata only) is >= 270 deg",
+                                                                "examined": len(log), "log": log}, indent=1, allow_nan=False), encoding="utf-8")
+        if "--heldout" in args:
+            for w, _ in chosen:
+                run_pano(w["site"], w["drive"], "held-out")
         return
     for name, case in CASES.items():
         if not args or name in args:
