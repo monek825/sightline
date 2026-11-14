@@ -335,8 +335,7 @@ body.video :is(.bar-left, .layers, .leaflet-control-container) { display: none; 
   .brandbar { right: var(--s4); flex-wrap: wrap; gap: var(--s2) var(--s4); padding: var(--s2) var(--s3); }
   .leaflet-top.leaflet-right { top: 80px; }
   .leaflet-control-zoom { display: none; } /* pinch to zoom on touch screens */
-  .legend { display: none; }
-  .banner { top: 132px; max-width: calc(100% - 32px); width: max-content; font-size: 13px; padding: var(--s2) var(--s3); }
+  .banner { top: 152px; max-width: calc(100% - 32px); width: max-content; font-size: 13px; padding: var(--s2) var(--s3); }
 }
 @media (max-width: 768px) {
   .timeline { grid-template-columns: 1fr auto; grid-template-areas: "ctl label" "scrub scrub"; padding: var(--s3) var(--s4) var(--s2); }
@@ -477,7 +476,7 @@ h1, h2, .brand, .tab-title, .skyfix-head h2, .more h2 { font-family: var(--displ
 }
 .caption:not([hidden]) { animation: lift-in .5s var(--ease-out) both; }
 @keyframes lift-in { from { opacity: 0; translate: 0 10px; } }
-.map-wrap:has(.skyfix[open]) :is(.caption, .legend) { display: none; }
+.map-wrap:has(.skyfix[open]) .legend { display: none; }   /* the caption stays: it says how to continue the demo */
 
 /* welcome card */
 .welcome {
@@ -592,6 +591,7 @@ h1, h2, .brand, .tab-title, .skyfix-head h2, .more h2 { font-family: var(--displ
   .bar::before { left: 0; right: 0; transform: none; border-radius: var(--r-lg); }
   .bar-left { order: 2; }
   .caption { order: 1; position: relative; left: auto; bottom: auto; transform: none; width: auto; max-width: none; margin: var(--s3) 0 0; }
+  .map-wrap .legend, body.is-3d .map-wrap .legend { order: 1; position: relative; left: auto; bottom: auto; display: flex; flex-wrap: wrap; gap: 6px var(--s4); margin-top: var(--s3); font-size: 12px; }
   .panel { order: 3; bottom: auto; }
   .bar-right { order: 4; justify-content: center; padding-top: var(--s4); }
   .more { position: relative; order: 5; left: auto; bottom: auto; width: auto; max-height: none; margin-top: var(--s3); }
@@ -762,7 +762,7 @@ body.panel-hidden .tabbar [role="tab"][aria-selected="true"] { transform: none; 
 .leaflet-tooltip.lm-name::before { display: none; }
 .view3d.no-dust .dust-veil { display: none; }
 body.panel-hidden .layers { right: var(--s5); }
-@media (max-width: 1023px) { .layers { right: var(--s4); top: 72px; } }
+@media (max-width: 1023px) { .layers { right: var(--s4); top: 100px; } }   /* below the wrapped brand card */
 
 /* 3D place names (projected each frame) */
 .v3-labels { position: absolute; inset: 0; z-index: 1; pointer-events: none; overflow: hidden; }
