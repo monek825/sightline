@@ -20,6 +20,16 @@ const BEACON_PULSE_S = 3.2;
 const NEAR_HOME_M = 60;           // visual: this close to the habitat you can see it, so the beacon pillar and HOME label are hidden
 const SKY_CLEAR = [227, 167, 106], SKY_DUSTY = [168, 120, 84], ZENITH_CLEAR = [128, 86, 62], TAU_DUSTY = 8, SUN_DIST = 30000;
 const LTST_DEFAULT = 9.0;
+// Realism layer (visual only). Rocks: instanced dodecahedra scattered around the camera, hashed per world-grid cell so they stay put.
+const ROCK_COUNT = 1500, ROCK_RADIUS_M = 60, ROCK_CELL_M = 5, ROCK_RESCATTER_M = 25, ROCK_CLEAR_HOME_M = 20;
+const ROCK_MIN_M = 0.08, ROCK_MAX_M = 0.7, ROCK_COLOR = 0x8a6a52;
+// Sun shadows (rocks + models cast, terrain receives). One switch; auto-off if frames are slow.
+const SHADOWS = true;
+const SHADOW_MAP = 1024, SHADOW_HALF_M = 110, SHADOW_STEP_M = 35, SHADOW_SNAP_M = 20, SHADOW_LIGHT_DIST_M = 1500;
+const SHADOW_WARMUP_MS = 2500, SHADOW_PROBE_MS = 4000, SHADOW_MAX_AVG_MS = 22;
+// Compass tape: 3 turns of 360 deg at TAPE_PX_PER_DEG px per degree (must match the 4320 px width in helmet.css)
+const TAPE_PX_PER_DEG = 4, TAPE_TURNS = 3;
+const BEACON_DASH_REPEAT = 24;     // dashes along the pillar when home is hidden behind terrain
 const LABEL_H = 22, LABEL_CHAR_W = 7.4, LABEL_PAD = 14, LABEL_STAGGER = [0, -24, 24];
 
 const inIframe = window.parent !== window;
@@ -29,7 +39,6 @@ let meta = null, terrain = null, landmarks = [], constants = null;
 let pending = null;               // latest valid state message
 let current = null;               // state applied to the scene
 let haveState = false, fatal = null;
-let stormShown = false;
 let homeInfo = { distM: 0, bearing: 0, hidden: false, beyondVis: false };
 const lmEls = [];                 // { lm, label, pole, ... }
 let lmOrder = [];                 // visible landmarks, nearest first (for label de-cluttering)
@@ -40,9 +49,14 @@ const reduceMotionQ = window.matchMedia ? window.matchMedia('(prefers-reduced-mo
 const camT = { x: 0, z: 0, yaw: 0, eye: 1.7, snap: true };
 let envKey = '', lastLevel = null, homeTxtKey = '', homeCls = '';
 let skyCtx = null, skyTex = null, skyMesh = null, beacon = null, beaconMat = null, lmPoleGeo = null, lmPoleMat = null;
-let sunEl = null, hemiEl = null;
+let sunEl = null, hemiEl = null, terrainEl = null;
+let rocks = null, rockCx = 1e9, rockCz = 1e9, beaconDash = null, dashMat = null;
+let shadowOn = false, shadowCx = 1e9, shadowCz = 1e9, shadowDirty = true, shadowLight = null, shadowTarget = null, shadowT0 = -1, shadowSum = 0, shadowN = 0;
+const sunDir = [0.5, 0.7, 0.5];
+let stripW = 600, tapeX = NaN, headTxt = -1, homeTapeX = NaN, homeTapeCls = '';
+let fpsEl = null, fpsT = new Float32Array(512), fpsD = new Float32Array(512), fpsI = 0, fpsNext = 0;
 let vw = innerWidth, vh = innerHeight;
-addEventListener('resize', () => { vw = innerWidth; vh = innerHeight; });
+addEventListener('resize', () => { vw = innerWidth; vh = innerHeight; const s = $('strip'); if (s) stripW = s.clientWidth; });
 
 // ---------- state card (waiting / loading / error) ----------
 function renderCard() {
@@ -137,7 +151,10 @@ function setEnv(tau, ltst, visKm) {
     skyTex.needsUpdate = true;
   }
   if (sunEl) {
-    sunEl.setAttribute('position', sunPosition(l).map(Math.round).join(' '));
+    const sp = sunPosition(l);
+    sunEl.setAttribute('position', sp.map(Math.round).join(' '));
+    for (let i = 0; i < 3; i++) sunDir[i] = sp[i] / SUN_DIST;
+    shadowDirty = true;
     sunEl.setAttribute('light', 'intensity', (1.6 * Math.exp(-t / 5) + 0.25).toFixed(2));
   }
   if (hemiEl) hemiEl.setAttribute('light', 'intensity', (0.7 + 0.25 * f).toFixed(2));
@@ -154,6 +171,153 @@ function makeBeacon() {
   beacon.renderOrder = 999;
   beacon.frustumCulled = false;
   sceneEl.object3D.add(beacon);
+  // hidden-behind-terrain variant: same pillar, dimmer, striped alpha so it reads as dashed
+  const c = document.createElement('canvas');
+  c.width = 4; c.height = 64;
+  const g = c.getContext('2d');
+  g.fillStyle = '#000'; g.fillRect(0, 0, 4, 64);
+  g.fillStyle = '#fff'; g.fillRect(0, 0, 4, 32);
+  const tex = new THREE.CanvasTexture(c);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.set(1, BEACON_DASH_REPEAT);
+  dashMat = new THREE.MeshBasicMaterial({ color: 0x9fe6ff, transparent: true, opacity: 0.3, alphaMap: tex, depthTest: false, depthWrite: false, fog: false, side: THREE.DoubleSide });
+  beaconDash = new THREE.Mesh(beacon.geometry, dashMat);
+  beaconDash.position.copy(beacon.position);
+  beaconDash.renderOrder = 999;
+  beaconDash.frustumCulled = false;
+  beaconDash.visible = false;
+  sceneEl.object3D.add(beaconDash);
+}
+
+// ---------- rocks: one InstancedMesh, deterministic per world-grid cell ----------
+const rockDummy = { o: null, c: null };
+function hash01(ix, iz, salt) {      // integer hash -> [0,1)
+  let h = Math.imul(ix | 0, 374761393) ^ Math.imul(iz | 0, 668265263) ^ Math.imul(salt | 0, 2246822519);
+  h = Math.imul(h ^ (h >>> 13), 1274126177);
+  h ^= h >>> 16;
+  return (h >>> 0) / 4294967296;
+}
+function makeRocks() {
+  const cap = Math.ceil(ROCK_COUNT * 1.2);
+  const mat = new THREE.MeshStandardMaterial({ color: ROCK_COLOR, roughness: 1, metalness: 0, flatShading: true });
+  rocks = new THREE.InstancedMesh(new THREE.DodecahedronGeometry(1, 0), mat, cap);
+  rocks.frustumCulled = false;      // instances move on re-scatter; bounding sphere would go stale
+  rocks.count = 0;
+  rocks.castShadow = true; rocks.receiveShadow = true;
+  rockDummy.o = new THREE.Object3D();
+  rockDummy.c = new THREE.Color();
+  rocks.setColorAt(0, rockDummy.c.setRGB(1, 1, 1));   // allocates the colour buffer once
+  sceneEl.object3D.add(rocks);
+}
+function scatterRocks(cx, cz) {
+  rockCx = cx; rockCz = cz;
+  const cap = rocks.instanceMatrix.count;
+  const perCell = ROCK_COUNT / (Math.PI * ROCK_RADIUS_M * ROCK_RADIUS_M / (ROCK_CELL_M * ROCK_CELL_M));
+  const i0 = Math.floor((cx - ROCK_RADIUS_M) / ROCK_CELL_M), i1 = Math.floor((cx + ROCK_RADIUS_M) / ROCK_CELL_M);
+  const j0 = Math.floor((cz - ROCK_RADIUS_M) / ROCK_CELL_M), j1 = Math.floor((cz + ROCK_RADIUS_M) / ROCK_CELL_M);
+  const o = rockDummy.o, col = rockDummy.c, r2 = ROCK_RADIUS_M * ROCK_RADIUS_M, clr2 = ROCK_CLEAR_HOME_M * ROCK_CLEAR_HOME_M;
+  let n = 0;
+  for (let j = j0; j <= j1 && n < cap; j++) for (let i = i0; i <= i1 && n < cap; i++) {
+    const k = Math.floor(perCell + hash01(i, j, 1));
+    for (let q = 0; q < k && n < cap; q++) {
+      const x = (i + hash01(i, j, 10 + q * 9)) * ROCK_CELL_M, z = (j + hash01(i, j, 11 + q * 9)) * ROCK_CELL_M;
+      if ((x - cx) * (x - cx) + (z - cz) * (z - cz) > r2 || x * x + z * z < clr2) continue;
+      const u = hash01(i, j, 12 + q * 9), sz = ROCK_MIN_M + (ROCK_MAX_M - ROCK_MIN_M) * u * u;   // many pebbles, few boulders
+      const sq = hash01(i, j, 13 + q * 9), sq2 = hash01(i, j, 14 + q * 9);
+      const sy = sz * (0.45 + 0.4 * sq);
+      const g = terrain.heightAt(x, z);
+      o.position.set(x, (fin(g) ? g : 0) + sy * 0.25, z);     // slightly sunk
+      o.rotation.set(hash01(i, j, 15 + q * 9) * 6.283, hash01(i, j, 16 + q * 9) * 6.283, hash01(i, j, 17 + q * 9) * 6.283);
+      o.scale.set(sz * (0.8 + 0.5 * sq2), sy, sz * (0.8 + 0.5 * (1 - sq)));
+      o.updateMatrix();
+      rocks.setMatrixAt(n, o.matrix);
+      const v = 0.7 + 0.4 * hash01(i, j, 18 + q * 9);
+      rocks.setColorAt(n, col.setRGB(v, v * 0.97, v * 0.94));
+      n++;
+    }
+  }
+  rocks.count = n;
+  rocks.instanceMatrix.needsUpdate = true;
+  if (rocks.instanceColor) rocks.instanceColor.needsUpdate = true;
+  shadowDirty = true;
+}
+
+// ---------- sun shadows ----------
+function setupShadows() {
+  if (!SHADOWS || shadowOn || !sceneEl.renderer || !sceneEl.systems || !sceneEl.systems.shadow) return;
+  const tm = terrain && terrainEl && terrainEl.getObject3D('mesh');
+  if (!tm || !sunEl) return;                    // terrain mesh must be reachable, else no shadows
+  try {
+    sunEl.setAttribute('light', { castShadow: true, shadowMapWidth: SHADOW_MAP, shadowMapHeight: SHADOW_MAP,
+      shadowCameraLeft: -SHADOW_HALF_M, shadowCameraRight: SHADOW_HALF_M, shadowCameraTop: SHADOW_HALF_M, shadowCameraBottom: -SHADOW_HALF_M,
+      shadowCameraNear: 1, shadowCameraFar: SHADOW_LIGHT_DIST_M * 2, shadowBias: -0.0006 });
+    shadowLight = sunEl.getObject3D('light');
+    if (!shadowLight || !shadowLight.shadow) return;
+    shadowLight.shadow.normalBias = 0.3;
+    shadowTarget = new THREE.Object3D();
+    sceneEl.object3D.add(shadowTarget);
+    shadowLight.target = shadowTarget;
+    tm.receiveShadow = true;                    // terrain only receives (it would be the costly caster)
+    sceneEl.renderer.shadowMap.autoUpdate = false;   // re-render the map only when the sun or the camera step moves it
+    sceneEl.systems.shadow.setShadowMapEnabled(true);  // also flags all materials for recompile
+    shadowOn = true; shadowDirty = true; shadowCx = 1e9; shadowT0 = -1;
+    flagCasters();
+  } catch (e) { console.warn('helmet: shadows unavailable', e); disableShadows(); }
+}
+const casterEls = [];
+function flagCasters() {
+  if (!shadowOn) return;
+  for (const el of casterEls) {
+    el.object3D.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+  }
+  shadowDirty = true;
+}
+function disableShadows() {
+  if (!shadowOn && !shadowLight) return;
+  shadowOn = false;
+  try {
+    if (sunEl) {
+      sunEl.setAttribute('light', 'castShadow', false);
+      sunEl.setAttribute('position', sunDir.map((v) => Math.round(v * SUN_DIST)).join(' '));
+      sunEl.object3D.position.set(sunDir[0] * SUN_DIST, sunDir[1] * SUN_DIST, sunDir[2] * SUN_DIST);
+    }
+    if (shadowLight) shadowLight.castShadow = false;
+    if (shadowTarget) shadowTarget.position.set(0, 0, 0);
+    if (sceneEl.systems && sceneEl.systems.shadow) sceneEl.systems.shadow.setShadowMapEnabled(false);
+  } catch (e) { /* keep rendering */ }
+  console.info('helmet: shadows switched off (slow frames or unavailable)');
+}
+// per frame: cheap. Moves the shadow window in steps and re-renders the map only then; also watches frame time.
+function updateShadows(cx, cy, cz, timeMs, dt) {
+  if (!shadowOn) return;
+  if (Math.hypot(cx - shadowCx, cz - shadowCz) > SHADOW_STEP_M || shadowDirty) {
+    shadowDirty = false;
+    shadowCx = Math.round(cx / SHADOW_SNAP_M) * SHADOW_SNAP_M; shadowCz = Math.round(cz / SHADOW_SNAP_M) * SHADOW_SNAP_M;
+    const gy = terrain.heightAt(shadowCx, shadowCz);
+    const ty = fin(gy) ? gy : cy;
+    shadowTarget.position.set(shadowCx, ty, shadowCz);
+    sunEl.object3D.position.set(shadowCx + sunDir[0] * SHADOW_LIGHT_DIST_M, ty + sunDir[1] * SHADOW_LIGHT_DIST_M, shadowCz + sunDir[2] * SHADOW_LIGHT_DIST_M);
+    sceneEl.renderer.shadowMap.needsUpdate = true;
+  }
+  // auto-off: average frame time after a warm-up (compiles / texture uploads are slow)
+  if (shadowT0 < 0) { shadowT0 = timeMs; shadowSum = 0; shadowN = 0; }
+  const el = timeMs - shadowT0;
+  if (el > SHADOW_WARMUP_MS && dt < 250) { shadowSum += dt; shadowN++; }
+  if (el > SHADOW_WARMUP_MS + SHADOW_PROBE_MS) {
+    if (shadowN > 20 && shadowSum / shadowN > SHADOW_MAX_AVG_MS) disableShadows();
+    else shadowT0 = 1e12;     // verdict: keep them
+  }
+}
+
+// ---------- ?fps=1 meter: average fps and worst frame over the last 2 s ----------
+function fpsTick(timeMs, dt) {
+  if (!fpsEl) return;
+  fpsT[fpsI] = timeMs; fpsD[fpsI] = dt; fpsI = (fpsI + 1) & 511;
+  if (timeMs < fpsNext) return;
+  fpsNext = timeMs + 500;
+  let sum = 0, n = 0, worst = 0;
+  for (let i = 0; i < 512; i++) if (fpsT[i] > timeMs - 2000) { sum += fpsD[i]; n++; if (fpsD[i] > worst) worst = fpsD[i]; }
+  if (n) fpsEl.textContent = (1000 * n / sum).toFixed(0) + ' fps  worst ' + worst.toFixed(0) + ' ms' + (shadowOn ? '  shadows' : '');
 }
 
 function placeModel(name, x, y, z, rotY) {
@@ -163,6 +327,8 @@ function placeModel(name, x, y, z, rotY) {
   el.setAttribute('position', `${x} ${y} ${z}`);
   el.setAttribute('rotation', `0 ${rotY} 0`);
   sceneEl.appendChild(el);
+  casterEls.push(el);
+  [600, 2000, 5000].forEach((ms) => setTimeout(flagCasters, ms));   // model parts are child entities that attach a little later
 }
 function makeModels() {
   const h0 = terrain.heightAt(0, 0);
@@ -316,9 +482,11 @@ function apply(m) {
   if (key !== routeKey) { routeKey = key; if (r && r.ok) buildRoute(r.points, storm); else clearRoute(); }
 }
 
+const LVL_RANK = { RED: 0, AMBER: 1, GREEN: 2 };
 function hud(inputs, derived) {
   const b = derived.budget, lim = derived.limits;
   const panel = $('panel-status');
+  const sub = $('hud-sub'), turnRow = $('row-turn');
   if (b) {
     panel.dataset.level = b.status;
     if (lastLevel !== null && lastLevel !== b.status) {      // short pop when GO / TURN BACK / RETURN NOW changes
@@ -327,26 +495,37 @@ function hud(inputs, derived) {
     }
     lastLevel = b.status;
     $('hud-headline').textContent = b.headline;
-    $('hud-sub').textContent = `${Math.round(b.suitMinLeft)} min suit time left\n${Math.round(b.returnMin)} min to walk home`
-      + (fin(b.turnBackInMin) && b.status !== 'RED' ? `\nTurn back in ${Math.round(b.turnBackInMin)} min` : '');
+    sub.hidden = true;
+    $('time-suit').textContent = Math.round(b.suitMinLeft) + ' min';
+    $('time-home').textContent = Math.round(b.returnMin) + ' min';
+    const showTurn = fin(b.turnBackInMin) && b.status !== 'RED';
+    turnRow.hidden = !showTurn;
+    if (showTurn) $('time-turn').textContent = Math.round(b.turnBackInMin) + ' min';
     const suit = (b.factors || []).find((f) => f.id === 'suit_time');
     const tag = suit ? sourceTag(suit.keys) : '';
     $('hud-tag').textContent = tag ? 'Suit-time figures: ' + tag : '';
+    // at most 3 lines, worst level first (display order only)
+    const fs = (b.factors || []).slice().sort((p, q) => (LVL_RANK[p.level] ?? 3) - (LVL_RANK[q.level] ?? 3)).slice(0, 3);
     const list = $('factors'); list.textContent = '';
-    (b.factors || []).slice(0, 3).forEach((f) => {
+    fs.forEach((f) => {
       const li = document.createElement('li');
       const l = document.createElement('span'); l.className = 'lvl ' + f.level; l.textContent = f.level;
-      const t = document.createElement('span'); t.textContent = ' ' + f.label + ': ' + f.message;
-      const s = document.createElement('span'); s.className = 'src';
-      const tg = sourceTag(f.keys); s.textContent = tg ? ' [' + tg + ']' : '';
-      li.append(l, t, s); list.appendChild(li);
+      const t = document.createElement('span'); t.className = 'txt'; t.textContent = f.label + ': ' + f.message;
+      li.title = f.label + ': ' + f.message;
+      li.append(l, t);
+      const tg = sourceTag(f.keys);
+      if (tg) { const s = document.createElement('span'); s.className = 'src'; s.textContent = tg; li.appendChild(s); }
+      list.appendChild(li);
     });
-    $('panel-factors').hidden = false;
+    $('panel-factors').hidden = !fs.length;
   } else {
     panel.dataset.level = 'none';
     lastLevel = null;
     $('hud-headline').textContent = 'PREVIEW';
-    $('hud-sub').textContent = 'Standalone view: no live walk budget.\nOpen from the main app for status.';
+    sub.textContent = 'No live walk budget. Open from the main app.';
+    sub.hidden = false;
+    $('time-suit').textContent = '—'; $('time-home').textContent = '—';
+    turnRow.hidden = true;
     $('hud-tag').textContent = '';
     $('panel-factors').hidden = true;
   }
@@ -354,15 +533,17 @@ function hud(inputs, derived) {
   const banner = $('storm');
   banner.hidden = !storm;
   if (storm) banner.textContent = 'SOLAR PARTICLE EVENT — follow the red route to the habitat';
-  if (storm !== stormShown) { stormShown = storm; $('hud').classList.toggle('storm-on', storm); }
 
-  $('env-home').textContent = (homeInfo.distM / 1000).toFixed(1) + ' km @ ' + Math.round(homeInfo.bearing) + '°';
   $('env-tau').textContent = fin(inputs.tau) ? inputs.tau.toFixed(1) : '—';
   $('env-vis').textContent = Math.round(lim.visibilityKm) + ' km';
   $('env-unc').textContent = fin(derived.posUncertaintyM) ? '± ' + Math.round(derived.posUncertaintyM) + ' m' : '—';
   const r = derived.routeHome;
   $('env-route').textContent = r && r.ok === false ? 'No safe route: ' + (r.reason || 'unknown reason') : '';
-  $('compass-text').textContent = 'HOME ' + (homeInfo.distM / 1000).toFixed(1) + ' km';
+  // bottom-centre card: distance + bearing, and why the habitat may not be visible
+  $('home-dist').textContent = 'Home ' + (homeInfo.distM / 1000).toFixed(1) + ' km · ' + Math.round(homeInfo.bearing) + '°';
+  const st = $('home-state');
+  const stTxt = homeInfo.distM < NEAR_HOME_M ? '' : homeInfo.hidden ? 'hidden behind terrain' : homeInfo.beyondVis ? 'beyond dust visibility' : '';
+  st.textContent = stTxt; st.hidden = !stTxt;
 }
 
 function landmarkVisibility(a, visKm) {
@@ -408,20 +589,37 @@ function frame(timeMs, deltaMs) {
   if (!current || !terrain || !sceneEl.camera) return;
   const dt = Math.min(MAX_DT_S, (deltaMs || 16) / 1000);
   smoothCamera(dt);
+  const cp = rig.object3D.position;
+  if (rocks && Math.hypot(cp.x - rockCx, cp.z - rockCz) > ROCK_RESCATTER_M) scatterRocks(cp.x, cp.z);
+  updateShadows(cp.x, cp.y, cp.z, timeMs, deltaMs || 16);
   const nearHome = homeInfo.distM < NEAR_HOME_M;
-  if (beacon) beacon.visible = !nearHome;
-  if (beaconMat) {   // slow pulse (opacity + width); static under reduced motion
-    if (reduceMotionQ.matches) { beaconMat.opacity = 0.6; beacon.scale.set(1, 1, 1); }
-    else {
-      const w = 0.5 + 0.5 * Math.sin(timeMs / 1000 * 2 * Math.PI / BEACON_PULSE_S);
-      beaconMat.opacity = 0.42 + 0.28 * w; const sc = 1 + 0.35 * w; beacon.scale.set(sc, 1, sc);
+  if (beacon) {
+    // line of sight clear: solid pulsing pillar. Blocked by terrain: dimmer, dashed pillar (still drawn through the hill).
+    const hid = homeInfo.hidden;
+    beacon.visible = !nearHome && !hid;
+    if (beaconDash) beaconDash.visible = !nearHome && hid;
+    if (beaconMat) {   // slow pulse (opacity + width); static under reduced motion
+      if (reduceMotionQ.matches) { beaconMat.opacity = 0.6; beacon.scale.set(1, 1, 1); dashMat.opacity = 0.3; beaconDash.scale.set(1, 1, 1); }
+      else {
+        const w = 0.5 + 0.5 * Math.sin(timeMs / 1000 * 2 * Math.PI / BEACON_PULSE_S);
+        beaconMat.opacity = 0.42 + 0.28 * w; const sc = 1 + 0.35 * w; beacon.scale.set(sc, 1, sc);
+        dashMat.opacity = 0.22 + 0.12 * w; beaconDash.scale.set(sc, 1, sc);
+      }
     }
   }
   const cam = sceneEl.camera;
   cam.getWorldDirection(tmpV);
   const viewHeading = (Math.atan2(tmpV.x, -tmpV.z) * 180 / Math.PI + 360) % 360;
   const rel = ((homeInfo.bearing - viewHeading + 540) % 360) - 180;
-  $('compass-arrow').style.transform = `rotate(${rel.toFixed(1)}deg)`;
+  // compass tape: one translate per frame, written only when the pixel offset changes (no layout reads)
+  const tx = Math.round((stripW / 2 - (viewHeading + 360) * TAPE_PX_PER_DEG) * 2) / 2;
+  if (tx !== tapeX) { tapeX = tx; tapeEl.style.transform = `translate3d(${tx}px,0,0)`; }
+  const half = stripW / 2 - 16;
+  const hx = Math.max(-half, Math.min(half, rel * TAPE_PX_PER_DEG));
+  const hcls = Math.abs(rel * TAPE_PX_PER_DEG) > half ? (rel > 0 ? 'edge-r' : 'edge-l') : '';
+  if (hcls !== homeTapeCls) { homeTapeCls = hcls; tapeHome.className = hcls; }
+  const hxr = Math.round(hx + stripW / 2);
+  if (hxr !== homeTapeX) { homeTapeX = hxr; tapeHome.style.left = hxr + 'px'; }
 
   // home label (own two-line box: name + hidden / beyond-visibility note)
   const homeLabel = $('home-label');
@@ -477,6 +675,26 @@ function frame(timeMs, deltaMs) {
   }
 }
 
+// ---------- compass tape (built once) ----------
+const tapeEl = $('tape'), tapeHome = $('tape-home');
+function buildTape() {
+  const CARD = { 0: 'N', 90: 'E', 180: 'S', 270: 'W' };
+  const frag = document.createDocumentFragment();
+  for (let k = 0; k < TAPE_TURNS; k++) {
+    for (let d = 0; d < 360; d += 30) {
+      const sp = document.createElement('span');
+      const c = CARD[d];
+      sp.className = 't' + (c ? ' c' : '') + (d === 0 ? ' n' : '');
+      sp.textContent = c || String(d);
+      sp.style.left = ((d + 360 * k) * TAPE_PX_PER_DEG) + 'px';
+      frag.appendChild(sp);
+    }
+  }
+  tapeEl.appendChild(frag);
+  tapeHome.hidden = false;
+  stripW = $('strip').clientWidth || stripW;
+}
+
 // ---------- boot ----------
 function onTerrain(t) {
   terrain = t;
@@ -486,7 +704,9 @@ function onTerrain(t) {
   makeSky();
   makeModels();
   makeBeacon();
+  makeRocks();
   makeLandmarks();
+  setupShadows();
   if (pending) { try { apply(pending); } catch (e) { console.error('helmet apply failed', e); note('Display error: ' + e.message); } }
   renderCard();
 }
@@ -544,7 +764,9 @@ function setupPause() {
 async function boot() {
   renderCard();
   if (!window.AFRAME) { fail('A-Frame failed to load (CDN unreachable). Reload the page.'); return; }
-  AFRAME.registerComponent('helmet-tick', { tick(t, dt) { try { frame(t, dt); } catch (e) { /* keep rendering */ } } });
+  AFRAME.registerComponent('helmet-tick', { tick(t, dt) { fpsTick(t, dt); try { frame(t, dt); } catch (e) { /* keep rendering */ } } });
+  buildTape();
+  if (params.get('fps') === '1') { fpsEl = $('fps'); fpsEl.hidden = false; }
   sunEl = $('sun'); hemiEl = $('hemi');
   setupPause();
   sceneEl.setAttribute('helmet-tick', '');
@@ -555,6 +777,7 @@ async function boot() {
 
   const el = document.createElement('a-entity');
   el.id = 'terrain';
+  terrainEl = el;
   el.addEventListener('terrain-error', (e) => fail('Terrain failed to load: ' + (e.detail && e.detail.message)));
   el.addEventListener('terrain-loaded', (e) => { onTerrain(e.detail); if (!inIframe) standalone(); });
   sceneEl.appendChild(el);

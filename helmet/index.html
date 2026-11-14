@@ -28,29 +28,47 @@
   <!-- 2D overlay (text is always set with textContent from helmet.js) -->
   <div id="hud" aria-label="Helmet display">
     <div id="visor" aria-hidden="true"></div>
-    <div id="storm" class="banner" role="alert" hidden></div>
 
-    <section id="panel-status" class="panel" data-level="none" aria-live="polite">
-      <div id="hud-headline" class="headline">STANDBY</div>
-      <div id="hud-sub" class="sub"></div>
-      <div id="hud-tag" class="tag"></div>
-    </section>
+    <div id="top">
+      <!-- compass tape: one translated element, scrolled by the view heading -->
+      <div id="strip" aria-hidden="true">
+        <div id="tape-clip"><div id="tape"></div></div>
+        <div id="tape-notch"></div>
+        <div id="tape-home" hidden>H</div>
+      </div>
 
-    <section id="panel-env" class="panel">
-      <div class="row"><span>Home</span><b id="env-home">—</b></div>
-      <div class="row"><span>Dust &tau;</span><b id="env-tau">—</b></div>
-      <div class="row"><span>Visibility</span><b id="env-vis">—</b></div>
-      <div class="row"><span>Position</span><b id="env-unc">—</b></div>
-      <div id="env-route" class="route-note"></div>
-    </section>
+      <div id="top-row">
+        <section id="panel-time" class="panel small">
+          <div class="row"><span>Suit time</span><b id="time-suit">&mdash;</b></div>
+          <div class="row"><span>To walk home</span><b id="time-home">&mdash;</b></div>
+          <div class="row" id="row-turn" hidden><span>Turn back in</span><b id="time-turn">&mdash;</b></div>
+          <div id="hud-tag" class="tag"></div>
+        </section>
+
+        <div id="top-center">
+          <section id="panel-status" class="panel" data-level="none" aria-live="polite">
+            <div id="hud-headline" class="headline">STANDBY</div>
+            <div id="hud-sub" class="sub" hidden></div>
+          </section>
+          <div id="storm" class="banner" role="alert" hidden></div>
+        </div>
+
+        <section id="panel-env" class="panel small">
+          <div class="row"><span>Dust &tau;</span><b id="env-tau">&mdash;</b></div>
+          <div class="row"><span>Visibility</span><b id="env-vis">&mdash;</b></div>
+          <div class="row"><span>Position</span><b id="env-unc">&mdash;</b></div>
+          <div id="env-route" class="route-note"></div>
+        </section>
+      </div>
+    </div>
 
     <section id="panel-factors" class="panel" hidden>
       <ul id="factors"></ul>
     </section>
 
-    <div id="compass" aria-hidden="true">
-      <div id="compass-arrow"></div>
-      <div id="compass-text">—</div>
+    <div id="home-card" class="panel" aria-live="polite">
+      <div id="home-dist">Home &mdash;</div>
+      <div id="home-state" hidden></div>
     </div>
 
     <div id="home-label" class="mark home" hidden><span id="home-main"></span><span id="home-sub" class="mark-sub" hidden></span></div>
@@ -58,6 +76,7 @@
 
     <div id="notes" class="notes"></div>
   </div>
+  <div id="fps" hidden></div>
 
   <div id="state-card" role="status" aria-live="polite">
     <div id="state-title">Loading terrain…</div>
