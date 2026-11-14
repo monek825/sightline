@@ -84,6 +84,39 @@ try {
     try { computeLimits(BASE, copy); } catch (e) { msg = e.message; }
     return { ok: msg.includes('missing constants') && msg.includes(REQUIRED_KEYS[0]), detail: msg };
   });
+  run('8 SANS at 2 km: status GREEN, vision factor GREEN', () => {
+    const b = budget({ sansAffected: true }, 2);
+    const f = factor(b, 'vision');
+    return { ok: b.status === 'GREEN' && !!f && f.level === 'GREEN', detail: b.status + ' / ' + (f ? f.level : 'no vision factor') };
+  });
+  run('9 SEP at habitat: RED / AT SHELTER, stay inside, 8,100 µGy', () => {
+    const b = budget({ sepActive: true }, 0);
+    const m = factor(b, 'radiation').message;
+    return { ok: b.status === 'RED' && b.headline === 'AT SHELTER' && m.includes('stay inside') && m.includes('8,100 µGy') && !m.includes('Get to shelter'), detail: b.status + ' / ' + b.headline };
+  });
+  run('10 post_eva not at walk start, present after a real walk', () => {
+    const start = budget({ evaMin: 1, distSinceFixM: 30 }, 0.03);
+    const back = budget({ evaMin: 190, distSinceFixM: 3000 }, 0);
+    return { ok: !factor(start, 'post_eva') && !!factor(back, 'post_eva'), detail: 'start ' + !!factor(start, 'post_eva') + ', back ' + !!factor(back, 'post_eva') };
+  });
+  run('11 all 11 factor ids producible; every factor key exists in C', () => {
+    const ids = ['mobility', 'suit_time', 'radiation', 'dust', 'dust_devil', 'cooling', 'cold', 'vision', 'body_clock', 'bone', 'post_eva'];
+    const seen = new Set();
+    let badKeys = [];
+    const scenarios = [
+      [{ sol: 0, ltst: 12, tempC: -80, sansAffected: true, evaMin: 500, sepActive: true, distSinceFixM: 3000 }, 0],
+      [{ sol: 40, ltst: 10, sepActive: false }, 2],
+      [{ sol: 5, ltst: 12, tempC: -80, sansAffected: true, tau: 4, pressurePa: 950, evaMin: 190, distSinceFixM: 3000 }, 0]
+    ];
+    for (const [over, home] of scenarios) {
+      for (const f of budget(over, home).factors) {
+        seen.add(f.id);
+        for (const k of f.keys) if (!(k in C)) badKeys.push(f.id + ':' + k);
+      }
+    }
+    const missing = ids.filter(i => !seen.has(i));
+    return { ok: missing.length === 0 && badKeys.length === 0, detail: 'missing ids [' + missing + '], bad keys [' + badKeys + ']' };
+  });
 } catch (e) {
   report('setup (fetch constants)', false, e.message);
 }

@@ -36,7 +36,7 @@ Export it: `export const REQUIRED_KEYS = [...]`.
 ```js
 {
   status: 'GREEN' | 'AMBER' | 'RED',
-  headline: 'GO' | 'CAUTION' | 'RETURN NOW',
+  headline: 'GO' | 'CAUTION' | 'RETURN NOW' | 'AT SHELTER',   // AT SHELTER = RED while at the habitat
   suitMinLeft: 265,          // usable suit time left (after reserve)
   returnMin: 62,             // minutes needed to walk home incl. safety pad
   marginMin: 203,            // suitMinLeft - returnMin
@@ -96,7 +96,7 @@ All numbers come from `C` (crew_constants.json). Names below are the `key`s.
 - AMBER if `tempC < cold_amber_c` (−70) or `ltst > cold_return_ltst` (16.5): "Air cools fast before dusk (Jezero swings ~50–60 °C per sol). Plan to be home by 17:00."
 
 ### 8. Vision (SANS)
-- If `sansAffected`: AMBER info: "Spaceflight eye changes (+0.5 to +1.75 D far-sighted shift) make distant landmarks harder to recognise — landmark range reduced 20%." (keys `sans_diopter_shift`, `sans_range_factor`)
+- If `sansAffected`: info factor (level GREEN): "Spaceflight eye changes (+0.5 to +1.75 D far-sighted shift) make distant landmarks harder to recognise — landmark range reduced 20%." (keys `sans_diopter_shift`, `sans_range_factor`)
 
 ### 9. Body clock
 - Info only: "Sol is 39.6 min longer than an Earth day → body clock drifts; after sol N the crew has shifted N×39.6 min." Level AMBER if `sol` ≥ 3 and ltst < 8 (early starts while drifting) — estimate rule.
@@ -106,9 +106,10 @@ All numbers come from `C` (crew_constants.json). Names below are the `key`s.
 
 ### 11. After the EVA (checklist, not a level)
 - When `evaMin` reaches EVA end: show "Dust-off before entry: soil is ~0.5–1% perchlorate (thyroid risk)."
+- Trigger: fires when `suitMinLeft <= 0`, or when the crew is at the habitat (route home < 0.05 km) with `evaMin > 0` and `distSinceFixM` (metres walked since the last fix, 0 if missing) greater than 100 m, so it does not show at the start of a walk.
 
 ### Combining
-- `status` = worst level of all factors. `headline`: GREEN → "GO", AMBER → "CAUTION", RED → "RETURN NOW".
+- `status` = worst level of all factors. `headline`: GREEN → "GO", AMBER → "CAUTION", RED → "RETURN NOW" (RED while at the habitat shows "AT SHELTER" instead).
 - Sort `factors` RED → AMBER → GREEN.
 
 ## Tests (`budget.test.html`)
