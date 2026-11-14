@@ -248,7 +248,9 @@ function mk(tag, attrs, parent) {
 }
 
 // tint #fff = image shown untinted (as on the 2D map)
-const terrainAttr = src => `src: ${src}; exaggerate: ${EXAGGERATE}; tint: #ffffff`;
+// Phones / low-core machines get every 2nd grid point (4x fewer triangles); desktops keep the full 40 m grid.
+const LOW_END = matchMedia('(pointer: coarse)').matches || (navigator.hardwareConcurrency ?? 8) <= 4 || (navigator.deviceMemory ?? 8) <= 4;
+const terrainAttr = src => `src: ${src}; exaggerate: ${EXAGGERATE}; tint: #ffffff; step: ${LOW_END ? 2 : 1}`;
 
 function buildScene() {
   const scene = document.createElement('a-scene');
@@ -568,7 +570,20 @@ function createView3D(data, onPickTarget, devils) {
       }
       say(`3D terrain failed: ${e.detail?.message ?? 'unknown error'}`);
     });
-    s.scene.addEventListener('loaded', () => { if (host.hidden) s.scene.pause(); update(); });
+    s.scene.addEventListener('loaded', () => {
+      if (host.hidden) s.scene.pause();
+      update();
+      // GPU ran out of memory or the driver reset: fall back to the 2D map instead of a dead white screen
+      s.scene.canvas?.addEventListener('webglcontextlost', e => {
+        e.preventDefault();
+        $('v-2d').click();
+        say('3D view stopped (graphics memory). Showing the 2D map; reload to try 3D again.');
+        const b = $('banner');
+        b.textContent = '3D view stopped on this device, so the 2D map is shown. Reload to try 3D again.';
+        b.hidden = false;
+        setTimeout(() => { b.hidden = true; }, 6000);
+      }, { once: true });
+    });
     host.prepend(s.scene);
   }
 

@@ -592,28 +592,39 @@ h1, h2, .brand, .tab-title, .skyfix-head h2, .more h2 { font-family: var(--displ
   .player #t-label { display: none; }
 }
 
-/* ---------- intro: line → 30° wedge → SL logo → eye-blink reveal ---------- */
+/* ---------- intro: line → 30° wedge → SL logo → eyelids open ----------
+   Compositor-only (transform + opacity on HTML boxes, CSS keyframes started at parse): keeps running smoothly
+   while the main thread is busy parsing the terrain and uploading textures. JS only adds .is-open when ready. */
 body.intro-on { overflow: hidden; }
-.intro { position: fixed; inset: 0; z-index: 12000; pointer-events: all; transition: opacity 180ms ease; }
-.intro.is-gone { opacity: 0; pointer-events: none; }
-.intro-eye { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
-.intro-lid { fill: var(--bg); }
-.intro-pupil { transform-box: fill-box; transform-origin: center; transform: scaleY(0); transition: transform 500ms cubic-bezier(.7, 0, .2, 1) 250ms; }
-.intro.is-open .intro-pupil { transform: scaleY(1); }
-.intro-mark { position: absolute; left: 50%; top: 50%; width: 240px; height: 160px; --mark-scale: 1.8; transform: translate(-50%, -55%) scale(var(--mark-scale)); transition: opacity 250ms ease, transform 500ms var(--ease-out); }
-.intro.is-open .intro-mark { opacity: 0; transform: translate(-50%, -55%) scale(calc(var(--mark-scale) * 1.06)); }
-.intro-mark svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
-.intro-mark line { stroke: #fff; stroke-width: 1.6; stroke-linecap: square; }
-/* 1. baseline draws left → right */
-.intro-base { stroke-dasharray: 220; stroke-dashoffset: 220; transition: stroke-dashoffset 500ms cubic-bezier(.5, 1, .89, 1); }
-.intro.is-line .intro-base { stroke-dashoffset: 0; }
-/* 2. the arm lies on the baseline, then swings up to 30° around the left end (quadratic ease-out) */
-.intro-arm { opacity: 0; transform-box: view-box; transform-origin: 10px 150px; transform: rotate(0deg); transition: transform 600ms cubic-bezier(.5, 1, .89, 1), opacity 1ms; }
-.intro.is-angle .intro-arm { opacity: 1; transform: rotate(-30.09deg); } /* the logo's own slant, measured */
-/* 3. SL logo fills the wedge: its slanted top sits on the arm (measured slope 30.09°, apex = top of the L),
-   its foot on the baseline. Logo units (of 1500): bounds x 532-976, y 639-871; wedge vertex x 490. Scale 0.45 px/unit. */
-.intro-logo { position: absolute; left: 28.9px; top: 45.6px; width: 200px; height: 104.4px; overflow: hidden; clip-path: inset(0 100% 0 0); transition: clip-path 650ms cubic-bezier(.5, 1, .89, 1); }
+.intro { position: fixed; inset: 0; z-index: 12000; pointer-events: all; overflow: hidden; }
+.intro.is-gone { opacity: 0; transition: opacity 200ms ease; pointer-events: none; }
+.intro-lid { position: absolute; left: -20vw; right: -20vw; height: 50vh; background: var(--bg); will-change: transform;
+  transition: transform 650ms cubic-bezier(.7, 0, .2, 1) 200ms; }
+.intro-lid-top { top: 0; border-radius: 0 0 50% 50% / 0 0 18vh 18vh; transform: translateY(0); }
+.intro-lid-bottom { bottom: 0; border-radius: 50% 50% 0 0 / 18vh 18vh 0 0; transform: translateY(0); }
+/* closed: lids overlap so no gap shows; open: they slide away (top lid up, bottom lid down) */
+.intro-lid-top { height: calc(50vh + 18vh); }
+.intro-lid-bottom { height: calc(50vh + 18vh); }
+.intro.is-open .intro-lid-top { transform: translateY(-105%); }
+.intro.is-open .intro-lid-bottom { transform: translateY(105%); }
+
+.intro-mark { position: absolute; left: 50%; top: 50%; width: 240px; height: 160px; --mark-scale: 1.8;
+  transform: translate(-50%, -55%) scale(var(--mark-scale)); transition: opacity 220ms ease; }
+.intro.is-open .intro-mark { opacity: 0; }
+/* lines are 1.6 px boxes; origin = wedge vertex (10, 150) */
+.intro-base, .intro-arm { position: absolute; left: 10px; top: 149.2px; height: 1.6px; background: #fff; transform-origin: 0 50%; will-change: transform; }
+.intro-base { width: 218.7px; transform: scaleX(0); animation: intro-draw 500ms cubic-bezier(.5, 1, .89, 1) 100ms forwards; }
+.intro-arm { width: 207px; opacity: 0; animation: intro-swing 600ms cubic-bezier(.5, 1, .89, 1) 650ms forwards; }
+@keyframes intro-draw { to { transform: scaleX(1); } }
+@keyframes intro-swing { 0% { opacity: 1; transform: rotate(0deg); } 100% { opacity: 1; transform: rotate(-30.09deg); } }
+/* logo fills the wedge: slanted top on the arm (measured 30.09°), foot on the baseline.
+   Logo units (of 1500): bounds x 532-976, y 639-871; wedge vertex x 490; 0.45 px/unit. */
+.intro-logo { position: absolute; left: 28.9px; top: 45.6px; width: 200px; height: 104.4px; overflow: hidden; opacity: 0;
+  transform: translateY(6px); animation: intro-logo 500ms cubic-bezier(.5, 1, .89, 1) 1250ms forwards; }
 .intro-logo img { position: absolute; left: -239.4px; top: -287.55px; width: 675px; height: 675px; max-width: none; }
-.intro.is-logo .intro-logo { clip-path: inset(0 0 0 0); }
-@media (max-width: 600px) { .intro-mark { --mark-scale: 1.2; } }
+@keyframes intro-logo { to { opacity: 1; transform: none; } }
+.intro-status { position: absolute; left: 0; right: 0; top: 168px; margin: 0; text-align: center; white-space: nowrap;
+  font: 500 7px var(--font); color: var(--muted); opacity: 0; animation: intro-fade 400ms ease 2400ms forwards; }
+@keyframes intro-fade { to { opacity: 1; } }
+@media (max-width: 600px) { .intro-mark { --mark-scale: 1.2; } .intro-status { font-size: 9px; } }
 @media (prefers-reduced-motion: reduce) { .intro { display: none; } }
