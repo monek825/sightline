@@ -46,6 +46,22 @@ const TAPE_PX_PER_DEG = 4, TAPE_TURNS = 3;
 const BEACON_DASH_REPEAT = 24;     // dashes along the pillar when home is hidden behind terrain
 const LABEL_H = 22, LABEL_CHAR_W = 7.4, LABEL_PAD = 14, LABEL_STAGGER = [0, -24, 24];
 
+// Graphics quality (visual only). Auto starts on Medium and drops to Low if frames are slow on this device.
+// Low/Medium render below full Retina resolution; pebbles, shadows and the dust veil scale with the level.
+const QUALITY = {
+  low:    { dpr: 1,    pebbles: false, shadows: false, dust: 0.35, veil: false },
+  medium: { dpr: 1.25, pebbles: true,  shadows: false, dust: 0.6,  veil: true },
+  high:   { dpr: 2,    pebbles: true,  shadows: true,  dust: 1,    veil: true }
+};
+// Walking faster than this (the demo's time-lapse is ~100 m/s) the small rocks are hidden: they'd be a blur anyway,
+// and re-placing thousands of them every frame was the main cause of the walking stutter.
+const FAST_PEBBLES_MS = 8, FAST_ROCKS_MS = 25;
+const AUTO_WARMUP_MS = 2500, AUTO_PROBE_MS = 3000, AUTO_SLOW_MS = 30;
+const GFX_KEY = 'sightline-gfx';
+let gfxChoice = 'auto', gfxAuto = 'medium', q = QUALITY.medium, autoT0 = -1, autoSum = 0, autoN = 0;
+let camPrev = null, camSpeed = 0;
+try { gfxChoice = localStorage.getItem(GFX_KEY) || 'auto'; } catch { /* storage blocked: Auto */ }
+
 const inIframe = window.parent !== window;
 const params = new URLSearchParams(location.search);
 
@@ -57,7 +73,7 @@ let homeInfo = { distM: 0, bearing: 0, hidden: false, beyondVis: false };
 const lmEls = [];                 // { lm, label, pole, ... }
 let lmOrder = [];                 // visible landmarks, nearest first (for label de-cluttering)
 // HUD panels landmark labels must not cover (rects re-read twice a second; cheap, and they only move on resize / text change)
-const HUD_BOX_IDS = ['strip', 'panel-time', 'panel-status', 'storm', 'panel-env', 'panel-factors', 'home-card'];
+const HUD_BOX_IDS = ['strip', 'panel-time', 'panel-status', 'storm', 'panel-env', 'panel-factors', 'home-card', 'gfx'];
 const HUD_BOX_PAD = 4, HUD_BOX_EVERY_MS = 500;
 const hudBox = new Float32Array(HUD_BOX_IDS.length * 4);
 let hudBoxN = 0, hudBoxNext = 0;
@@ -355,11 +371,11 @@ function dustLook(tau) {
   const amt = Math.min(1, Math.max(0, (tau - 0.6) / (DUST_TAU_FULL - 0.6)));
   dustAmt = amt;
   dust.visible = amt > 0.01;
-  dust.geometry.setDrawRange(0, Math.round(DUST_N * (0.25 + 0.75 * amt)));
+  dust.geometry.setDrawRange(0, Math.round(DUST_N * (0.25 + 0.75 * amt) * q.dust));
   dustU.uOpacity.value = 0.35 + 0.55 * amt;
   const w = 3 + 15 * amt, a = DUST_WIND_DEG * Math.PI / 180;   // m/s, towards DUST_WIND_DEG (same drift as the map's devils)
   dustU.uWind.value.set(Math.sin(a) * w, -Math.cos(a) * w);
-  if (veil) { veil.visible = amt > 0.05; veilU.uAmt.value = amt; }
+  if (veil) { veil.visible = q.veil && amt > 0.05; veilU.uAmt.value = amt; }
 }
 // per frame: slide the veil with the wind as seen across the view, and with the view heading so turning moves it
 function updateVeil(dt, t, fx, fz) {
@@ -505,6 +521,7 @@ function updateZoom(dt) {
 
 // ---------- sun shadows ----------
 function setupShadows() {
+  if (!q.shadows) return;
   if (!SHADOWS || shadowOn || !sceneEl.renderer || !sceneEl.systems || !sceneEl.systems.shadow) return;
   const tm = terrain && terrainEl && terrainEl.getObject3D('mesh');
   if (!tm || !sunEl) return;                    // terrain mesh must be reachable, else no shadows
@@ -571,14 +588,57 @@ function updateShadows(cx, cy, cz, timeMs, dt) {
 }
 
 // ---------- ?fps=1 meter: average fps and worst frame over the last 2 s ----------
+function applyQuality() {
+  q = QUALITY[gfxChoice === 'auto' ? gfxAuto : gfxChoice] || QUALITY.medium;
+  const r = sceneEl.renderer;
+  if (r) { r.setPixelRatio(Math.min(q.dpr, window.devicePixelRatio || 1)); if (sceneEl.resize) sceneEl.resize(); }
+  if (q.shadows) { if (terrain) setupShadows(); } else disableShadows();
+  dustLook(tauNow);
+  for (const b of document.querySelectorAll('#gfx [data-q]')) b.setAttribute('aria-pressed', String(b.dataset.q === gfxChoice));
+  const lv = $('gfx-level');
+  if (lv) lv.textContent = gfxChoice === 'auto' ? `Auto: ${gfxAuto}` : '';
+}
+function setupGfx() {
+  for (const b of document.querySelectorAll('#gfx [data-q]')) b.addEventListener('click', () => {
+    gfxChoice = b.dataset.q;
+    try { localStorage.setItem(GFX_KEY, gfxChoice); } catch { /* fine */ }
+    autoT0 = -1;
+    applyQuality();
+  });
+  applyQuality();
+}
+// Auto: after a warm-up, measure frame time; if this device is slow on Medium, step down to Low.
+function autoTick(timeMs, dt) {
+  if (gfxChoice !== 'auto' || gfxAuto === 'low' || !terrain) return;
+  if (autoT0 < 0) { autoT0 = timeMs; autoSum = 0; autoN = 0; return; }
+  if (timeMs - autoT0 < AUTO_WARMUP_MS || dt > 500) return;
+  autoSum += dt; autoN++;
+  if (timeMs - autoT0 > AUTO_WARMUP_MS + AUTO_PROBE_MS) {
+    if (autoSum / autoN > AUTO_SLOW_MS) { gfxAuto = 'low'; applyQuality(); }
+    autoT0 = Infinity; // decided
+  }
+}
+// hide the small rocks while moving fast (and on Low); they come back when the walk slows or stops
+function rockLevels(cp, dt) {
+  if (!rocks) return;
+  if (camPrev && dt > 0) camSpeed = camSpeed * 0.8 + 0.2 * Math.hypot(cp.x - camPrev.x, cp.z - camPrev.z) / dt;
+  camPrev = { x: cp.x, z: cp.z };
+  const L = rocks.layers;
+  if (L[0]) L[0].off = !q.pebbles || camSpeed > FAST_PEBBLES_MS;
+  if (L[1]) L[1].off = camSpeed > FAST_ROCKS_MS;
+}
+
 function fpsTick(timeMs, dt) {
-  if (!fpsEl) return;
+  autoTick(timeMs, dt);
+  const gfxFps = $('gfx-fps');
+  if (!fpsEl && !gfxFps) return;
   fpsT[fpsI] = timeMs; fpsD[fpsI] = dt; fpsI = (fpsI + 1) & 511;
   if (timeMs < fpsNext) return;
   fpsNext = timeMs + 500;
   let sum = 0, n = 0, worst = 0;
   for (let i = 0; i < 512; i++) if (fpsT[i] > timeMs - 2000) { sum += fpsD[i]; n++; if (fpsD[i] > worst) worst = fpsD[i]; }
-  if (n) fpsEl.textContent = (1000 * n / sum).toFixed(0) + ' fps  worst ' + worst.toFixed(0) + ' ms' + (shadowOn ? '  shadows' : '');
+  if (n && fpsEl) fpsEl.textContent = (1000 * n / sum).toFixed(0) + ' fps  worst ' + worst.toFixed(0) + ' ms' + (shadowOn ? '  shadows' : '');
+  if (n && gfxFps) gfxFps.textContent = (1000 * n / sum).toFixed(0) + ' fps';
 }
 
 function placeModel(name, x, y, z, rotY, scale = 1) {
@@ -858,6 +918,7 @@ function frame(timeMs, deltaMs) {
   const cam = sceneEl.camera;
   cam.getWorldDirection(tmpV);
   const fwdX = tmpV.x, fwdZ = tmpV.z;
+  rockLevels(cp, dt);
   if (rocks && rocks.update(cp.x, cp.z, fwdX, fwdZ, camT.eye)) shadowDirty = true;
   if (groundU) groundU.uGCam.value.set(cp.x, cp.y, cp.z);
   const tS = timeMs / 1000;
@@ -1072,6 +1133,7 @@ async function boot() {
   setupZoom();
   setupPause();
   sceneEl.setAttribute('helmet-tick', '');
+  if (sceneEl.hasLoaded) setupGfx(); else sceneEl.addEventListener('loaded', setupGfx, { once: true });
 
   try { meta = await fetchJSON('../data/meta.json'); }
   catch (e) { fail('Could not load data/meta.json: ' + e.message); return; }

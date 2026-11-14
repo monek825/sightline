@@ -238,6 +238,13 @@ function setupWelcome() {
 
 function setupHelmet(data) {
   const dlg = document.getElementById('dlg-helmet');
+  // the main 3D map is hidden behind the helmet window: stop drawing it (one WebGL scene at a time)
+  const pauseMain3D = paused => {
+    const sc = document.querySelector('#view3d a-scene');
+    if (!sc?.renderer) return;
+    sc.renderer.setAnimationLoop(paused ? null : sc.render);
+  };
+  dlg.addEventListener('close', () => pauseMain3D(false));
   const frame = document.getElementById('helmet-frame');
   const msg = () => {
     const { inputs, derived } = getStore();
@@ -259,6 +266,7 @@ function setupHelmet(data) {
     if (!ok) { frame.removeAttribute('src'); frame.srcdoc = '<p style="font:16px sans-serif;color:#ccc;padding:24px">Helmet view is not built yet (helmet/index.html).</p>'; }
     else if (!frame.getAttribute('src') || frame.getAttribute('src') === 'about:blank') { frame.removeAttribute('srcdoc'); frame.src = 'helmet/index.html'; }
     dlg.showModal();
+    pauseMain3D(true);
   });
 }
 
