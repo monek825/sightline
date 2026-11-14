@@ -65,9 +65,9 @@ try {
     const f = factor(b, 'suit_time');
     return { ok: f.level === 'RED' && b.marginMin <= 0, detail: 'margin ' + b.marginMin.toFixed(1) };
   });
-  run('4 tau 2.0: visibility ~29 km, with SANS ~23 km', () => {
+  run('4 tau 2.0: visibility ~22 km, with SANS ~17 km', () => {
     const a = lim({ tau: 2.0 }).visibilityKm, s = lim({ tau: 2.0, sansAffected: true }).visibilityKm;
-    return { ok: Math.abs(a - 29.3) <= 1 && Math.abs(s - 23.5) <= 1, detail: a.toFixed(1) + ' / ' + s.toFixed(1) };
+    return { ok: Math.abs(a - 21.5) <= 1 && Math.abs(s - 17.2) <= 1, detail: a.toFixed(1) + ' / ' + s.toFixed(1) };
   });
   run('5 sol 0: speed = 0.6 x base, maxSlopeDeg 10', () => {
     const l = lim({ sol: 0 });

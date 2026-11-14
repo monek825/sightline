@@ -145,9 +145,9 @@ export function prepareScenario(scenario, data, M, targetOverride = null, outMod
   });
 }
 
-// Dust arrives gradually, not in one step (real storms build over sols: Gale 2018 went 0.6 -> 8.5 in ~12 sols,
-// Jezero Jan 2022 0.3 -> 0.8 in 2 sols; Guzewich 2019, Lemmon 2022). The demo compresses that into DUST_RAMP_MIN of EVA time,
-// with gusty bursts on the way up (Perseverance saw 21 dust-lifting gusts in 25 min). Visual pacing, not a forecast.
+// Dust arrives gradually, not in one step (real storms build over sols: Gale 2018 peaked near tau 8.5,
+// Jezero Jan 2022 went ~0.3 -> ~2 over about 4 sols; Guzewich 2019, Lemmon 2022). The demo compresses that into DUST_RAMP_MIN of EVA time,
+// with gusty bursts on the way up (Perseverance saw 21 dust-lifting events in 25 min: 14 dust devils, 4 gusts, 3 indeterminate). Visual pacing, not a forecast.
 // An event with rampMin: 0 (e.g. the dust slider) applies at once.
 export const DUST_RAMP_MIN = 20;
 const GUST = 0.18; // up to ±18 % gust bursts while the dust is rising

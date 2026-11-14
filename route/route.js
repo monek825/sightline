@@ -6,7 +6,7 @@ import { toCell, toLatLon, distM } from '../lib/geo.js';
 
 const MODES = ['shortest', 'safest', 'homeInSight'];
 const TOBLER_NORM = Math.exp(-0.175);
-const HEURISTIC_DIV = 1.2; // tobler peaks ~1.19 on gentle downhill
+const HEURISTIC_DIV = 1; // tobler is capped at 1.0 (no downhill bonus), so straight line at full speed is a lower bound
 const LOOKAHEAD = 60; // max cells a string-pull shortcut may skip ahead
 
 // ---- minimal binary min-heap (parallel arrays: key f, value node id) ----
@@ -51,7 +51,8 @@ function fail(mode, reason) {
 }
 
 function tobler(tanSigned) {
-  return Math.exp(-3.5 * Math.abs(tanSigned + 0.05)) / TOBLER_NORM;
+  // capped at 1.0: no downhill bonus for a suited walker on loose regolith
+  return Math.min(1, Math.exp(-3.5 * Math.abs(tanSigned + 0.05)) / TOBLER_NORM);
 }
 
 export function planRoute(grid, bounds, vis, start, goal, opts) {

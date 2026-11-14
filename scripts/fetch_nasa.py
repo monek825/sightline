@@ -26,7 +26,7 @@ HEADERS = {"User-Agent": "sightline-hackathon-data-fetch/1.0"}
 
 TARGETS = [  # id, name, sol
     ("landing", "Octavia E. Butler Landing", 13),
-    ("three_forks", "Three Forks sample depot (approx.)", 648),
+    ("three_forks", "Three Forks sample depot (approx.)", 653),
     ("cheyava_falls", "Cheyava Falls sample area (approx.)", 1174),
     ("delta_top", "Upper delta (approx.)", 1320),
     ("crater_rim", "Crater rim (approx.)", 2022),

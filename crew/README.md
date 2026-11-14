@@ -79,17 +79,17 @@ All numbers come from `C` (crew_constants.json). Names below are the `key`s.
 - Note in UI: DONKI reports events seen near Earth; we use it as a **replay trigger** for the Mars event, not a live Mars forecast.
 
 ### 4. Dust storms → visibility (feeds blind zones)
-- Horizontal visibility (Koschmieder): `visKm = 3.912 / (tau / vis_dust_scale_height_km)` (scale height 15 km = estimate: dust spread evenly through the lower atmosphere).
+- Horizontal visibility (Koschmieder): `visKm = 3.912 / (tau / vis_dust_scale_height_km)` (scale height 11 km = estimate: near-surface dust scale height ~8–11 km, CO₂ scale height ~10.8 km; indicative only, terrain limits the view first).
 - If `sansAffected`: `visKm *= sans_range_factor` (0.8, estimate).
 - Cap at 150 km (beyond the crater anyway).
-- AMBER if tau > `tau_amber` (1.0); RED if tau > `tau_red` (3.0). Message: "Dust τ = 2.0 → landmarks beyond ~29 km lost. Blind zones growing."
+- AMBER if tau > `tau_amber` (1.0); RED if tau > `tau_red` (3.0). Message: "Dust τ = 2.0 → landmarks beyond ~22 km lost. Blind zones growing."
 - Context line: Jezero normal τ ≈ 0.3–0.5; the Jan 2022 regional storm pushed τ to ~1.7–2 (`tau_jan2022_storm`).
 
 ### 5. Dust devils
-- If `ltst` within `dust_devil_peak_start_ltst`–`dust_devil_peak_end_ltst` (11–14 h) → AMBER: "Dust-devil peak hours (Perseverance saw >4 per sol, peak 12–13 h). Winds up to 32 m/s feel like a ~3.6 m/s breeze on Earth because the air is ~80× thinner — not a knock-down risk; risk is sudden zero visibility and dust on visor/joints. Keep a landmark in sight."
+- If `ltst` within `dust_devil_peak_start_ltst`–`dust_devil_peak_end_ltst` (11–14 h) → AMBER: "Dust-devil peak hours (Perseverance saw >4 per sol, peak 12–13 h). Winds up to 32 m/s feel like a ~3.8 m/s breeze on Earth (same dynamic pressure; force equivalence only) because the air is ~70× thinner — not a knock-down risk; risk is sudden zero visibility and dust on visor/joints. Keep a landmark in sight."
 
 ### 6. Suit cooling vs air pressure
-- Suit water-sublimator cooling needs ambient pressure ≤ `sublimator_max_pressure_pa` (~933 Pa = 7 Torr).
+- Suit cooling by the water membrane evaporator (SWME) needs ambient pressure ≤ `sublimator_max_pressure_pa` (~933 Pa = 7 Torr; key name kept, a true sublimator cannot work above water's ~611 Pa triple point).
 - `marginPa = sublimator_max_pressure_pa − pressurePa`. RED if ≤ 0, AMBER if < 100, else GREEN with message "Cooling OK: 718 Pa vs 933 Pa limit (Perseverance MEDA)".
 
 ### 7. Cold

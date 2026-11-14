@@ -85,7 +85,7 @@ function buildDialog() {
   how.append(el('summary', null, 'More detail'));
   for (const line of [
     'The horizon for every spot comes from the NASA CTX elevation model of Jezero (20 m per point).',
-    'Perseverance used the same idea while landing, matching its camera view to an orbital map. JPL reports horizon matching at about 10–100 m.',
+    'Perseverance’s landing system matched pictures of the ground below to an orbital map and knew its position to about 40 m. Horizon Match uses a similar idea on the surface: it compares the horizon around the astronaut with NASA terrain.',
     'Tested on simulated views so far. Real photos, dust and suit tilt will make it less accurate.'
   ]) how.append(el('p', null, line));
 
