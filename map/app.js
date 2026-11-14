@@ -5,7 +5,7 @@ import { loadAll } from '../lib/data.js';
 import { createPipeline } from '../lib/pipeline.js';
 import { initStore, setInputs, subscribe, getStore } from '../lib/store.js';
 import { initVisibility, visibilityArrays } from './visibility.js';
-import { prepareScenario, stateAt, pathUpTo } from './scenario.js';
+import { prepareScenario, stateAt, pathUpTo, editScenario } from './scenario.js';
 import { createMapView } from './map.js';
 import { createPanels } from './panels.js';
 import * as stubs from './stubs.js';
@@ -60,8 +60,9 @@ async function boot() {
 
   initVisibility(data.viewsheds, data.landmarks, data.grid, data.bounds);
   let retarget = null; // set by setupScenario below: the clicked target drives the demo walk, not just the orange line
+  let setCondition = null; // likewise: a condition control edits the scenario from the current demo time on
   const view = createMapView(data, { onPickTarget: target => { setInputs({ target }); retarget?.(target); } });
-  const renderPanels = createPanels(data, { setInputs, usingStubs });
+  const renderPanels = createPanels(data, { setInputs, usingStubs, onCondition: (key, value) => setCondition ? setCondition(key, value) : false });
 
   initStore(data, createPipeline(M), { astronaut: { ...data.meta.home, headingDeg: 0 } });
   for (const w of data.warnings) console.warn(w);
@@ -72,7 +73,7 @@ async function boot() {
   const skyIds = (data.targets ?? []).map(t => t.id);
   const skyResults = skyline ? await skyline.loadSkylineResults(skyIds) : {};
   initMotion();
-  retarget = setupScenario(data, M, { skyline, skyResults, map: view.map });
+  ({ retarget = null, setCondition = null } = setupScenario(data, M, { skyline, skyResults, map: view.map }) ?? {});
   setupHelmet(data);
   setupSkyline(view.map, skyline, skyResults);
   setupWelcome();
@@ -83,7 +84,8 @@ async function boot() {
 
 function setupScenario(data, M, sky) {
   if (!data.scenario) { document.getElementById('timeline').hidden = true; return null; }
-  let prep = prepareScenario(data.scenario, data, M);
+  let scenario = data.scenario; // the user's condition edits make a new one; the data file is never touched
+  let prep = prepareScenario(scenario, data, M);
   const play = document.getElementById('t-play');
   const scrub = document.getElementById('t-scrub');
   const label = document.getElementById('t-label');
@@ -135,22 +137,36 @@ function setupScenario(data, M, sky) {
   document.getElementById('t-reset').addEventListener('click', () => { stop(); t = 0; apply(); });
   scrub.addEventListener('input', () => { stop(); t = Number(scrub.value); apply(); });
   document.addEventListener('visibilitychange', () => { if (document.hidden) stop(); });
-  // re-plan the walk for a target + mode; an unreachable one keeps the old walk
-  const replan = (target, mode) => {
+  // swap in a re-prepared walk for scenario `sc`; false (nothing changed) if the new one is unreachable.
+  // clock: 'auto' = out walking keeps the clock and the walked prefix, else restart; 'keep' = keep the clock; 'zero' = restart
+  const swap = (sc, target, mode, clock) => {
     // already out walking (before the turn-back): re-plan from the astronaut's position, keep the clock
-    const walking = t > 0 && (prep.sepT === null || t <= prep.sepT) && t < prep.endT;
-    const from = walking ? { prefix: pathUpTo(prep.outPts, Math.min(prep.mPerMin * t, prep.outLen)), tMin: t } : null;
-    const next = prepareScenario(data.scenario, data, M, target, mode, from);
-    if (!next.outOk) return;
+    const walking = clock !== 'zero' && t > 0 && (prep.sepT === null || t <= prep.sepT) && t < prep.endT;
+    // already heading home and only a condition changed: keep the whole outbound leg so the history does not move
+    const returning = clock === 'keep' && prep.sepT !== null && t > prep.sepT;
+    const from = walking ? { prefix: pathUpTo(prep.outPts, Math.min(prep.mPerMin * t, prep.outLen)), tMin: t }
+      : returning ? { prefix: prep.outPts, tMin: prep.sepT } : null;
+    const next = prepareScenario(sc, data, M, target, mode, from);
+    if (!next.outOk) return false;
     const wasPlaying = playing;
     stop();
-    prep = next; fixEvents = fixesOf(prep);
-    scrub.max = prep.endT; if (!from) t = 0; apply();
+    scenario = sc; prep = next; fixEvents = fixesOf(prep);
+    scrub.max = prep.endT; if (clock === 'zero' || (clock === 'auto' && !from)) t = 0; apply();
     if (wasPlaying) start();
+    return true;
+  };
+  // re-plan the walk for a target + mode; an unreachable one keeps the old walk
+  const replan = (target, mode) => swap(scenario, target, mode, 'auto');
+  // a condition control edit from demo time t on; sol is a different EVA day, so it restarts the walk
+  const setCondition = (key, value) => {
+    const sc = editScenario(scenario, t, key, value, prep.hourMin);
+    if (sc !== scenario && swap(sc, prep.target, prep.custom ? getStore().inputs.routeMode : 'safest', key === 'sol' ? 'zero' : 'keep')) return true;
+    apply(); // no-op or unreachable edit: put the controls back to what the demo shows
+    return true;
   };
   // changing the route mode after picking a target re-plans the walk too (value from the event, not listener order)
   document.getElementById('c-mode').addEventListener('change', e => { if (prep.custom) replan(prep.target, e.target.value); });
-  return target => replan(target, getStore().inputs.routeMode);
+  return { retarget: target => replan(target, getStore().inputs.routeMode), setCondition };
 }
 
 // First-visit card: what this is + one-click story. Shown once per browser session.

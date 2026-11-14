@@ -49,6 +49,27 @@ function eventsUpTo(scenario, t) {
   return scenario.events.filter(e => e.tMin <= t);
 }
 
+/** Pure: a NEW scenario with one user condition edit applied from demo time t onward (input never mutated).
+ *  key: 'tau' | 'ltst' | 'sol' | 'sepActive'; anything else returns the scenario unchanged (same object).
+ *  A no-op edit (storm already on / already off) also returns the same object. */
+export function editScenario(scenario, t, key, value, hourMin) {
+  const evs = scenario.events ?? [];
+  const sorted = list => list.map((e, i) => [e, i]).sort((a, b) => a[0].tMin - b[0].tMin || a[1] - b[1]).map(x => x[0]);
+  const withEvents = list => ({ ...scenario, events: sorted(list) });
+  if (key === 'tau') return withEvents([...evs.filter(e => e.type !== 'tau' || e.tMin < t), { tMin: t, type: 'tau', value }]);
+  if (key === 'ltst') return { ...scenario, startLtst: value - t / hourMin };
+  if (key === 'sol') return { ...scenario, sol: value };
+  if (key !== 'sepActive') return scenario;
+  const onset = evs.find(e => e.type === 'sep_onset');
+  const started = onset && onset.tMin <= t, ended = evs.some(e => e.type === 'sep_end' && e.tMin <= t);
+  const rest = evs.filter(e => e.type !== 'sep_end');
+  if (value) {
+    if (!started) return withEvents([...rest.filter(e => e.type !== 'sep_onset'), { ...onset, tMin: t, type: 'sep_onset' }]);
+    return ended ? withEvents(rest) : scenario; // re-ticked after the storm ended: it never ended
+  }
+  return started && !ended ? withEvents([...rest, { tMin: t, type: 'sep_end' }]) : scenario;
+}
+
 /** Plan both legs once. Same inputs → same legs → same video every time.
  *  targetOverride ({lat, lon, id?}) replaces the scripted target (clicked point drives the walk);
  *  outMode is the outbound route mode then (ignored without an override). The return leg is always 'safest'.
@@ -104,6 +125,7 @@ export function stateAt(prep, t, skylineResults = {}) {
   for (const e of eventsUpTo(scenario, tt)) {
     if (e.type === 'tau') patch.tau = e.value;
     if (e.type === 'sep_onset') patch.sepActive = true;
+    if (e.type === 'sep_end') patch.sepActive = false; // user ticked the storm off: movement is unchanged
     if (e.type === 'skyline_fix') {
       fixT = e.tMin;
       patch.fixUncertaintyM = skylineResults[e.site]?.uncertaintyM ?? 100;
