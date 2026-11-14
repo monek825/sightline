@@ -24,6 +24,8 @@ const ASTRO_R = 25, BEACON_H = 400, LIFT_M = 15, ROUTE_R = 10, STEP_M = 60;
 const PITCH_MIN = 0.08, PITCH_MAX = 1.5, CAM_CLEARANCE_M = 40;
 // 3D look (visual only; terrain tint + ground grain live in lib/terrain.js): sun placed from local solar time, slow idle orbit.
 const SUN_DIST = 30000, IDLE_MS = 5000, IDLE_YAW_PER_S = 0.035;
+// Opening shot: close on the habitat so the base reads in detail; when the story plays, ease out to see the walk.
+const START_DIST_M = 140, START_PITCH = 0.32, PLAY_DIST_M = 2600, ZOOM_EASE_S = 1.6;
 const ZENITH_CLEAR = [128, 86, 62], LANDMARK_H = 180;
 const PICK_SLOP_PX = 6, PICK_INSET_DEG = 1e-5; // 3D click-vs-drag threshold; keep picks just inside the bounds
 const COLORS = { blind: [248, 81, 73, 120], homeHidden: [210, 153, 34, 32] };
@@ -187,13 +189,8 @@ function addLayers(map, data, box, onPickTarget) {
     keyboard: false
   }).bindTooltip(data.meta.home.name).addTo(map);
 
-  L.control.layers(
-    { 'Orbital imagery': ctx },
-    { 'HiRISE close-up': hirise, 'Blind zones': blindLayer, 'Perseverance route': traverse, 'Landmarks': landmarkLayer, 'Science targets': targetLayer },
-    { collapsed: true, position: 'topright' }
-  ).addTo(map);
   L.control.scale({ metric: true, imperial: false }).addTo(map);
-  return blindLayer;
+  return { blindLayer, hirise, traverse, landmarkLayer, targetLayer };
 }
 
 // ---------- 3D (A-Frame, lazy) ----------
@@ -211,7 +208,8 @@ function registerOrbit() {
   AFRAME.registerComponent('orbit-camera', {
     schema: { minDist: { default: MIN_DIST_M }, maxDist: { default: 25000 } },
     init() {
-      this.o = { yaw: 0.6, pitch: 0.3, dist: 5200, x: 0, y: 0, z: 0 };
+      this.o = { yaw: 0.6, pitch: START_PITCH, dist: START_DIST_M, x: 0, y: 0, z: 0 };
+      this.distT = null;   // eased zoom target (zoomTo); any user input cancels it
       this.lastInput = 0;
       this.reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
       this.heightAt = null;
@@ -219,7 +217,7 @@ function registerOrbit() {
       const scene = this.el.sceneEl, pts = new Map();
       let pinch = 0;
       const span = () => { const [a, b] = [...pts.values()]; return Math.hypot(a[0] - b[0], a[1] - b[1]); };
-      const touched = () => { this.lastInput = performance.now(); };
+      const touched = () => { this.lastInput = performance.now(); this.distT = null; };
       for (const ev of ['pointerdown', 'wheel']) scene.addEventListener(ev, touched, { passive: true });
       scene.addEventListener('pointerdown', e => {
         pts.set(e.pointerId, [e.clientX, e.clientY]);
@@ -239,9 +237,15 @@ function registerOrbit() {
       scene.addEventListener('wheel', e => { e.preventDefault(); this.zoom(Math.exp(e.deltaY * 0.001)); }, { passive: false });
     },
     zoom(f) { this.o.dist = clamp(this.o.dist * f, this.data.minDist, this.data.maxDist); },
+    zoomTo(d) { this.distT = clamp(d, this.data.minDist, this.data.maxDist); },
     setTarget(x, y, z) { Object.assign(this.o, { x, y, z }); },
     tick(time, dt) {
       if (!this.reduced && time - this.lastInput > IDLE_MS && dt < 100) this.o.yaw += IDLE_YAW_PER_S * dt / 1000;
+      if (this.distT !== null) {
+        const k = this.reduced ? 1 : 1 - Math.exp(-Math.min(dt, 100) / 1000 / (ZOOM_EASE_S / 4));
+        this.o.dist *= Math.pow(this.distT / this.o.dist, k);      // ease in log space: even feel from 140 m to 2.6 km
+        if (Math.abs(this.o.dist / this.distT - 1) < 0.005) { this.o.dist = this.distT; this.distT = null; }
+      }
       const { yaw, pitch, dist, x, y, z } = this.o;
       const h = dist * Math.cos(pitch);
       const cx = x + h * Math.sin(yaw), cz = z + h * Math.cos(yaw);
@@ -262,11 +266,11 @@ function mk(tag, attrs, parent) {
   return e;
 }
 
-// tint #fff = image shown untinted (as on the 2D map)
+// tint warms the greyscale CTX/HiRISE images to Mars colour (HiRISE patches inherit it, lib/terrain.js)
 // Phones / low-core machines get every 2nd grid point (4x fewer triangles); desktops keep the full 40 m grid.
 // patches: HiRISE close-up images (~0.7 m/px) near home and Three Forks, blended into the CTX ground (lib/terrain.js)
 const LOW_END = matchMedia('(pointer: coarse)').matches || (navigator.hardwareConcurrency ?? 8) <= 4 || (navigator.deviceMemory ?? 8) <= 4;
-const terrainAttr = src => `src: ${src}; exaggerate: ${EXAGGERATE}; tint: #ffffff; step: ${LOW_END ? 2 : 1}; patches: data/hirise_patches.json`;
+const terrainAttr = src => `src: ${src}; exaggerate: ${EXAGGERATE}; tint: #f0b483; step: ${LOW_END ? 2 : 1}; patches: data/hirise_patches.json`;
 
 function buildScene() {
   const scene = document.createElement('a-scene');
@@ -447,7 +451,7 @@ function addDustVeil(host) {
 function createView3D(data, onPickTarget, devils) {
   const host = $('view3d'), msg = $('v3-msg');
   let s = null, starting = null, terrain = null, last = null, lastHome, lastOut, lastRadius = -1, lastTau = null, lastSun = null, lastVis = null, blind3d = null;
-  let routeK = 1, retried = false, groundU = null, rocks = null;
+  let routeK = 1, retried = false, groundU = null, rocks = null, wasPlaying = false;
   const say = text => { msg.textContent = text; msg.hidden = !text; };
   const noteBase = `Vertical scale ×${EXAGGERATE} (true). Rover and habitat are true size.`;
   let noteDevils = null, dv3 = null, dvAff = null, dvT0 = performance.now();
@@ -511,8 +515,20 @@ function createView3D(data, onPickTarget, devils) {
     blind3d.material.map.needsUpdate = true;
   }
 
+  const show = {};   // layer menu: id → false hides it
+  const vis = id => show[id] !== false;
+  function applyLayers() {
+    if (!s) return;
+    if (blind3d) blind3d.visible = vis('blind');
+    s.home.object3D.visible = vis('beacon');
+    s.routes.object3D.visible = vis('routes');
+    s.ring.object3D.visible = vis('ring');
+    s.landmarks.object3D.visible = vis('landmarks');
+    host.classList.toggle('no-dust', !vis('dust'));
+  }
   function update() {
     if (!terrain?.ready || !last) return;
+    applyLayers();
     updateBlind(last.derived.vis, last.derived.visKey);
     setNote(devils.active());
     if (!devils.active() && dv3) for (const m of dv3.meshes) m.visible = false;
@@ -529,6 +545,9 @@ function createView3D(data, onPickTarget, devils) {
     }
     const orbit = s.cam.components['orbit-camera'];
     if (orbit) { orbit.setTarget(p.x, p.y, p.z); orbit.heightAt = (x, z) => terrain.heightAt(x, z); }
+    const playing = last.inputs.scenarioT !== null;
+    if (orbit && playing && !wasPlaying && orbit.o.dist < PLAY_DIST_M * 0.6) orbit.zoomTo(PLAY_DIST_M);
+    wasPlaying = playing;
     if (d.routeHome !== lastHome) { lastHome = d.routeHome; setRoute(s, terrain, 'home', d.routeHome, CREAM, routeK); }
     if (d.routeOut !== lastOut) { lastOut = d.routeOut; setRoute(s, terrain, 'out', d.routeOut, ACCENT, routeK); }
     const ltst = Math.round(last.inputs.ltst * 4) / 4;
@@ -664,8 +683,26 @@ function createView3D(data, onPickTarget, devils) {
       if (s) { if (s.scene.hasLoaded) s.scene.play(); } else starting ??= init();
     },
     hide() { host.hidden = true; if (s?.scene.hasLoaded) s.scene.pause(); },
-    render(store) { last = store; update(); }
+    render(store) { last = store; update(); },
+    setLayer(id, on) { show[id] = on; applyLayers(); }
   };
+}
+
+// Eye button: one list of layers for both views. Each item: on2 = 2D switch, setLayer(id, on) = 3D switch.
+function setupLayerMenu(items, setLayer3D) {
+  const btn = $('layers-btn'), list = $('layers-list');
+  if (!btn || !list) return;
+  for (const it of items) {
+    const lab = document.createElement('label'), box = document.createElement('input');
+    box.type = 'checkbox'; box.checked = true;
+    box.addEventListener('change', () => { it.on2?.(box.checked); setLayer3D(it.id, box.checked); });
+    lab.append(box, document.createTextNode(it.label));
+    list.append(lab);
+  }
+  const open = on => { list.hidden = !on; btn.setAttribute('aria-expanded', String(on)); };
+  btn.addEventListener('click', () => open(list.hidden));
+  document.addEventListener('pointerdown', e => { if (!list.hidden && !$('layers').contains(e.target)) open(false); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && !list.hidden) { open(false); btn.focus(); } });
 }
 
 function setupToggle(map, view3d) {
@@ -692,10 +729,11 @@ export function createMapView(data, { onPickTarget }) {
     maxBounds: L.latLngBounds(box).pad(0.05)
   }).setView([data.meta.home.lat, data.meta.home.lon], 13);
 
-  const blindLayer = addLayers(map, data, box, onPickTarget);
-  const setRouteAlt = routeLine(map, CREAM, 2, '4 6'); // comparison route, created first so orange stays on top
-  const setRouteOut = routeLine(map, ACCENT, 4);
-  const setRouteHome = routeLine(map, CREAM, 3, '8 6');
+  const L2 = addLayers(map, data, box, onPickTarget), blindLayer = L2.blindLayer;
+  const routesG = L.layerGroup().addTo(map);
+  const setRouteAlt = routeLine(routesG, CREAM, 2, '4 6'); // comparison route, created first so orange stays on top
+  const setRouteOut = routeLine(routesG, ACCENT, 4);
+  const setRouteHome = routeLine(routesG, CREAM, 3, '8 6');
   const haze = L.rectangle(box, { stroke: false, fillColor: DUST, fillOpacity: 0, interactive: false }).addTo(map);
   const seeRing = L.circle([0, 0], { radius: 1000, color: DUST, weight: 2, dashArray: '6 6', fill: false, interactive: false }).addTo(map);
   const devils = createDevils(map, data.C);
@@ -706,6 +744,17 @@ export function createMapView(data, { onPickTarget }) {
   const view3d = createView3D(data, onPickTarget, devils);
   setupToggle(map, view3d);
   for (const id of ['v-2d', 'v-3d']) $(id).addEventListener('click', () => devils.refresh()); // pause/resume the devil loop
+  const g2 = (...ls) => on => ls.forEach(l => (on ? l.addTo(map) : l.remove()));
+  setupLayerMenu([
+    { id: 'blind', label: 'Blind zones', on2: g2(blindLayer) },
+    { id: 'beacon', label: 'Home beacon (3D)' },
+    { id: 'routes', label: 'Routes', on2: g2(routesG) },
+    { id: 'ring', label: 'Visibility ring', on2: g2(seeRing, uncertainty) },
+    { id: 'landmarks', label: 'Landmarks', on2: g2(L2.landmarkLayer) },
+    { id: 'perseverance', label: 'Perseverance route and targets', on2: g2(L2.traverse, L2.targetLayer) },
+    { id: 'dust', label: 'Dust haze', on2: g2(haze) },
+    { id: 'hirise', label: 'HiRISE close-up (2D)', on2: g2(L2.hirise) }
+  ], view3d.setLayer);
 
   let lastVisKey = null, lastHeading = null;
   function renderWeather({ inputs, derived }) {

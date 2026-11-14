@@ -148,6 +148,7 @@ function sourceTag(keys) {
 // ---------- scene setup ----------
 const sceneEl = $('scene'), rig = $('rig'), camEl = $('cam');
 let THREE = null, routeHolder = null;
+const showH = { beacon: true, route: true, landmarks: true, dust: true };   // eye menu
 const tmpV = new (window.AFRAME ? AFRAME.THREE.Vector3 : Object)();
 
 // Sun from local solar time (same simple model as the main 3D view): rises east 06:00, highest at noon, sets west 18:00.
@@ -371,12 +372,12 @@ function dustLook(tau) {
   if (!dust) return;
   const amt = Math.min(1, Math.max(0, (tau - 0.6) / (DUST_TAU_FULL - 0.6)));
   dustAmt = amt;
-  dust.visible = amt > 0.01;
+  dust.visible = showH.dust && amt > 0.01;
   dust.geometry.setDrawRange(0, Math.round(DUST_N * (0.25 + 0.75 * amt) * q.dust));
   dustU.uOpacity.value = 0.35 + 0.55 * amt;
   const w = 3 + 15 * amt, a = DUST_WIND_DEG * Math.PI / 180;   // m/s, towards DUST_WIND_DEG (same drift as the map's devils)
   dustU.uWind.value.set(Math.sin(a) * w, -Math.cos(a) * w);
-  if (veil) { veil.visible = q.veil && amt > 0.05; veilU.uAmt.value = amt; }
+  if (veil) { veil.visible = showH.dust && q.veil && amt > 0.05; veilU.uAmt.value = amt; }
 }
 // per frame: slide the veil with the wind as seen across the view, and with the view heading so turning moves it
 function updateVeil(dt, t, fx, fz) {
@@ -598,6 +599,16 @@ function applyQuality() {
   for (const b of document.querySelectorAll('#gfx [data-q]')) b.setAttribute('aria-pressed', String(b.dataset.q === gfxChoice));
   const lv = $('gfx-level');
   if (lv) lv.textContent = gfxChoice === 'auto' ? `Auto: ${gfxAuto}` : '';
+}
+// Eye menu: hide the beacon, route, landmarks or dust (e.g. a cleaner view for screenshots)
+function setupShow() {
+  for (const b of document.querySelectorAll('#show input[data-show]')) b.addEventListener('change', () => {
+    showH[b.dataset.show] = b.checked;
+    if (routeHolder) routeHolder.object3D.visible = showH.route;
+    if (lmPoleMat) lmPoleMat.visible = showH.landmarks;
+    $('landmark-labels').hidden = !showH.landmarks;
+    if (dust) dustLook(tauNow);
+  });
 }
 function setupGfx() {
   for (const b of document.querySelectorAll('#gfx [data-q]')) b.addEventListener('click', () => {
@@ -890,17 +901,6 @@ function setMarkClass(el, cls) { if (el.className !== cls) el.className = cls; }
 const LABEL_EDGE_PX = 8;
 function clampLabelX(x, w) { return Math.min(vw - w / 2 - LABEL_EDGE_PX, Math.max(w / 2 + LABEL_EDGE_PX, x)); }
 
-// The body turns to face the walking direction, but never while you are looking around (drag + 1.5 s after),
-// never while zoomed in, and never while standing still: that pull fought the drag and felt like the view snapping back.
-const LOOK_GRACE_MS = 1500, FOLLOW_MIN_MS = 0.5, FOLLOW_MAX_ZOOM = 0.9;
-let lookingUntil = 0, pointersDown = 0;
-function setupLookGuard() {
-  const c = sceneEl.canvas || sceneEl;
-  c.addEventListener('pointerdown', () => { pointersDown++; lookingUntil = Infinity; });
-  const up = () => { pointersDown = Math.max(0, pointersDown - 1); if (!pointersDown) lookingUntil = performance.now() + LOOK_GRACE_MS; };
-  for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) c.addEventListener(ev, up);
-  c.addEventListener('wheel', () => { lookingUntil = Math.max(lookingUntil, performance.now() + LOOK_GRACE_MS); }, { passive: true });
-}
 function smoothCamera(dt) {
   const o = rig.object3D;
   const cur = o.position;
@@ -911,12 +911,7 @@ function smoothCamera(dt) {
   } else {
     const k = 1 - Math.exp(-dt / CAM_SMOOTH_S);
     cur.x += (camT.x - cur.x) * k; cur.z += (camT.z - cur.z) * k;
-    const follow = performance.now() > lookingUntil && fov > fovBase * FOLLOW_MAX_ZOOM && camSpeed > FOLLOW_MIN_MS;
-    if (follow) {
-      const TWO_PI = Math.PI * 2;
-      const dy = ((camT.yaw - yaw + Math.PI) % TWO_PI + TWO_PI) % TWO_PI - Math.PI;
-      yaw += dy * k;
-    }
+    // ponytail: no auto-turn toward the walking direction; you own the view (compass tape shows home)
   }
   const g = terrain.heightAt(cur.x, cur.z);
   cur.y = (fin(g) ? g : 0) + camT.eye;      // glued to the ground at eye height every frame
@@ -954,8 +949,8 @@ function frame(timeMs, deltaMs) {
   if (beacon) {
     // line of sight clear: solid pulsing pillar. Blocked by terrain: dimmer, dashed pillar (still drawn through the hill).
     const hid = homeInfo.hidden;
-    beacon.visible = !nearHome && !hid;
-    if (beaconDash) beaconDash.visible = !nearHome && hid;
+    beacon.visible = showH.beacon && !nearHome && !hid;
+    if (beaconDash) beaconDash.visible = showH.beacon && !nearHome && hid;
     if (beaconMat) {   // slow pulse (opacity + width); static under reduced motion
       if (reduceMotionQ.matches) { beaconMat.opacity = 0.6; beacon.scale.set(1, 1, 1); dashMat.opacity = 0.3; beaconDash.scale.set(1, 1, 1); }
       else {
@@ -1001,7 +996,7 @@ function frame(timeMs, deltaMs) {
   if (onScreen) { sx = clampLabelX((tmpV.x + 1) / 2 * vw, hw); sy = (1 - tmpV.y) / 2 * vh; }
   else { sx = rel > 0 ? vw - 16 : 16; sy = vh / 2; }
   homeLabel.style.left = sx + 'px'; homeLabel.style.top = sy + 'px';
-  homeLabel.hidden = nearHome;
+  homeLabel.hidden = nearHome || !showH.beacon;
   // reserve the home label's box so landmark labels keep clear of it
   let nb = 0;
   boxX[nb] = onScreen ? sx : (rel > 0 ? sx - hw / 2 : sx + hw / 2); boxY[nb] = sy; boxW[nb] = hw; boxH[nb] = hh; nb++;
@@ -1130,12 +1125,21 @@ function setupPause() {
   const sync = () => {
     if (!sceneEl.hasLoaded) return;
     const run = tabVisible && inView;
-    if (run && !sceneEl.isPlaying) sceneEl.play();
-    else if (!run && sceneEl.isPlaying) sceneEl.pause();
+    if (run && !sceneEl.isPlaying) { sceneEl.play(); sceneEl.renderer.setAnimationLoop(sceneEl.render); }
+    else if (!run && sceneEl.isPlaying) { sceneEl.pause(); sceneEl.renderer.setAnimationLoop(null); }   // pause() alone keeps drawing
   };
   document.addEventListener('visibilitychange', () => { tabVisible = !document.hidden; sync(); });
   if ('IntersectionObserver' in window) new IntersectionObserver((es) => { inView = es[es.length - 1].isIntersecting; sync(); }).observe(sceneEl);
   sceneEl.addEventListener('loaded', sync);
+}
+
+// Browser drawing 3D without the graphics chip (hardware acceleration off): say so, it explains 2-4 fps.
+function warnSoftwareGL() {
+  try {
+    const gl = sceneEl.renderer.getContext(), ext = gl.getExtension('WEBGL_debug_renderer_info');
+    const name = ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : '';
+    if (/swiftshader|llvmpipe|software|basic render/i.test(name)) note('Your browser is drawing 3D without the graphics chip, so this view will be slow. Turn on hardware acceleration in the browser settings.');
+  } catch { /* unknown renderer: say nothing */ }
 }
 
 async function boot() {
@@ -1148,7 +1152,7 @@ async function boot() {
   setupZoom();
   setupPause();
   sceneEl.setAttribute('helmet-tick', '');
-  const onLoaded = () => { setupGfx(); setupLookGuard(); };
+  const onLoaded = () => { setupGfx(); setupShow(); warnSoftwareGL(); };
   if (sceneEl.hasLoaded) onLoaded(); else sceneEl.addEventListener('loaded', onLoaded, { once: true });
 
   try { meta = await fetchJSON('../data/meta.json'); }

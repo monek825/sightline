@@ -59,6 +59,13 @@
         <button type="button" id="v-3d" aria-pressed="false">3D terrain</button>
       </div>
 
+      <div class="layers" id="layers">
+        <button type="button" id="layers-btn" class="layers-btn frost" aria-expanded="false" aria-controls="layers-list" aria-label="Show or hide map layers" title="Show or hide map layers">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>
+        </button>
+        <fieldset id="layers-list" class="layers-list frost" hidden><legend>Show on map</legend></fieldset>
+      </div>
+
       <div id="banner" class="banner" role="alert" hidden></div>
       <p id="caption" class="caption frost" aria-live="polite" hidden></p>
       <section id="welcome" class="welcome frost" aria-labelledby="welcome-h" hidden>

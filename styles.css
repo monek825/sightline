@@ -730,3 +730,18 @@ body.panel-hidden .tabbar [role="tab"][aria-selected="true"] { transform: none; 
 @media (prefers-reduced-motion: reduce) { .topo-lock.is-locked { animation: none; } }
 
 .intro-lines span.slow { animation: none; opacity: 1; }
+
+/* eye button: show / hide map layers (both views) */
+.layers { position: absolute; top: var(--s4); right: calc(var(--panel-w) + var(--s5)); z-index: 1000; display: grid; justify-items: end; gap: var(--s2); }
+.layers-btn { width: 44px; height: 44px; display: grid; place-items: center; border: 0; border-radius: var(--r-sm); color: var(--text); cursor: pointer; transition: background .15s, transform .15s; }
+.layers-btn:hover { background: rgba(255, 138, 61, .25); }
+.layers-btn:active { transform: scale(.95); }
+.layers-btn[aria-expanded="true"] { background: var(--accent); color: var(--accent-ink); }
+.layers-btn svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linejoin: round; }
+.layers-list { margin: 0; padding: var(--s3) var(--s4); border: 0; border-radius: var(--r-md); display: grid; gap: 8px; min-width: 240px; font-size: 14px; }
+.layers-list legend { float: left; width: 100%; padding: 0 0 4px; color: var(--muted); font-size: 12px; }
+.layers-list label { display: flex; align-items: center; gap: var(--s2); cursor: pointer; }
+.layers-list input { accent-color: var(--accent); width: 16px; height: 16px; }
+.view3d.no-dust .dust-veil { display: none; }
+body.panel-hidden .layers { right: var(--s5); }
+@media (max-width: 1023px) { .layers { right: var(--s4); top: 72px; } }
