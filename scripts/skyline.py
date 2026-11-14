@@ -10,8 +10,10 @@ Run from repo root:  python scripts/skyline.py
 """
 from __future__ import annotations
 
+import argparse
 import json
 import math
+import random
 import time
 
 import numpy as np
@@ -82,7 +84,7 @@ def r3(a) -> list[float]:
     return [round(float(v), 3) for v in np.asarray(a).ravel()]
 
 
-def run_site(z: np.ndarray, t: dict, k: int) -> dict:
+def run_site(z: np.ndarray, t: dict, k: int, jit: random.Random | None = None, out: dict | None = None) -> dict:
     rng = np.random.default_rng(SEED + k)
     lat, lon = t["lat"], t["lon"]
     tr, tc = latlon_to_px(lat, lon, z.shape)
@@ -92,6 +94,12 @@ def run_site(z: np.ndarray, t: dict, k: int) -> dict:
     off_e = round(dist * math.sin(ang) / GRID_STEP) * GRID_STEP
     pr, pc = tr - off_n / PX_M, tc + off_e / EW_M
     prior_lat, prior_lon = px_to_latlon(pr, pc, z.shape)
+
+    dn = de = 0.0
+    if jit:                                               # --offgrid: move truth 0-50 m off the search grid
+        d, a = jit.uniform(0, 50), jit.uniform(0, 2 * math.pi)
+        dn, de = d * math.cos(a), d * math.sin(a)
+        tr, tc = tr - dn / PX_M, tc + de / EW_M
 
     # observed skyline: true horizon + noise, then unknown heading (camera frame rotated by k0 samples)
     obs_true = horizons(z, np.array([tr]), np.array([tc]))[0]
@@ -116,7 +124,7 @@ def run_site(z: np.ndarray, t: dict, k: int) -> dict:
     def locate(rms, arg):
         b = int(rms.argmin())
         bi, bj = divmod(b, n)
-        err = float(math.hypot(gn.ravel()[b] - (-off_n), ge.ravel()[b] - (-off_e)))
+        err = float(math.hypot(gn.ravel()[b] - (dn - off_n), ge.ravel()[b] - (de - off_e)))
         return b, bi, bj, err
 
     # full 360
@@ -124,6 +132,8 @@ def run_site(z: np.ndarray, t: dict, k: int) -> dict:
     b, bi, bj, err = locate(rms, arg)
     rms2 = rms.reshape(n, n)
     unc = uncertainty(rms2, bi, bj)
+    if out is not None:
+        out.update(offsetM=round(math.hypot(dn, de), 1), errorM=round(err, 1), uncertaintyM=round(unc, 1))
     best_prof = cand[b][(np.arange(NAZ) + arg[b]) % NAZ]
     est_lat, est_lon = px_to_latlon(rows[b], cols[b], z.shape)
 
@@ -147,9 +157,27 @@ def run_site(z: np.ndarray, t: dict, k: int) -> dict:
     }, (round(float(rms.min()), 3), hdg_err(int(arg96[b96])), round(math.hypot(off_n, off_e)))
 
 
+def offgrid(z: np.ndarray, targets: list) -> None:
+    jit, sites = random.Random(42), {}
+    for k, t in enumerate(targets):
+        sites[t["id"]] = {}
+        run_site(z, t, k, jit, sites[t["id"]])
+    errs = sorted(v["errorM"] for v in sites.values())
+    res = {"note": "Truth moved 0-50 m off the 100 m search grid (simulated skyline, same matcher); the matcher snaps to the 100 m grid, so error is just the distance to the nearest grid node (about the offset), not sub-grid precision.",
+           "seed": 42, "maxOffsetM": 50, "searchGridM": GRID_STEP, "sites": sites,
+           "medianErrorM": round(float(np.median(errs)), 1), "maxErrorM": errs[-1]}
+    (DATA / "skyline" / "offgrid_summary.json").write_text(json.dumps(res, indent=2), encoding="utf-8")
+    print(json.dumps(res, indent=2))
+
+
 def main() -> None:
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--offgrid", action="store_true", help="truth 0-50 m off the search grid; writes only data/skyline/offgrid_summary.json")
+    args = ap.parse_args()
     z = load_dtm()
     targets = json.loads((DATA / "targets.json").read_text(encoding="utf-8"))
+    if args.offgrid:
+        return offgrid(z, targets)
     out_dir = DATA / "skyline"
     out_dir.mkdir(exist_ok=True)
     t_all = time.time()

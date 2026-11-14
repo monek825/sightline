@@ -1,0 +1,35 @@
+{
+  "note": "Truth moved 0-50 m off the 100 m search grid (simulated skyline, same matcher); the matcher snaps to the 100 m grid, so error is just the distance to the nearest grid node (about the offset), not sub-grid precision.",
+  "seed": 42,
+  "maxOffsetM": 50,
+  "searchGridM": 100,
+  "sites": {
+    "landing": {
+      "offsetM": 32.0,
+      "errorM": 32.0,
+      "uncertaintyM": 141.4
+    },
+    "three_forks": {
+      "offsetM": 13.8,
+      "errorM": 13.8,
+      "uncertaintyM": 50.0
+    },
+    "cheyava_falls": {
+      "offsetM": 36.8,
+      "errorM": 36.8,
+      "uncertaintyM": 50.0
+    },
+    "delta_top": {
+      "offsetM": 44.6,
+      "errorM": 44.6,
+      "uncertaintyM": 141.4
+    },
+    "crater_rim": {
+      "offsetM": 21.1,
+      "errorM": 21.1,
+      "uncertaintyM": 50.0
+    }
+  },
+  "medianErrorM": 32.0,
+  "maxErrorM": 44.6
+}

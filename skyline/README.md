@@ -76,3 +76,4 @@ Respect `prefers-reduced-motion`: skip the sweep, show the final state.
 
 ## Stretch (only if everything else works)
 - **Real photo check:** take a Perseverance Navcam frame (raw images API, see `data/README.md`) with known `mastAz`/`mastEl`, trace the skyline by hand or by simple edge detection (sky is brighter: first row from the top where brightness drops), convert pixel rows to elevation angles using the camera's field of view, and match against the DTM horizon at the rover's waypoint position. Even one real image matching is a strong slide.
+- **Off-grid check:** with truth moved 0-50 m off the 100 m search grid (seed 42, simulated skyline), median error 32.0 m, max 44.6 m (matcher snaps to grid nodes, so this equals the offset, not sub-grid precision); see [`data/skyline/offgrid_summary.json`](../data/skyline/offgrid_summary.json), run `python scripts/skyline.py --offgrid`.
