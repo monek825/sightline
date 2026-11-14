@@ -2,19 +2,29 @@
 
 **Deadline: Sunday 15 Nov, 23:59 WIB.** Times below are WIB.
 
-## Status (Sat 08:55)
+## Status (Sat 11:00)
 | Piece | Owner | State |
 |---|---|---|
 | Architecture, docs, data checker | Brayden | ✅ done |
 | Real terrain, landmarks, viewsheds, NASA data | Brayden | ✅ done |
 | Main app UI v2 + 3D terrain engine (`lib/terrain.js`) | Brayden | ✅ done |
-| Crew model `crew/budget.js` | Jojo | ⏳ app uses placeholder |
-| Route planner `route/route.js` | Jojo | ⏳ app uses straight lines |
-| Skyline Fix maths `scripts/skyline.py` | Sean | ⏳ |
-| Skyline Fix panel `skyline/skyline.js` | Brayden | ⏳ |
-| Missing sources (3 constants) + landmark names + `sources.md` | Sean | ⏳ |
-| Helmet overlays (beacon, HUD, walk) | Edward | ⏳ |
+| Crew model `crew/budget.js` | Jojo | ✅ merged with tests (app loads it instead of the stub) |
+| Route planner `route/route.js` | Jojo | ✅ merged with tests (A*, three modes) |
+| Skyline Fix maths `scripts/skyline.py` | Sean | ✅ done → `data/skyline/` for all 5 sites |
+| Missing sources (3 constants) | Sean | ✅ done. `terrain_shielding_pct` is now 4 (paper says 4%, not 5%); `walkback_pad` is an estimate (no source found) |
+| `python3 scripts/check_data.py` | all | ✅ 0 problems |
+| Skyline Fix panel `skyline/skyline.js` | Brayden | ✅ done: button picks nearest site; demo pauses at t=55 and plays it |
+| Helmet overlays (beacon, HUD, walk) | Edward | ⏳ `helmet/` only has the README |
+| Landmark names on Mars Trek | Sean | ⏳ gazetteer check found no match; still needs a look on Trek by eye (`peak_02` may be Kodiak butte) |
+| `sources.md` "Challenge resources used" | Sean | ⏳ copy the list from the challenge Resources tab |
 | Video + submission page | Brayden + Sean | ⏳ Sunday |
+
+### Next up (in this order)
+1. **Brayden:** `skyline/skyline.js`. It is the only demo-path feature with no code yet, and the "Run Skyline Fix" button currently shows "not built yet".
+2. **Edward:** helmet overlays on `lib/terrain.js`.
+3. **Sean:** Resources tab → `sources.md` (needed for Global Award eligibility), then the Mars Trek name check.
+4. **Jojo:** check the crew tests against `terrain_shielding_pct` = 4.
+5. **Team decision:** Skyline Fix test positions sit exactly on the 100 m search grid, so the 0 m errors are partly by construction (off-grid would be up to ~70 m). Say so in the pitch or re-run off-grid.
 
 ## How to decide what to work on next
 When you finish something, pick the **first** item that is true:
@@ -30,9 +40,9 @@ Never start a stretch goal while a teammate's feature is unfinished. Ask in the 
 
 ### Phase 1: Build (Sat until 18:00)
 Everyone builds their own piece **in parallel**, in their own folder, on top of the current app. Push every hour.
-- Jojo: `crew/budget.js` first (it changes the most on screen), then `route/route.js`.
-- Sean: `scripts/skyline.py` (≥ 3 sites), then the 3 missing sources, landmark names and `sources.md`.
-- Brayden: `skyline/skyline.js` (start from a mock `data/skyline/landing.json` that has Sean's shape), and answer questions.
+- Jojo: ~~`crew/budget.js`, then `route/route.js`~~ both merged. Left: confirm the MOCK DATA / stub banner is gone in the running app.
+- Sean: ~~`scripts/skyline.py` (≥ 3 sites), the 3 missing sources~~ done. Left: Resources tab in `sources.md`, landmark names on Mars Trek.
+- Brayden: `skyline/skyline.js` (real `data/skyline/*.json` is in the repo now), and answer questions.
 - Edward: helmet overlays on `lib/terrain.js`.
 
 **Gate:** each feature passes its own README acceptance checklist **before** it's called done.

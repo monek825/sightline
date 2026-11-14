@@ -55,15 +55,18 @@ async function boot() {
   subscribe(view.render);
   subscribe(renderPanels);
 
-  setupScenario(data, M);
+  const skyline = await optionalModule('../skyline/skyline.js');
+  const skyIds = (data.targets ?? []).map(t => t.id);
+  const skyResults = skyline ? await skyline.loadSkylineResults(skyIds) : {};
+  setupScenario(data, M, { skyline, skyResults, map: view.map });
   setupHelmet(data);
-  setupSkyline(view.map);
+  setupSkyline(view.map, skyline, skyResults);
   document.addEventListener('keydown', e => {
     if (e.key === 'v' && !e.target.closest('input, select, textarea')) document.body.classList.toggle('video');
   });
 }
 
-function setupScenario(data, M) {
+function setupScenario(data, M, sky) {
   if (!data.scenario) { document.getElementById('timeline').hidden = true; return; }
   const prep = prepareScenario(data.scenario, data, M);
   const play = document.getElementById('t-play');
@@ -72,16 +75,24 @@ function setupScenario(data, M) {
   scrub.max = prep.endT;
   let t = 0, playing = false, last = 0, raf = 0;
 
+  const fixEvents = (data.scenario.events ?? []).filter(e => e.type === 'skyline_fix' && sky.skyResults[e.site]);
   const apply = () => {
-    setInputs(stateAt(prep, t));
+    setInputs(stateAt(prep, t, sky.skyResults));
     scrub.value = t;
     label.textContent = `t = ${Math.round(t)} min`;
   };
   const frame = now => {
     if (!playing) return;
+    const prevT = t;
     t = Math.min(prep.endT, t + (now - last) / 1000 * SPEED_MIN_PER_SEC);
     last = now;
     apply();
+    const fix = fixEvents.find(e => prevT < e.tMin && e.tMin <= t);
+    if (fix) { // pause, play the Skyline Fix, resume when the panel closes
+      stop();
+      sky.skyline.openSkylineFix(fix.site, sky.map, { applyFix: false, onClose: start });
+      return;
+    }
     if (t >= prep.endT) { stop(); return; }
     raf = requestAnimationFrame(frame);
   };
@@ -127,10 +138,19 @@ function setupHelmet(data) {
   });
 }
 
-function setupSkyline(map) {
-  document.getElementById('btn-skyline').addEventListener('click', async () => {
-    const mod = await optionalModule('../skyline/skyline.js');
-    if (mod?.openSkylineFix) { mod.openSkylineFix('landing', map); return; }
+function nearestSite(results, at) {
+  let best = null, bestD = Infinity;
+  for (const [id, s] of Object.entries(results)) {
+    const d = (s.truth.lat - at.lat) ** 2 + ((s.truth.lon - at.lon) * Math.cos(at.lat * Math.PI / 180)) ** 2;
+    if (d < bestD) { bestD = d; best = id; }
+  }
+  return best;
+}
+
+function setupSkyline(map, mod, results) {
+  document.getElementById('btn-skyline').addEventListener('click', () => {
+    const site = mod && nearestSite(results, getStore().inputs.astronaut);
+    if (site) { mod.openSkylineFix(site, map).catch(err => console.error(err)); return; }
     const banner = document.getElementById('banner');
     banner.textContent = 'Skyline Fix panel is not built yet (skyline/skyline.js).';
     banner.hidden = false;
