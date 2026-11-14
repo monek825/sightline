@@ -46,6 +46,14 @@ Schema: `src`, `meta`, `texture` (paths relative to the page), `step` (use `2` i
 - **Fog from dust:** `fog="type: linear; color: #c9a27e; near: 200; far: <visibilityKm*1000>"`, where `visibilityKm` comes from the Walk Budget state. As the dust storm rises in the demo, the far landmarks literally disappear — this links the 3D view to the map's blind zones. Clamp far to 30 km max for rendering.
 - Camera: at the astronaut position, y = ground height there + 1.7 m. Use `look-controls` (mouse/touch drag) and `wasd-controls` with acceleration tuned to walking speed. Keep the camera glued to the ground (raycast down or sample the grid each tick).
 
+### Realism layer (visual only, no science)
+- **Ground** (`lib/ground.js`, shared with the main 3D view): world-space detail on the terrain material — grain, sandy patches with wind ripples, rocky patches — fading out by ~400 m. Three instanced rock layers (gravel to 24 m, rocks to 75 m, boulders to 280 m), clumped, sparse on the sand patches, re-scattered around the view.
+- **Models** at true size: 8 m habitat dome on a 20 m pad (1.8 m airlock door), 3 m rovers. Start views stand 30 m from the habitat.
+- **Zoom** (binoculars): mouse wheel, pinch, `+` / `-`, `0` resets. Up to ~24×; drag-to-look slows down with zoom.
+- **Sun**: 0.35° disc (Mars sees it 2/3 the size of Earth's), dimmed by `exp(-tau / sin(elevation))`, with a dust halo that turns blue near sunset.
+- **Dust**: blowing grains + drifting dust sheets, from τ ≈ 0.6 up to full at τ = 4. Wind direction matches the map's dust-devil drift. Not a wind measurement.
+- **Dust devils**: during the dust-devil hours in `data/crew_constants.json`, three spinning columns 0.7–2.6 km away drift at `dust_devil_drift_ms`. Illustrative, not forecast positions.
+
 ## Overlays (the "AR" layer)
 - **Home beacon:** a tall thin cylinder (e.g. 200 m high, 3 m radius, emissive cyan `#56d4ff`) at home + a label "HOME 2.4 km". Render it with `material="depthTest: false; transparent: true; opacity: 0.6"` so it shows **through hills** — like AR. Change label to "HOME (hidden behind terrain)" when the line of sight is blocked (raycast from camera to beacon base against the terrain mesh).
 - **Direction arrow:** fixed in the HUD (bottom centre), rotates to the bearing of home relative to the camera heading.
