@@ -36,7 +36,7 @@ Three modes:
   - `shortest`: penalty 1
   - `safest`: 1 + 3 × blind[next]
   - `homeInSight`: 1 + 3 × blind[next] + 6 × homeHidden[next]
-- Heuristic = straight-line distance / speedKmh (admissible because penalties ≥ 1 and tobler ≤ ~1.0 on flat; if you allow tobler > 1 on gentle downhill, divide the heuristic by 1.2).
+- Heuristic = straight-line distance / speedKmh. Admissible because penalties ≥ 1 and the Tobler factor is capped at 1.0 (no downhill bonus for a suited walker on loose regolith).
 - Grid is 150k cells → A* runs in well under a second in the browser. If slow, stop searching after 400k node expansions and return "no route".
 - After A*: simplify the path (drop points that are collinear within 1 cell) and convert to `[lat, lon]`.
 

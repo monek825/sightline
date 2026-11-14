@@ -142,7 +142,7 @@ check('t=0: GO / GREEN', b0.headline === 'GO' && b0.status === 'GREEN', `${b0.he
 const dust = t => at(t).d.budget.factors.find(f => f.id === 'dust');
 check('tau 0.5 at t=30 keeps dust factor GREEN', dust(30).level === 'GREEN', dust(30).level);
 const tS = 75 + 20; // storm event at t=75, fully arrived after the 20 min ramp (scenario.js DUST_RAMP_MIN)
-check('tau 6 reached by t=95: dust factor RED, message cites tau 6.0', dust(tS).level === 'RED' && dust(tS).message.includes('6.0'), `${dust(tS).level}: ${dust(tS).message}`);
+check('tau 2 reached by t=95: dust factor AMBER, message cites tau 2.0', dust(tS).level === 'AMBER' && dust(tS).message.includes('2.0'), `${dust(tS).level}: ${dust(tS).message}`);
 check('t=95: dust is the worst factor or ties for it (status RED)', at(tS).d.budget.status === 'RED');
 check('dust rises gradually: tau(80) between tau(74) and tau(95)', at(80).inputs.tau > at(74).inputs.tau && at(80).inputs.tau < at(tS).inputs.tau, `${at(74).inputs.tau} -> ${at(80).inputs.tau} -> ${at(tS).inputs.tau}`);
 const sepBad = steps.filter(s => s.t >= 60 && !['RETURN NOW', 'AT SHELTER'].includes(s.d.budget.headline));

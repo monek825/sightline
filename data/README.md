@@ -28,7 +28,7 @@ GeoJSON, 708 features. `properties` has `sol, lat, lon, site, drive, dist_total_
 | id | name | sol | approx lat, lon (checked in the waypoints file) |
 |---|---|---|---|
 | `landing` | Octavia E. Butler Landing | 13 (first waypoint) | 18.44463, 77.45089 |
-| `three_forks` | Three Forks sample depot (approx., rover position during depot sols) | 648 | 18.45252, 77.40720 |
+| `three_forks` | Three Forks sample depot (approx., rover position during depot sols) | 653 | 18.45252, 77.40720 |
 | `cheyava_falls` | Cheyava Falls / "Sapphire Canyon" sample area (approx.) | 1174 | 18.49500, 77.30628 |
 | `delta_top` | Upper delta | 1320 | 18.46776, 77.29101 |
 | `crater_rim` | Crater rim | 2022 | 18.43560, 77.23313 |
@@ -50,7 +50,7 @@ https://mars.nasa.gov/rss/api/?feed=raw_images&category=mars2020&feedtype=json&n
 Each image has `extended.mastAz`, `extended.mastEl`, `camera.camera_vector`, `image_files.full_res`. Panorama mosaics under `/mmgis-maps/M20/Layers/mosaics/` return 403 — use single Navcam frames instead.
 
 ## `data/scenario_demo.json`
-Use the shape in root README section 6. Suggested timeline (sol 12 → crew still recovering, short slope limit — good drama):
+Use the shape in root README section 6. Suggested timeline (sol 12 is after the 7-sol recovery, so full walking speed and the normal slope limit):
 - t=0 EVA start at home, LTST 9:00, target `three_forks` (~2.5 km WNW).
 - t=60 τ 0.5. t=120 SEP onset (DONKI id). t=135 τ 2.0. t=150 Horizon Match at site `landing` (or whichever skyline site exists). t=200 EVA end.
 Brayden may tune the times for the video.

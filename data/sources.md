@@ -21,19 +21,23 @@ _Sean: copy the exact names from the challenge "Resources" tab here and say how 
 ## Science papers and NASA reports
 - Hassler et al. 2014, Mars' surface radiation environment measured by Curiosity RAD, Science. https://www.science.org/doi/10.1126/science.1244797
 - Zeitlin et al. 2013, Measurements of energetic particle radiation in transit to Mars, Science. https://www.science.org/doi/10.1126/science.1235989
-- NASA OCHMO Radiation Protection technical brief. https://www.nasa.gov/wp-content/uploads/2023/03/radiation-protection-technical-brief-ochmo.pdf
-- May 2024 solar storm at Mars (Curiosity RAD 8,100 µGy). NASA/JPL news release, 10 June 2024. https://www.nasa.gov/solar-system/planets/mars/nasa-watches-mars-light-up-during-epic-solar-storm
+- NASA OCHMO Radiation Protection technical brief (NASA-STD-3001 Vol 1 Rev B [V1 4031], 250 mSv per design-reference solar particle event; career 600 mSv). https://www.nasa.gov/wp-content/uploads/2023/03/radiation-protection-technical-brief-ochmo.pdf
+- May 2024 solar storm at Mars (Curiosity RAD 8,100 µGy, as reported by NASA/JPL). NASA/JPL news release, June 2024. https://www.jpl.nasa.gov/news/nasa-watches-mars-light-up-during-epic-solar-storm/
+- NASA's first weather report from Jezero Crater (surface pressure). https://www.nasa.gov/feature/nasa-s-first-weather-report-from-jezero-crater-on-mars
+- SwRI release, first radiation measurements on the surface of Mars (GCR dose, 180-day transit). https://www.swri.org/press-release/swri-scientists-publish-first-radiation-measurements-surface-mars
+- Apollo Lunar Surface Journal, Apollo 11 gaits (walk-back speeds). https://www.nasa.gov/wp-content/uploads/static/history/alsj/a11/a11.gaits.html
+- Miller et al. 2018, Functional Task and Balance Performance in Bed Rest Subjects and Astronauts, Aerosp Med Hum Perform 89(9):805 (sensorimotor recovery ~6–16 days). https://pubmed.ncbi.nlm.nih.gov/30126513/
 - Ehresmann et al. 2021, Natural Radiation Shielding on Mars Measured With the MSL/RAD Instrument, JGR Planets 126(8), e2021JE006851 (4% lower dose rate beside Butte M12). https://doi.org/10.1029/2021JE006851
 - Guo et al. 2026, terrain-based radiation at Mars, JGR Planets. https://elib.dlr.de/224554/
 - NASA HRP — bone loss evidence. https://ntrs.nasa.gov/api/citations/20170004597/downloads/20170004597.pdf
-- NASA HRP — sensorimotor recovery after spaceflight. https://ntrs.nasa.gov/api/citations/20200001416/downloads/20200001416.pdf
+- NASA HRP IWS poster, sensorimotor predictors of post-landing performance (no recovery duration stated; superseded here by Miller et al. 2018). https://ntrs.nasa.gov/citations/20200001416
 - NASA HRP — SANS evidence report. https://humanresearchroadmap.nasa.gov/evidence/reports/SANS.pdf
-- EVA suit CO2 / heat design reference. https://ntrs.nasa.gov/api/citations/20170010189/downloads/20170010189.pdf
-- Mars PLSS plan, ICES 2026. https://ntrs.nasa.gov/api/citations/20260003024/downloads/Final_ICES2026_Mars_PLSS_Plan.pdf
+- NASA xPLSS requirements (NTRS 20170010189), EVA suit CO2 / heat design reference. https://ntrs.nasa.gov/api/citations/20170010189/downloads/20170010189.pdf
+- NASA Mars PLSS status and plan, ICES-2026-126 (NTRS 20260003024; SWME cooling below ~7 Torr). https://ntrs.nasa.gov/api/citations/20260003024/downloads/Final_ICES2026_Mars_PLSS_Plan.pdf
 - Moore & Marmolejo 2014, Extravehicular Activity (EVA) Hardware & Operations Overview, NTRS 20140009556 (EMU 7 h budget incl. 30 min reserve). https://ntrs.nasa.gov/api/citations/20140009556/downloads/20140009556.pdf
 - EVA 23 water intrusion report summary. https://www.americaspace.com/2014/02/27/a-condition-that-was-life-threatening-nasa-releases-report-into-eva-23-water-intrusion-incident/
 - Newman et al. 2022, dust devils and wind at Jezero. https://pmc.ncbi.nlm.nih.gov/articles/PMC9132482/
-- Lemmon et al. 2022, dust storm at Jezero. https://pmc.ncbi.nlm.nih.gov/articles/PMC9540647/
+- Lemmon et al. 2022, dust storm at Jezero (Jan 2022 regional storm took ~3–4 sols to reach τ ≈ 2). https://pmc.ncbi.nlm.nih.gov/articles/PMC9540647/
 - Lorenz et al., solar array dust accumulation. https://hal.sorbonne-universite.fr/hal-03369920v1/document
 - Martian dust health risks (Univ. of Colorado, 2025). https://www.colorado.edu/today/2025/03/31/martian-dust-could-pose-health-risks-future-astronauts
 - Circadian entrainment to the Mars sol. https://pmc.ncbi.nlm.nih.gov/articles/PMC1934931

@@ -90,13 +90,13 @@ export function computeBudget(inputs, limits, routeHomeKm, C) {
   const radKeys = ['cruise_dose_msv_per_day', 'transit_days', 'surface_dose_msv_per_sol', 'career_limit_msv', 'sol_drift_min'];
   if (sepActive) {
     factors.push({ id: 'radiation', level: 'RED', label: 'Solar storm',
-      message: `Curiosity measured ${C.may2024_sep_dose_ugy.toLocaleString('en-US')} µGy at Gale crater in the May 2024 solar particle event. ` +
-        (atHabitat ? 'You are at the habitat, so stay inside.' : `Get to shelter: home is ${r(returnMin)} min away.`) +
+      message: `NASA/JPL reported ${C.may2024_sep_dose_ugy.toLocaleString('en-US')} µGy for an astronaut at Gale crater in the May 2024 solar particle event. ` +
+        (atHabitat ? 'You are at the habitat, so stay inside until the all-clear.' : `Get to shelter: home is ${r(returnMin)} min away.`) +
         ` Terrain gives little cover (~${C.terrain_shielding_pct}% near a butte).`,
       keys: [...radKeys, 'may2024_sep_dose_ugy', 'terrain_shielding_pct'] });
   } else {
     factors.push({ id: 'radiation', level: careerPct > CAREER_AMBER_PCT ? 'AMBER' : 'GREEN', label: 'Radiation',
-      message: `Career dose so far is ${careerPct.toFixed(1)}% of the ${C.career_limit_msv} mSv limit (${cumulativeMsv.toFixed(0)} mSv, ${doseTodayMsv.toFixed(2)} mSv from today's walk).`,
+      message: `Career dose so far is about ${careerPct.toFixed(1)}% of the ${C.career_limit_msv} mSv limit (${cumulativeMsv.toFixed(0)} mSv, ${doseTodayMsv.toFixed(2)} mSv from today's walk). Approximate: RAD dose equivalent compared with NASA effective dose.`,
       keys: radKeys });
   }
 

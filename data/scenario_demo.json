@@ -15,7 +15,7 @@
     {
       "tMin": 30,
       "type": "tau",
-      "value": 0.5
+      "value": 0.8
     },
     {
       "tMin": 55,
@@ -26,13 +26,13 @@
       "tMin": 60,
       "type": "sep_onset",
       "donkiId": "2024-05-11T02:10:00-SEP-001",
-      "note": "Replay trigger: strongest proton event of the May 2024 storm in DONKI (GOES >100 MeV, seen at Earth). Dose context: Curiosity RAD measured 8,100 \u00b5Gy at Mars in the 20 May 2024 event, which DONKI's SEP list does not include."
+      "note": "Replay trigger: the May 2024 DONKI event seen above 100 MeV (GOES, at Earth). Dose context: Curiosity RAD measured 8,100 \u00b5Gy at Mars in the 20 May 2024 event, which DONKI's SEP list does not include."
     },
     {
       "tMin": 75,
       "type": "tau",
-      "value": 6.0,
-      "note": "Dust storm stronger than the Jan 2022 Jezero storm (\u03c4\u22482). Illustrative value for the demo."
+      "value": 2.0,
+      "note": "Compressed: at Jezero the January 2022 regional storm took about 3\u20134 sols to reach \u03c4 \u2248 2 (Lemmon et al. 2022). The demo plays it within minutes."
     },
     {
       "tMin": 200,

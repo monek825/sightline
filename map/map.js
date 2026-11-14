@@ -35,7 +35,9 @@ const ASTRO_R = 25, BEACON_H = 400, LIFT_M = 15, ROUTE_R = 10, STEP_M = 60;
 const PITCH_MIN = 0.08, PITCH_MAX = 1.5, CAM_CLEARANCE_M = 40;
 // 3D look (visual only; terrain tint + ground grain live in lib/terrain.js): sun placed from local solar time, slow idle orbit.
 const SUN_DIST = 30000, IDLE_MS = 5000, IDLE_YAW_PER_S = 0.035;
-const ZENITH_CLEAR = [128, 86, 62], LANDMARK_H = 180;
+// Opening shot: close on the habitat so the base reads in detail; when the story plays, ease out to see the walk.
+const START_DIST_M = 140, START_PITCH = 0.32, PLAY_DIST_M = 2600, ZOOM_EASE_S = 1.6;
+const ZENITH_CLEAR = [128, 86, 62], LANDMARK_H = 180, SITE_H = 90;
 const PICK_SLOP_PX = 6, PICK_INSET_DEG = 1e-5; // 3D click-vs-drag threshold; keep picks just inside the bounds
 const COLORS = { blind: [248, 81, 73, 120], homeHidden: [210, 153, 34, 32] };
 const CREAM = '#fff4e0', INK = '#1a110c', ACCENT = '#ff8a3d', DUST = '#c98a55';
@@ -48,7 +50,7 @@ const DEVIL_TIMELAPSE = 30;        // shown 30x faster than real time so the dri
 const DEVIL_WIND_DEG = 60;         // drift direction (towards ENE); illustrative
 const DEVIL_RESPAWN_M = 3500;      // a devil that drifts this far away is replaced upwind
 const DEVIL_WIDTH_M = 150;         // drawn width; Newman et al. 2022 saw devils up to ~270 m wide
-const DEVIL_HEIGHT_M = 800;        // 3D column height; illustrative (Jezero devils are typically hundreds of metres to over a kilometre tall)
+const DEVIL_HEIGHT_M = 800;        // 3D column height; illustrative (Perseverance measured devils from ~120 m to an estimated ~2 km tall)
 const DEVIL_NOTE = 'Dust devils are illustrative, not a forecast.';
 const M_PER_DEG = 2 * Math.PI * 3396190 / 360;
 const DEVIL_SVG = '<svg viewBox="-20 -20 40 40" aria-hidden="true"><circle r="15"/><path d="M0-16A16 16 0 0 1 14 8M0 16A16 16 0 0 1-14-8"/><path d="M0-9A9 9 0 0 1 8 4M0 9A9 9 0 0 1-8-4"/></svg>';
@@ -198,13 +200,14 @@ function addLayers(map, data, box, onPickTarget) {
     keyboard: false
   }).bindTooltip(data.meta.home.name).addTo(map);
 
-  L.control.layers(
-    { 'Orbital imagery': ctx },
-    { 'HiRISE close-up': hirise, 'Blind zones': blindLayer, 'Perseverance route': traverse, 'Landmarks': landmarkLayer, 'Science targets': targetLayer },
-    { collapsed: true, position: 'topright' }
-  ).addTo(map);
   L.control.scale({ metric: true, imperial: false }).addTo(map);
-  return blindLayer;
+  // names on: always-on labels; off: name on hover only
+  const setNames = on => [landmarkLayer, targetLayer].forEach(g => g.eachLayer(m => {
+    const t = m.getTooltip(), txt = t?.getContent();
+    if (!txt) return;
+    m.unbindTooltip().bindTooltip(txt, on ? { permanent: true, direction: 'right', offset: [8, 0], className: 'lm-name' } : {});
+  }));
+  return { blindLayer, hirise, traverse, landmarkLayer, targetLayer, setNames };
 }
 
 // ---------- 3D (A-Frame, lazy) ----------
@@ -222,7 +225,8 @@ function registerOrbit() {
   AFRAME.registerComponent('orbit-camera', {
     schema: { minDist: { default: MIN_DIST_M }, maxDist: { default: 25000 } },
     init() {
-      this.o = { yaw: 0.6, pitch: 0.3, dist: 5200, x: 0, y: 0, z: 0 };
+      this.o = { yaw: 0.6, pitch: START_PITCH, dist: START_DIST_M, x: 0, y: 0, z: 0 };
+      this.distT = null;   // eased zoom target (zoomTo); any user input cancels it
       this.lastInput = 0;
       this.reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
       this.heightAt = null;
@@ -230,7 +234,7 @@ function registerOrbit() {
       const scene = this.el.sceneEl, pts = new Map();
       let pinch = 0;
       const span = () => { const [a, b] = [...pts.values()]; return Math.hypot(a[0] - b[0], a[1] - b[1]); };
-      const touched = () => { this.lastInput = performance.now(); };
+      const touched = () => { this.lastInput = performance.now(); this.distT = null; };
       for (const ev of ['pointerdown', 'wheel']) scene.addEventListener(ev, touched, { passive: true });
       scene.addEventListener('pointerdown', e => {
         pts.set(e.pointerId, [e.clientX, e.clientY]);
@@ -250,9 +254,15 @@ function registerOrbit() {
       scene.addEventListener('wheel', e => { e.preventDefault(); this.zoom(Math.exp(e.deltaY * 0.001)); }, { passive: false });
     },
     zoom(f) { this.o.dist = clamp(this.o.dist * f, this.data.minDist, this.data.maxDist); },
+    zoomTo(d) { this.distT = clamp(d, this.data.minDist, this.data.maxDist); },
     setTarget(x, y, z) { Object.assign(this.o, { x, y, z }); },
     tick(time, dt) {
       if (!this.reduced && time - this.lastInput > IDLE_MS && dt < 100) this.o.yaw += IDLE_YAW_PER_S * dt / 1000;
+      if (this.distT !== null) {
+        const k = this.reduced ? 1 : 1 - Math.exp(-Math.min(dt, 100) / 1000 / (ZOOM_EASE_S / 4));
+        this.o.dist *= Math.pow(this.distT / this.o.dist, k);      // ease in log space: even feel from 140 m to 2.6 km
+        if (Math.abs(this.o.dist / this.distT - 1) < 0.005) { this.o.dist = this.distT; this.distT = null; }
+      }
       const { yaw, pitch, dist, x, y, z } = this.o;
       const h = dist * Math.cos(pitch);
       const cx = x + h * Math.sin(yaw), cz = z + h * Math.cos(yaw);
@@ -273,13 +283,13 @@ function mk(tag, attrs, parent) {
   return e;
 }
 
-// tint #fff = image shown untinted (as on the 2D map)
+// tint warms the greyscale CTX/HiRISE images to Mars colour (HiRISE patches inherit it, lib/terrain.js)
 // Terrain detail by graphics level (MAP_GFX): Low / phones get every 2nd grid point (4x fewer triangles) and the
 // half-size image; patches = HiRISE close-up images (~0.7 m/px) near home and Three Forks (lib/terrain.js).
 const loadLevel = () => (gfxChoice() === 'auto' ? autoStartLevel() : gfxChoice());
 const terrainAttr = src => {
   const g = MAP_GFX[loadLevel()];
-  return `src: ${src}; exaggerate: ${EXAGGERATE}; tint: #ffffff; step: ${g.step}; texture: ${g.texture}; patches: ${g.patches ? 'data/hirise_patches.json' : ''}`;
+  return `src: ${src}; exaggerate: ${EXAGGERATE}; tint: #f0b483; step: ${g.step}; texture: ${g.texture}; patches: ${g.patches ? 'data/hirise_patches.json' : ''}`;
 };
 
 function buildScene() {
@@ -297,7 +307,7 @@ function buildScene() {
   mk('a-cone', { 'radius-bottom': 0, 'radius-top': ASTRO_R, height: ASTRO_R * 2.4, position: `0 ${ASTRO_R * 1.2} 0`, material: flat(ACCENT) }, astro);
   mk('a-sphere', { radius: ASTRO_R * 0.9, position: `0 ${ASTRO_R * 3} 0`, material: flat(ACCENT) }, astro);
   return {
-    scene, hemi, sun, sky, landmarks: mk('a-entity', {}, scene),
+    scene, hemi, sun, sky, landmarks: mk('a-entity', {}, scene), sites: mk('a-entity', {}, scene),
     terrain: mk('a-entity', { 'heightgrid-terrain': terrainAttr(TERRAIN_DATA) }, scene),
     cam: mk('a-entity', { camera: 'fov: 55; near: 0.5; far: 80000', 'orbit-camera': '' }, scene),
     home: mk('a-cylinder', { radius: 6, height: BEACON_H, material: flat(CREAM) }, scene),
@@ -364,10 +374,12 @@ function skyGradient(horizon, f) {
   return c.toDataURL();
 }
 
-// Sun from local solar time: rises east at 06:00, highest at noon, sets west at 18:00 (simple model, Jezero ~18°N).
-function sunPosition(ltst) {
+// Sun from local solar time: sin(el) = cos(lat)·cos(hour angle); ignores the Mars season (declination ~0 at Ls ≈ 5°).
+// East in the morning, west in the afternoon. The light keeps a 4° floor so the scene is not black; there is no sun disc here.
+function sunPosition(ltst, lat) {
   const day = Math.min(1, Math.max(0, (ltst - 6) / 12));
-  const el = Math.max(4, 72 * Math.sin(Math.PI * day)) * Math.PI / 180;
+  const trueEl = Math.asin(Math.cos(lat * Math.PI / 180) * Math.cos(15 * (ltst - 12) * Math.PI / 180));
+  const el = Math.max(4 * Math.PI / 180, trueEl);
   const az = (90 + 180 * day) * Math.PI / 180; // from north, clockwise
   return [Math.sin(az) * Math.cos(el) * SUN_DIST, Math.sin(el) * SUN_DIST, -Math.cos(az) * Math.cos(el) * SUN_DIST];
 }
@@ -461,9 +473,9 @@ function addDustVeil(host) {
 function createView3D(data, onPickTarget, devils) {
   const host = $('view3d'), msg = $('v3-msg');
   let s = null, starting = null, terrain = null, last = null, lastHome, lastOut, lastRadius = -1, lastTau = null, lastSun = null, lastVis = null, blind3d = null;
-  let routeK = 1, retried = false, groundU = null, rocks = null;
+  let routeK = 1, retried = false, groundU = null, rocks = null, wasPlaying = false;
   const say = text => { msg.textContent = text; msg.hidden = !text; };
-  const noteBase = `Vertical scale ×${EXAGGERATE} (true). Rover and habitat are true size.`;
+  const noteBase = `Vertical scale ×${EXAGGERATE} (true). Rover and habitat are true size. The habitat is a concept, not a NASA design. The far rover is Perseverance at its latest traverse position.`;
   let noteDevils = null, dv3 = null, dvAff = null, dvT0 = performance.now();
   const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const setNote = on => { if (on === noteDevils) return; noteDevils = on; $('v3-note').textContent = on ? `${noteBase} ${DEVIL_NOTE}` : noteBase; };
@@ -547,6 +559,26 @@ function createView3D(data, onPickTarget, devils) {
     const o = s.cam.components['orbit-camera'].o;
     if (rocks) rocks.update(o.x, o.z, 0, 0, camH);
     updateDevils3D(cx, cy, cz);
+    placeLabels(cam);
+  }
+  // place-name labels: HTML spans projected from 3D each frame (only transforms written)
+  const labelBox = document.createElement('div'), labels = [];
+  labelBox.className = 'v3-labels'; labelBox.setAttribute('aria-hidden', 'true');
+  host.append(labelBox);
+  let tmpL = null;
+  function placeLabels(cam) {
+    if (!cam || !labels.length) return;
+    const on = vis('names');
+    labelBox.hidden = !on;
+    if (!on) return;
+    tmpL ??= new AFRAME.THREE.Vector3();
+    const w = host.clientWidth, h = host.clientHeight;
+    for (const L of labels) {
+      tmpL.copy(L.p).project(cam);
+      const show = vis(L.kind) && tmpL.z < 1 && Math.abs(tmpL.x) < 1.05 && Math.abs(tmpL.y) < 1.05;
+      if (L.el.hidden !== !show) L.el.hidden = !show;
+      if (show) L.el.style.transform = `translate(${((tmpL.x + 1) / 2 * w).toFixed(0)}px, ${((1 - tmpL.y) / 2 * h).toFixed(0)}px) translate(-50%, -100%)`;
+    }
   }
 
   // Blind zones draped on the terrain: a second mesh sharing the terrain geometry, transparent, drawn on top.
@@ -568,8 +600,21 @@ function createView3D(data, onPickTarget, devils) {
     blind3d.material.map.needsUpdate = true;
   }
 
+  const show = {};   // layer menu: id → false hides it
+  const vis = id => show[id] !== false;
+  function applyLayers() {
+    if (!s) return;
+    if (blind3d) blind3d.visible = vis('blind');
+    s.home.object3D.visible = vis('beacon');
+    s.routes.object3D.visible = vis('routes');
+    s.ring.object3D.visible = vis('ring');
+    s.landmarks.object3D.visible = vis('landmarks');
+    s.sites.object3D.visible = vis('sites');
+    host.classList.toggle('no-dust', !vis('dust'));
+  }
   function update() {
     if (!terrain?.ready || !last) return;
+    applyLayers();
     updateBlind(last.derived.vis, last.derived.visKey);
     setNote(devils.active());
     if (!devils.active() && dv3) for (const m of dv3.meshes) m.visible = false;
@@ -586,10 +631,13 @@ function createView3D(data, onPickTarget, devils) {
     }
     const orbit = s.cam.components['orbit-camera'];
     if (orbit) { orbit.setTarget(p.x, p.y, p.z); orbit.heightAt = (x, z) => terrain.heightAt(x, z); }
+    const playing = last.inputs.scenarioT !== null;
+    if (orbit && playing && !wasPlaying && orbit.o.dist < PLAY_DIST_M * 0.6) orbit.zoomTo(PLAY_DIST_M);
+    wasPlaying = playing;
     if (d.routeHome !== lastHome) { lastHome = d.routeHome; setRoute(s, terrain, 'home', d.routeHome, CREAM, routeK); }
     if (d.routeOut !== lastOut) { lastOut = d.routeOut; setRoute(s, terrain, 'out', d.routeOut, ACCENT, routeK); }
     const ltst = Math.round(last.inputs.ltst * 4) / 4;
-    if (ltst !== lastSun) { lastSun = ltst; s.sun.setAttribute('position', sunPosition(ltst).map(Math.round).join(' ')); }
+    if (ltst !== lastSun) { lastSun = ltst; s.sun.setAttribute('position', sunPosition(ltst, data.meta.home.lat).map(Math.round).join(' ')); }
     const tau = Math.round(last.inputs.tau * 10) / 10;
     if (tau !== lastTau) {
       lastTau = tau;
@@ -651,12 +699,27 @@ function createView3D(data, onPickTarget, devils) {
       const orbit = s.cam.components['orbit-camera'];
       if (orbit) orbit.onTick = onZoom;
       applyGfx();
+      const addLabel = (name, q, h, kind) => {
+        const el = document.createElement('span');
+        el.className = `v3-label ${kind}`; el.textContent = name;
+        labelBox.append(el);
+        labels.push({ el, kind, p: new AFRAME.THREE.Vector3(q.x, q.y + h, q.z) });
+      };
       for (const lm of data.landmarks ?? []) {
         if (lm.id === 'home') continue;
         const q = terrain.toWorld(lm.lat, lm.lon);
         const pin = mk('a-entity', { position: `${q.x} ${q.y} ${q.z}` }, s.landmarks);
         mk('a-cylinder', { radius: 3, height: LANDMARK_H, position: `0 ${LANDMARK_H / 2} 0`, material: 'color: #fff4e0; shader: flat' }, pin);
         mk('a-sphere', { radius: 14, position: `0 ${LANDMARK_H} 0`, material: 'color: #fff4e0; shader: flat' }, pin);
+        addLabel(lm.name, q, LANDMARK_H + 30, 'landmarks');
+      }
+      for (const t of data.targets ?? []) {   // Perseverance science sites: short orange pins
+        const q = terrain.toWorld(t.lat, t.lon);
+        if (!Number.isFinite(q.y)) continue;
+        const pin = mk('a-entity', { position: `${q.x} ${q.y} ${q.z}` }, s.sites);
+        mk('a-cylinder', { radius: 2, height: SITE_H, position: `0 ${SITE_H / 2} 0`, material: `color: ${ACCENT}; shader: flat` }, pin);
+        mk('a-sphere', { radius: 9, position: `0 ${SITE_H} 0`, material: `color: ${ACCENT}; shader: flat` }, pin);
+        addLabel(t.name, q, SITE_H + 20, 'sites');
       }
       update();
     });
@@ -724,15 +787,42 @@ function createView3D(data, onPickTarget, devils) {
       if (s) { if (s.scene.hasLoaded) s.scene.play(); } else starting ??= init();
     },
     hide() { host.hidden = true; if (s?.scene.hasLoaded) s.scene.pause(); },
-    render(store) { last = store; update(); }
+    render(store) { last = store; update(); },
+    setLayer(id, on) { show[id] = on; applyLayers(); }
   };
+}
+
+// Small popover: button toggles it; outside click or Escape closes it.
+function popover(btnId, popId) {
+  const btn = $(btnId), pop = $(popId), wrap = btn.parentElement;
+  const open = on => { pop.hidden = !on; btn.setAttribute('aria-expanded', String(on)); };
+  btn.addEventListener('click', () => open(pop.hidden));
+  document.addEventListener('pointerdown', e => { if (!pop.hidden && !wrap.contains(e.target)) open(false); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && !pop.hidden) { open(false); btn.focus(); } });
+  return open;
+}
+
+// Eye: show / hide objects drawn on the map. Each item: on2 = 2D switch; setLayer(id, on) = 3D switch.
+function setupLayerMenu(items, setLayer3D) {
+  const list = $('layers-list');
+  for (const it of items) {
+    const lab = document.createElement('label'), box = document.createElement('input');
+    box.type = 'checkbox'; box.checked = true;
+    box.addEventListener('change', () => { it.on2?.(box.checked); setLayer3D(it.id, box.checked); });
+    lab.append(box, document.createTextNode(it.label));
+    list.append(lab);
+  }
+  popover('layers-btn', 'layers-list');
 }
 
 function setupToggle(map, view3d) {
   const b2 = $('v-2d'), b3 = $('v-3d');
+  const openMenu = popover('view-btn', 'view-menu');
+  $('view-menu').addEventListener('click', e => { if (e.target.closest('button')) openMenu(false); });
   const set = is3d => {
     b2.setAttribute('aria-pressed', String(!is3d));
     b3.setAttribute('aria-pressed', String(is3d));
+    $('view-name').textContent = is3d ? '3D terrain' : '2D map';
     $('map').hidden = is3d;
     if (is3d) view3d.show(); else { view3d.hide(); map.invalidateSize(); }
   };
@@ -752,10 +842,11 @@ export function createMapView(data, { onPickTarget }) {
     maxBounds: L.latLngBounds(box).pad(0.05)
   }).setView([data.meta.home.lat, data.meta.home.lon], 13);
 
-  const blindLayer = addLayers(map, data, box, onPickTarget);
-  const setRouteAlt = routeLine(map, CREAM, 2, '4 6'); // comparison route, created first so orange stays on top
-  const setRouteOut = routeLine(map, ACCENT, 4);
-  const setRouteHome = routeLine(map, CREAM, 3, '8 6');
+  const L2 = addLayers(map, data, box, onPickTarget), blindLayer = L2.blindLayer;
+  const routesG = L.layerGroup().addTo(map);
+  const setRouteAlt = routeLine(routesG, CREAM, 2, '4 6'); // comparison route, created first so orange stays on top
+  const setRouteOut = routeLine(routesG, ACCENT, 4);
+  const setRouteHome = routeLine(routesG, CREAM, 3, '8 6');
   const haze = L.rectangle(box, { stroke: false, fillColor: DUST, fillOpacity: 0, interactive: false }).addTo(map);
   const seeRing = L.circle([0, 0], { radius: 1000, color: DUST, weight: 2, dashArray: '6 6', fill: false, interactive: false }).addTo(map);
   const devils = createDevils(map, data.C);
@@ -766,13 +857,27 @@ export function createMapView(data, { onPickTarget }) {
   const view3d = createView3D(data, onPickTarget, devils);
   setupToggle(map, view3d);
   for (const id of ['v-2d', 'v-3d']) $(id).addEventListener('click', () => devils.refresh()); // pause/resume the devil loop
+  const g2 = (...ls) => on => ls.forEach(l => (on ? l.addTo(map) : l.remove()));
+  setupLayerMenu([
+    { id: 'beacon', label: 'Home beacon' },
+    { id: 'landmarks', label: 'Landmarks', on2: g2(L2.landmarkLayer) },
+    { id: 'names', label: 'Place names', on2: on => L2.setNames(on) },
+    { id: 'sites', label: 'Science sites', on2: g2(L2.targetLayer) },
+    { id: 'perseverance', label: 'Perseverance route', on2: g2(L2.traverse) },
+    { id: 'routes', label: 'Walking routes', on2: g2(routesG) },
+    { id: 'blind', label: 'Blind zones', on2: g2(blindLayer) },
+    { id: 'ring', label: 'Visibility ring', on2: g2(seeRing, uncertainty) },
+    { id: 'dust', label: 'Dust haze', on2: g2(haze) }
+  ], view3d.setLayer);
+  L2.setNames(true);
 
   let lastVisKey = null, lastHeading = null;
   function renderWeather({ inputs, derived }) {
     const C = store0.data.C, a = inputs.astronaut;
     haze.setStyle({ fillOpacity: Math.min(HAZE_MAX, inputs.tau * HAZE_PER_TAU) });
     seeRing.setLatLng([a.lat, a.lon]).setRadius(derived.limits.visibilityKm * 1000);
-    devils.update(inputs.ltst >= C.dust_devil_peak_start_ltst && inputs.ltst <= C.dust_devil_peak_end_ltst, a);
+    // no devils in a dust storm: Gale's stopped during the 2018 storm, so hide them above tau_red (2D and 3D both follow active())
+    devils.update(inputs.ltst >= C.dust_devil_peak_start_ltst && inputs.ltst <= C.dust_devil_peak_end_ltst && inputs.tau <= C.tau_red, a);
   }
   function render(store) {
     const { inputs, derived } = store;
