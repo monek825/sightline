@@ -97,7 +97,9 @@ function astronautIcon(heading) {
   });
 }
 
-function drawOverlay(vis) {
+const drawOverlay = vis => drawOverlayCanvas(vis).toDataURL();
+// Blind-zone canvas, one pixel per grid cell, row 0 = north: same layout as the terrain UVs, so the 3D view drapes it directly.
+function drawOverlayCanvas(vis) {
   const cv = document.createElement('canvas');
   cv.width = vis.w; cv.height = vis.h;
   const g = cv.getContext('2d');
@@ -107,7 +109,7 @@ function drawOverlay(vis) {
     if (c) img.data.set(c, i * 4);
   }
   g.putImageData(img, 0, 0);
-  return cv.toDataURL();
+  return cv;
 }
 
 // A route line with a dark casing underneath so it reads over orange-brown terrain.
@@ -306,11 +308,31 @@ function sunPosition(ltst) {
 function createView3D(data, onPickTarget) {
   const host = $('view3d'), msg = $('v3-msg');
   $('v3-note').textContent = `Vertical scale ×${EXAGGERATE} · rover and habitat ×${MODEL_SCALE} size`;
-  let s = null, starting = null, terrain = null, last = null, lastHome, lastOut, lastRadius = -1, lastTau = null, lastSun = null;
+  let s = null, starting = null, terrain = null, last = null, lastHome, lastOut, lastRadius = -1, lastTau = null, lastSun = null, lastVis = null, blind3d = null;
   const say = text => { msg.textContent = text; msg.hidden = !text; };
+
+  // Blind zones draped on the terrain: a second mesh sharing the terrain geometry, transparent, drawn on top.
+  function updateBlind(vis, key) {
+    if (!vis?.blind || key === lastVis) return;
+    lastVis = key;
+    const T = AFRAME.THREE;
+    if (!blind3d) {
+      const tex = new T.CanvasTexture(drawOverlayCanvas(vis));
+      tex.colorSpace = T.SRGBColorSpace;
+      blind3d = new T.Mesh(terrain.geometry, new T.MeshBasicMaterial({
+        map: tex, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2
+      }));
+      blind3d.renderOrder = 1;
+      s.terrain.object3D.add(blind3d);
+      return;
+    }
+    blind3d.material.map.image = drawOverlayCanvas(vis);
+    blind3d.material.map.needsUpdate = true;
+  }
 
   function update() {
     if (!terrain?.ready || !last) return;
+    updateBlind(last.derived.vis, last.derived.visKey);
     const { inputs: { astronaut: a }, derived: d } = last;
     const p = terrain.toWorld(a.lat, a.lon);
     s.astro.object3D.position.set(p.x, p.y, p.z);
@@ -419,11 +441,11 @@ function setupToggle(map, view3d) {
     b2.setAttribute('aria-pressed', String(!is3d));
     b3.setAttribute('aria-pressed', String(is3d));
     $('map').hidden = is3d;
-    $('legend').hidden = is3d;
     if (is3d) view3d.show(); else { view3d.hide(); map.invalidateSize(); }
   };
   b2.addEventListener('click', () => set(false));
   b3.addEventListener('click', () => set(true));
+  set(true); // 3D by default: the terrain reads as Mars at a glance; 2D stays one click away
 }
 
 // ---------- entry ----------

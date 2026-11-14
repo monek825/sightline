@@ -123,7 +123,8 @@ function setupScenario(data, M, sky) {
     const fix = fixEvents.find(e => prevT < e.tMin && e.tMin <= t);
     if (fix) { // pause, play the Horizon Match, resume when the panel closes
       stop();
-      sky.skyline.openSkylineFix(fix.site, sky.map, { applyFix: false, onClose: start });
+      const restore = show2D();
+      sky.skyline.openSkylineFix(fix.site, sky.map, { applyFix: false, onClose: () => { restore(); start(); } });
       return;
     }
     if (t >= prep.endT) { stop(); return; }
@@ -228,6 +229,14 @@ function setupHelmet(data) {
   });
 }
 
+// Skyline Fix draws its search heat map on the 2D map: switch to 2D for it, and back afterwards.
+function show2D() {
+  const b2 = document.getElementById('v-2d');
+  if (b2.getAttribute('aria-pressed') === 'true') return () => {};
+  b2.click();
+  return () => document.getElementById('v-3d').click();
+}
+
 function nearestSite(results, at) {
   let best = null, bestD = Infinity;
   for (const [id, s] of Object.entries(results)) {
@@ -240,7 +249,7 @@ function nearestSite(results, at) {
 function setupSkyline(map, mod, results) {
   document.getElementById('btn-skyline').addEventListener('click', () => {
     const site = mod && nearestSite(results, getStore().inputs.astronaut);
-    if (site) { mod.openSkylineFix(site, map).catch(err => console.error(err)); return; }
+    if (site) { const restore = show2D(); mod.openSkylineFix(site, map, { onClose: restore }).catch(err => console.error(err)); return; }
     const banner = document.getElementById('banner');
     banner.textContent = 'Horizon Match panel is not built yet (skyline/skyline.js).';
     banner.hidden = false;
