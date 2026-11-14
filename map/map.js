@@ -778,7 +778,7 @@ function createView3D(data, onPickTarget, devils) {
     });
     s.scene.addEventListener('loaded', () => {
       applyGfx();   // resolution cap before the first frames (A-Frame starts at the full device pixel ratio)
-      if (host.hidden) s.scene.pause();
+      if (host.hidden) { s.scene.pause(); s.scene.renderer?.setAnimationLoop(null); }
       update();
       // GPU ran out of memory or the driver reset: fall back to the 2D map instead of a dead white screen
       s.scene.canvas?.addEventListener('webglcontextlost', e => {
@@ -799,9 +799,9 @@ function createView3D(data, onPickTarget, devils) {
   return {
     show() {
       host.hidden = false;
-      if (s) { if (s.scene.hasLoaded) s.scene.play(); } else starting ??= init();
+      if (s) { if (s.scene.hasLoaded) { s.scene.play(); s.scene.renderer?.setAnimationLoop(s.scene.render); } } else starting ??= init();
     },
-    hide() { host.hidden = true; if (s?.scene.hasLoaded) s.scene.pause(); },
+    hide() { host.hidden = true; if (s?.scene.hasLoaded) { s.scene.pause(); s.scene.renderer?.setAnimationLoop(null); } },   // pause() alone leaves three's loop drawing
     render(store) { last = store; update(); },
     setLayer(id, on) { show[id] = on; applyLayers(); }
   };

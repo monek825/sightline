@@ -15,7 +15,7 @@
   <link rel="icon" href="assets/logo.svg" type="image/svg+xml">
   <link rel="stylesheet" href="styles.css">
   <link rel="preload" href="data/heightgrid40.json" as="fetch" crossorigin="anonymous">
-  <link rel="preload" href="data/terrain_texture.jpg" as="image">
+  <link rel="preload" href="data/terrain_texture.jpg" as="image" crossorigin="anonymous">
   <link rel="preload" href="https://aframe.io/releases/1.6.0/aframe.min.js" as="script">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js" defer></script>
   <script type="module" src="map/intro.js"></script>
@@ -171,7 +171,7 @@
           <button type="button" id="t-reset" class="icon-btn" aria-label="Restart demo">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12a7 7 0 1 0 2.1-5"/><path d="M5 4.5V8h3.5"/></svg>
           </button>
-          <button type="button" id="t-home" class="icon-btn" aria-label="Turn back to the habitat" title="Turn back to the habitat" disabled>
+          <button type="button" id="t-turnback" class="icon-btn" aria-label="Turn back to the habitat" title="Turn back to the habitat" disabled>
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11.5 12 5l8 6.5"/><path d="M6.5 10v9h11v-9"/></svg>
           </button>
           <div class="scrub-wrap">
