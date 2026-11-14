@@ -155,6 +155,10 @@ def check_skyline():
         s = load(f"skyline/{p.name}")
         if not s:
             continue
+        if p.name == "offgrid_summary.json":
+            if not isinstance(s.get("sites"), dict):
+                fail("skyline/offgrid_summary.json: 'sites' object missing")
+            continue
         n = round(360 / s.get("azStepDeg", 2))
         if len(s.get("observed", [])) != n or len(s.get("best", [])) != n:
             fail(f"skyline/{p.name}: observed/best must have {n} values")

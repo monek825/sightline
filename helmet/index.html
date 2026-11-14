@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sightline — Helmet view</title>
+  <link rel="stylesheet" href="helmet.css">
+  <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
+  <script src="../lib/terrain.js"></script>
+</head>
+<body>
+  <a-scene id="scene" embedded loading-screen="enabled: false" background="color: #c9a27e"
+           fog="type: linear; color: #c9a27e; near: 200; far: 30000"
+           renderer="antialias: true; foveationLevel: 0" vr-mode-ui="enabled: true">
+    <a-entity light="type: ambient; color: #ffe9d2; intensity: 0.85"></a-entity>
+    <a-entity light="type: directional; color: #fff1dc; intensity: 0.9" position="-300 600 200"></a-entity>
+    <a-entity id="rig">
+      <a-entity id="cam" camera="near: 0.5; far: 60000" look-controls="pointerLockEnabled: false"></a-entity>
+    </a-entity>
+  </a-scene>
+
+  <!-- 2D overlay (text is always set with textContent from helmet.js) -->
+  <div id="hud" aria-label="Helmet display">
+    <div id="storm" class="banner" role="alert" hidden></div>
+
+    <section id="panel-status" class="panel" data-level="none" aria-live="polite">
+      <div id="hud-headline" class="headline">STANDBY</div>
+      <div id="hud-sub" class="sub"></div>
+      <div id="hud-tag" class="tag"></div>
+    </section>
+
+    <section id="panel-env" class="panel">
+      <div class="row"><span>Home</span><b id="env-home">—</b></div>
+      <div class="row"><span>Dust &tau;</span><b id="env-tau">—</b></div>
+      <div class="row"><span>Visibility</span><b id="env-vis">—</b></div>
+      <div class="row"><span>Position</span><b id="env-unc">—</b></div>
+      <div id="env-route" class="route-note"></div>
+    </section>
+
+    <section id="panel-factors" class="panel" hidden>
+      <ul id="factors"></ul>
+    </section>
+
+    <div id="compass" aria-hidden="true">
+      <div id="compass-arrow"></div>
+      <div id="compass-text">—</div>
+    </div>
+
+    <div id="home-label" class="mark home" hidden></div>
+    <div id="landmark-labels"></div>
+
+    <div id="notes" class="notes"></div>
+  </div>
+
+  <div id="state-card" role="status" aria-live="polite">
+    <div id="state-title">Loading terrain…</div>
+    <div id="state-detail"></div>
+  </div>
+
+  <script type="module" src="helmet.js"></script>
+</body>
+</html>

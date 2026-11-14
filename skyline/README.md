@@ -10,6 +10,7 @@ Mars has no GPS. If the astronaut is lost, they **turn slowly 360°**. A helmet 
 - Today, rover **global localisation on Mars is still done partly by humans** matching images to orbital maps (JPL, ICRA 2024).
 - JPL reports horizon-matching methods at **~10–100 m** accuracy.
 - Our test on the real Jezero DTM (simulated skylines + 0.15° noise): **0 m error at all 5 test sites with a full 360° turn**; with only a 96° camera view: 0 m to 1.1 km → that's why the procedure is a **full turn**.
+- Off-grid check (`python scripts/skyline.py --offgrid`: true position 0–50 m between search-grid nodes, same noise): full 360° turn error **5–23 m** across the 5 sites (uncertainty 50–141 m); the 96° view landed within 5–142 m in that run, but in another off-grid run with different starting guesses it was 2.9 km and 4.0 km off at two sites, so a single view is not reliable.
 - Honest limit: **not yet tested on real photos.** Real cameras + dust + rover/suit tilt will be worse. We show "coarse fix + confidence", never a precise dot.
 
 ## Part A — precompute: `scripts/skyline.py` → `data/skyline/<site>.json`
@@ -76,4 +77,3 @@ Respect `prefers-reduced-motion`: skip the sweep, show the final state.
 
 ## Stretch (only if everything else works)
 - **Real photo check:** take a Perseverance Navcam frame (raw images API, see `data/README.md`) with known `mastAz`/`mastEl`, trace the skyline by hand or by simple edge detection (sky is brighter: first row from the top where brightness drops), convert pixel rows to elevation angles using the camera's field of view, and match against the DTM horizon at the rover's waypoint position. Even one real image matching is a strong slide.
-- **Off-grid check:** with truth moved 0-50 m off the 100 m search grid (seed 42, simulated skyline), median error 32.0 m, max 44.6 m (matcher snaps to grid nodes, so this equals the offset, not sub-grid precision); see [`data/skyline/offgrid_summary.json`](../data/skyline/offgrid_summary.json), run `python scripts/skyline.py --offgrid`.
