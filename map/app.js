@@ -21,6 +21,7 @@ const CAPTIONS = {
     : `Dust is rising (τ ${e.value}). Red areas: no landmark in sight, so it's easy to get lost there.`,
   skyline_fix: () => 'Lost without GPS? Horizon Match finds the position by matching the horizon to NASA terrain.',
   sep_onset: () => 'Solar storm (a replay of May 2024). Radiation means: turn back to shelter now.',
+  return_home: () => 'Turning back to the habitat now.',
   eva_end: () => 'Back at the habitat. The walk budget kept the astronaut safe.'
 };
 
@@ -61,8 +62,12 @@ async function boot() {
   initVisibility(data.viewsheds, data.landmarks, data.grid, data.bounds);
   let retarget = null; // set by setupScenario below: the clicked target drives the demo walk, not just the orange line
   let setCondition = null; // likewise: a condition control edits the scenario from the current demo time on
+  let runHasSep = null; // likewise: does this run include the solar particle event? (null = no scenario file)
   const view = createMapView(data, { onPickTarget: target => { setInputs({ target }); retarget?.(target); } });
-  const renderPanels = createPanels(data, { setInputs, usingStubs, onCondition: (key, value) => setCondition ? setCondition(key, value) : false });
+  let runEvents = null; // likewise: the run's current events (the timeline markers follow them)
+  let setSpeed = null, getSpeed = null; // likewise: playback multiplier (player state, not model state)
+  const renderPanels = createPanels(data, { setInputs, usingStubs, onCondition: (key, value) => setCondition ? setCondition(key, value) : false, runHasSep: () => runHasSep ? runHasSep() : null,
+    runEvents: () => runEvents ? runEvents() : null, onSpeed: k => setSpeed?.(k), getSpeed: () => getSpeed ? getSpeed() : 1, speedBase: SPEED_MIN_PER_SEC });
 
   initStore(data, createPipeline(M), { astronaut: { ...data.meta.home, headingDeg: 0 } });
   for (const w of data.warnings) console.warn(w);
@@ -73,7 +78,8 @@ async function boot() {
   const skyIds = (data.targets ?? []).map(t => t.id);
   const skyResults = skyline ? await skyline.loadSkylineResults(skyIds) : {};
   initMotion();
-  ({ retarget = null, setCondition = null } = setupScenario(data, M, { skyline, skyResults, map: view.map }) ?? {});
+  ({ retarget = null, setCondition = null, runHasSep = null, runEvents = null, setSpeed = null, getSpeed = null } = setupScenario(data, M, { skyline, skyResults, map: view.map }) ?? {});
+  renderPanels(getStore()); // the run setting is known now: show it (a re-render, no state written)
   setupHelmet(data);
   setupSkyline(view.map, skyline, skyResults);
   setupWelcome();
@@ -89,8 +95,10 @@ function setupScenario(data, M, sky) {
   const play = document.getElementById('t-play');
   const scrub = document.getElementById('t-scrub');
   const label = document.getElementById('t-label');
+  const homeBtn = document.getElementById('t-home');
   scrub.max = prep.endT;
   let t = 0, playing = false, last = 0, raf = 0;
+  let speed = 1; // playback multiplier 1-10: player state, not model state (never in the store)
 
   const fixesOf = p => (p.scenario.events ?? []).filter(e => e.type === 'skyline_fix' && sky.skyResults[e.site]);
   let fixEvents = fixesOf(prep);
@@ -105,19 +113,21 @@ function setupScenario(data, M, sky) {
     if (caption.textContent !== text) { caption.textContent = text; caption.hidden = !text; }
     scrub.value = t;
     label.textContent = `t = ${Math.round(t)} min`;
+    homeBtn.disabled = !(t > 0 && t < prep.sepT && t < prep.endT); // a press only acts on the outbound leg
   };
   caption.textContent = 'Press play to watch the 100-second story.';
   caption.hidden = false;
   const frame = now => {
     if (!playing) return;
     const prevT = t;
-    t = Math.min(prep.endT, t + (now - last) / 1000 * SPEED_MIN_PER_SEC);
+    t = Math.min(prep.endT, t + (now - last) / 1000 * SPEED_MIN_PER_SEC * speed);
     last = now;
     apply();
     const fix = fixEvents.find(e => prevT < e.tMin && e.tMin <= t);
     if (fix) { // pause, play the Horizon Match, resume when the panel closes
       stop();
-      sky.skyline.openSkylineFix(fix.site, sky.map, { applyFix: false, onClose: start });
+      const restore = show2D();
+      sky.skyline.openSkylineFix(fix.site, sky.map, { applyFix: false, onClose: () => { restore(); start(); } });
       return;
     }
     if (t >= prep.endT) { stop(); return; }
@@ -134,7 +144,11 @@ function setupScenario(data, M, sky) {
     play.dataset.state = 'paused'; play.setAttribute('aria-label', 'Play demo');
   }
   play.addEventListener('click', () => (playing ? stop() : start()));
-  document.getElementById('t-reset').addEventListener('click', () => { stop(); t = 0; apply(); });
+  document.getElementById('t-reset').addEventListener('click', () => {
+    stop();
+    const sc = editScenario(scenario, t, 'returnHome', false);
+    if (sc === scenario || !swap(sc, prep.target, prep.custom ? getStore().inputs.routeMode : 'safest', 'zero')) { t = 0; apply(); }
+  });
   scrub.addEventListener('input', () => { stop(); t = Number(scrub.value); apply(); });
   document.addEventListener('visibilitychange', () => { if (document.hidden) stop(); });
   // swap in a re-prepared walk for scenario `sc`; false (nothing changed) if the new one is unreachable.
@@ -156,17 +170,32 @@ function setupScenario(data, M, sky) {
     return true;
   };
   // re-plan the walk for a target + mode; an unreachable one keeps the old walk
-  const replan = (target, mode) => swap(scenario, target, mode, 'auto');
+  const replan = (target, mode) => swap(editScenario(scenario, t, 'returnHome', false), target, mode, 'auto');
+  // turn back to the habitat now, from here; only on the outbound leg
+  homeBtn.addEventListener('click', () => {
+    if (!(t > 0 && t < prep.sepT && t < prep.endT)) return;
+    swap(editScenario(scenario, t, 'returnHome', true), prep.target, prep.custom ? getStore().inputs.routeMode : 'safest', 'keep');
+  });
   // a condition control edit from demo time t on; sol is a different EVA day, so it restarts the walk
+  const runHasSep = () => scenario.events.some(e => e.type === 'sep_onset'); // the run setting behind the checkbox
   const setCondition = (key, value) => {
-    const sc = editScenario(scenario, t, key, value, prep.hourMin);
+    const sc = editScenario(scenario, t, key, value, prep.hourMin, data.scenario);
+    if (key === 'sepActive' && sc !== scenario) {
+      // the solar particle event is a run setting: if it changes the walk already shown (t is past the earlier leg switch), restart the run
+      const mode = prep.custom ? getStore().inputs.routeMode : 'safest';
+      const nextSwitch = prepareScenario(sc, data, M, prep.target, mode).sepT;
+      swap(sc, prep.target, mode, t > Math.min(prep.sepT, nextSwitch) ? 'zero' : 'keep');
+      apply(); // also puts the checkbox back when the change was unreachable
+      return true;
+    }
     if (sc !== scenario && swap(sc, prep.target, prep.custom ? getStore().inputs.routeMode : 'safest', key === 'sol' ? 'zero' : 'keep')) return true;
     apply(); // no-op or unreachable edit: put the controls back to what the demo shows
     return true;
   };
   // changing the route mode after picking a target re-plans the walk too (value from the event, not listener order)
   document.getElementById('c-mode').addEventListener('change', e => { if (prep.custom) replan(prep.target, e.target.value); });
-  return { retarget: target => replan(target, getStore().inputs.routeMode), setCondition };
+  const setSpeed = k => { speed = Math.min(10, Math.max(1, Math.round(Number(k)) || 1)); }; // takes effect on the next frame; the clock does not jump
+  return { retarget: target => replan(target, getStore().inputs.routeMode), setCondition, runHasSep, runEvents: () => scenario.events, setSpeed, getSpeed: () => speed };
 }
 
 // First-visit card: what this is + one-click story. Shown once per browser session.
@@ -212,6 +241,14 @@ function setupHelmet(data) {
   });
 }
 
+// Skyline Fix draws its search heat map on the 2D map: switch to 2D for it, and back afterwards.
+function show2D() {
+  const b2 = document.getElementById('v-2d');
+  if (b2.getAttribute('aria-pressed') === 'true') return () => {};
+  b2.click();
+  return () => document.getElementById('v-3d').click();
+}
+
 function nearestSite(results, at) {
   let best = null, bestD = Infinity;
   for (const [id, s] of Object.entries(results)) {
@@ -224,7 +261,7 @@ function nearestSite(results, at) {
 function setupSkyline(map, mod, results) {
   document.getElementById('btn-skyline').addEventListener('click', () => {
     const site = mod && nearestSite(results, getStore().inputs.astronaut);
-    if (site) { mod.openSkylineFix(site, map).catch(err => console.error(err)); return; }
+    if (site) { const restore = show2D(); mod.openSkylineFix(site, map, { onClose: restore }).catch(err => console.error(err)); return; }
     const banner = document.getElementById('banner');
     banner.textContent = 'Horizon Match panel is not built yet (skyline/skyline.js).';
     banner.hidden = false;

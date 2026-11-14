@@ -1,40 +1,34 @@
 <!-- Written with AI assistance (Claude / GitHub Copilot) -->
-# Prompt for Sean: polish the helmet view (rover + habitat models are ready)
+# Prompt for Sean: make the helmet view look real
 
 Paste the code block into Claude Code with the repo open (use the frugal-fable skill if on Fable).
 
 ```
-Repo: monek825/sightline (NASA Space Apps 2026 hackathon, deadline Sun 15 Nov 23:59 WIB, feature freeze Sun 16:00).
-First read CLAUDE.md, README.md, ARCHITECTURE.md §9 (postMessage protocol) and helmet/README.md.
-The helmet view already works (helmet/index.html, helmet/helmet.js, helmet/helmet.css). Your job: POLISH it. Don't rewrite it.
+Repo: monek825/sightline (NASA Space Apps 2026, freeze Sun 16:00 WIB). Read CLAUDE.md, ARCHITECTURE.md §9 (postMessage v1), helmet/README.md, then map/map.js createView3D (the main 3D view: copy its look).
+The helmet view works (helmet/index.html, helmet.js, helmet.css) but looks too simple: flat ground, flat light, plain boxes for the HUD. Goal: a judge opens it and thinks "that's Mars, through a helmet". POLISH, don't rewrite. Keep the postMessage protocol, line-of-sight logic and walk mode.
 
-Rules: plain HTML/CSS/JS, A-Frame 1.6.0 from CDN, no npm/build step, no runtime API calls. Only edit helmet/*. Don't edit lib/* or map/*. Insert data text with textContent, never innerHTML. No NASA logos/meatball/patches anywhere. New files start with: // Written with AI assistance (Claude / GitHub Copilot). Work on branch feat/helmet-polish, commit small, open a PR to main.
+Rules: plain HTML/CSS/JS, A-Frame 1.6.0, no npm/build, no runtime APIs, edit only helmet/*. textContent only. No NASA logos. ONE WebGL scene; must stay at 60 fps on a laptop (check DevTools Performance: no long frames while walking). Branch feat/helmet-look, PR to main.
 
-1. Models (already built, just place them): load ../lib/models.js after ../lib/terrain.js. It registers A-Frame components `mars-habitat` and `mars-rover` (original, primitives, metres at scale 1, origin = ground). In the helmet use scale 1 (real size):
-   - habitat at home: position (0, terrain.heightAt(0,0), 0)
-   - a support rover parked beside it: (14, heightAt(14,6), 6), rotation 0 -30 0
-   - Perseverance at its latest real position: last point of ../data/traverse.json ({lat, lon}) via terrain.toWorld
-   From the habitat start view the astronaut should see the dome, solar wings and rover up close.
+1. Scene realism (biggest win first)
+   - Models: load ../lib/models.js after ../lib/terrain.js. Place `mars-habitat` (scale 1) at home (0, terrain.heightAt(0,0), 0), a `mars-rover` at (14, heightAt, 6) rotation 0 -30 0, and a second rover at the last point of ../data/traverse.json (Perseverance's real position) via terrain.toWorld. Standing at home you should see the dome, solar wings and rover up close.
+   - Rocks: scatter ~1500 small rocks within 150 m of the camera with ONE THREE.InstancedMesh (low-poly dodecahedron, random scale 0.05–0.6 m, random rotation, dusty brown #8a6a52, roughness 1), each sitting on terrain.heightAt. Re-scatter around the camera when it moves > 80 m (walk mode). Seeded random so it's stable. This is what fixes "the close-up looks fake": the DTM is 20 m per point, so near ground needs rocks, not more texture.
+   - Ground: tint + fine grain are already automatic in lib/terrain.js; check it no longer looks flat grey.
+   - Light: replace the ambient light with a hemisphere light (sky #ffd9b0, ground #4a2a18, intensity .75) + a directional sun placed from inputs.ltst (rises east 06:00, highest at noon, sets west 18:00), intensity 1.6*exp(-tau/5)+0.25. Optional: enable shadows ONLY for the sun on rocks/models within 200 m (shadow map 1024, tight shadow camera); drop it if fps falls.
+   - Sky + dust: a-sky with a vertical gradient (zenith #80563e → butterscotch horizon); under high tau both go dusty. Linear fog, colour = horizon, far = derived.limits.visibilityKm*1000. The tau 6 storm must visibly swallow the far hills; that's the video moment.
 
-2. Match the main app's 3D look (see map/map.js createView3D for reference values):
-   - terrain tint + fine ground grain are now automatic in lib/terrain.js (no code needed); check the ground no longer looks flat grey
-   - lights: a hemisphere light (sky #ffd9b0, ground #4a2a18) + a directional sun. Place the sun from inputs.ltst (rises east at 06:00, highest at noon, sets west at 18:00); dim it as tau rises
-   - sky: an a-sky with a vertical gradient (darker zenith #80563e, lighter butterscotch horizon); under dust (high tau) both go the same dusty colour
-   - fog: linear, colour = horizon colour, far = derived.limits.visibilityKm * 1000. This is the key "dust storm" moment in the video, so the fog must close in visibly when tau goes to 6
+2. Helmet HUD (helmet.css + markup)
+   - Fonts: Clash Display (headers) + Switzer (text) from https://api.fontshare.com/v2/css?f[]=clash-display@500,600&f[]=switzer@400,500,600&display=swap ; numbers in Geist Mono (Google Fonts). No monospace-everything, no cyan terminal look.
+   - Panels: frosted, no border: rgba(30,18,11,.46), backdrop-filter blur(22px) saturate(1.5), radius 14–20 px, shadow 0 10px 36px rgba(0,0,0,.38). Colours: text #f6ebdf, accent #ff8a3d, green #4cc86a, amber #e2a73a, red #ff5f56.
+   - Layout like a real visor: status (GO / TURN BACK / RETURN NOW) big top-centre; minutes home + suit time small top-left; dust/visibility top-right; a compass strip along the top edge (N/E/S/W ticks that scroll with heading, with a home marker on it); the home distance + "hidden behind terrain" state bottom-centre.
+   - Visor frame: a thin curved dark rim around the screen edges (CSS border-radius on a full-screen overlay with an inset shadow ring), NOT a blurry vignette.
+   - Home beacon: slow pulse; when line of sight is blocked, the beacon turns dashed/dimmer and the label says "hidden behind terrain".
+   - Status change pops (scale .9→1, .5s); everything off under prefers-reduced-motion.
+   - House rules: no small labels above headings, no "01 ·" numbering, no ↗ arrows.
 
-3. HUD polish (helmet/helmet.css):
-   - fonts: headers "Clash Display" + text "Switzer" (Fontshare CSS: https://api.fontshare.com/v2/css?f[]=clash-display@500,600&f[]=switzer@400,500,600&display=swap), numbers "Geist Mono" (Google Fonts)
-   - panels: frosted, no border: background rgba(30,18,11,.46), backdrop-filter blur(22px) saturate(1.5), radius 12–20 px, shadow 0 10px 36px rgba(0,0,0,.38). Colours: text #f6ebdf, accent #ff8a3d, green #4cc86a, amber #e2a73a, red #ff5f56
-   - a subtle helmet visor frame around the edges (a thin curved dark rim, NOT a blurry vignette fade)
-   - home beacon: slow pulse (scale/opacity), and the distance label shows "hidden behind terrain" clearly when line of sight is blocked
-   - the status (GO / TURN BACK / RETURN NOW) changes with a short pop animation; under prefers-reduced-motion, no animations
-   - no small labels above headings, no "01 ·" numbering, no ↗ arrows
+3. Feel
+   - Walk mode: lerp position and heading (no jumps), eye 1.7 m above terrain.heightAt.
+   - Pause rendering when the tab is hidden; test standalone (http://localhost:8000/helmet/) and inside the app (Position tab → Open helmet view).
+   - Test at 1440 and 375 px.
 
-4. Feel:
-   - walk mode: smooth camera (lerp position/heading, no jumps), eye height 1.7 m above terrain.heightAt
-   - one WebGL scene only; pause rendering when the tab is hidden
-   - must work standalone (open helmet/index.html via `python3 -m http.server 8000` → http://localhost:8000/helmet/) AND inside the main app (Route tab → "Open helmet view"; it receives state by postMessage, protocol v1, same origin only)
-   - test at 1440 px and 375 px wide
-
-5. Before the PR: run `bash scripts/check_all.sh` (must pass), play the main demo with the helmet open through the storm (t = 60–150), and put 2 screenshots (normal + dust storm) in the PR description. Report anything you couldn't finish.
+4. Before the PR: `bash scripts/check_all.sh` passes; play the main demo with the helmet open through the storm (t = 60–150); attach 2 screenshots (clear + dust storm) and the fps you measured. Report anything unfinished.
 ```
