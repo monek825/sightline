@@ -38,6 +38,8 @@ const SUN_DIST = 30000, IDLE_MS = 5000, IDLE_YAW_PER_S = 0.035;
 // Opening shot: close on the habitat so the base reads in detail; when the story plays, ease out to see the walk.
 const START_DIST_M = 140, START_PITCH = 0.32, PLAY_DIST_M = 2600, ZOOM_EASE_S = 1.6;
 const ZENITH_CLEAR = [128, 86, 62], LANDMARK_H = 180, SITE_H = 90;
+// Pins are markers sized for the 2.6 km view; up close they shrink (never below 5%) so they don't tower over the base.
+const PIN_FULL_DIST_M = 2600, PIN_SKIP_HOME_M = 60;
 const PICK_SLOP_PX = 6, PICK_INSET_DEG = 1e-5; // 3D click-vs-drag threshold; keep picks just inside the bounds
 const COLORS = { blind: [248, 81, 73, 120], homeHidden: [210, 153, 34, 32] };
 const CREAM = '#fff4e0', INK = '#1a110c', ACCENT = '#ff8a3d', DUST = '#c98a55';
@@ -473,7 +475,7 @@ function addDustVeil(host) {
 function createView3D(data, onPickTarget, devils) {
   const host = $('view3d'), msg = $('v3-msg');
   let s = null, starting = null, terrain = null, last = null, lastHome, lastOut, lastRadius = -1, lastTau = null, lastSun = null, lastVis = null, blind3d = null;
-  let routeK = 1, retried = false, groundU = null, rocks = null, wasPlaying = false;
+  let pinK = -1, routeK = 1, retried = false, groundU = null, rocks = null, wasPlaying = false;
   const say = text => { msg.textContent = text; msg.hidden = !text; };
   const noteBase = `Vertical scale ×${EXAGGERATE} (true). Rover and habitat are true size. The habitat is a concept, not a NASA design. The far rover is Perseverance at its latest traverse position.`;
   let noteDevils = null, dv3 = null, dvAff = null, dvT0 = performance.now();
@@ -542,6 +544,12 @@ function createView3D(data, onPickTarget, devils) {
   // Per frame from orbit-camera: marker size, route thickness, near plane and close-up ground follow the zoom.
   function onZoom(dist, cx, cy, cz, camH) {
     gfxAutoTick();
+    const pk = Math.min(1, Math.max(0.05, dist / PIN_FULL_DIST_M));
+    if (pk !== pinK) {
+      pinK = pk;
+      for (const g of [s.landmarks, s.sites]) for (const c of g.object3D.children) c.scale.setScalar(pk);
+      for (const L of labels) L.p.y = L.y0 + L.h * pk;
+    }
     const a = Math.min(1, Math.max(0.016, dist / 5200));      // astronaut cone 25 m tall from afar, ~0.4 m up close
     s.astro.object3D.scale.setScalar(a);
     s.home.object3D.scale.set(a, 1, a);
@@ -708,7 +716,7 @@ function createView3D(data, onPickTarget, devils) {
         const el = document.createElement('span');
         el.className = `v3-label ${kind}`; el.textContent = name;
         labelBox.append(el);
-        labels.push({ el, kind, p: new AFRAME.THREE.Vector3(q.x, q.y + h, q.z) });
+        labels.push({ el, kind, y0: q.y, h, p: new AFRAME.THREE.Vector3(q.x, q.y + h, q.z) });
       };
       for (const lm of data.landmarks ?? []) {
         if (lm.id === 'home') continue;
@@ -720,12 +728,13 @@ function createView3D(data, onPickTarget, devils) {
       }
       for (const t of data.targets ?? []) {   // Perseverance science sites: short orange pins
         const q = terrain.toWorld(t.lat, t.lon);
-        if (!Number.isFinite(q.y)) continue;
+        if (!Number.isFinite(q.y) || Math.hypot(q.x, q.z) < PIN_SKIP_HOME_M) continue;   // the landing site is the habitat itself
         const pin = mk('a-entity', { position: `${q.x} ${q.y} ${q.z}` }, s.sites);
         mk('a-cylinder', { radius: 2, height: SITE_H, position: `0 ${SITE_H / 2} 0`, material: `color: ${ACCENT}; shader: flat` }, pin);
         mk('a-sphere', { radius: 9, position: `0 ${SITE_H} 0`, material: `color: ${ACCENT}; shader: flat` }, pin);
         addLabel(t.name, q, SITE_H + 20, 'sites');
       }
+      pinK = -1;   // size the new pins on the next frame
       update();
     });
     // A click (one pointer, barely moves) picks a target; a drag orbits (orbit-camera) and a pinch zooms.
