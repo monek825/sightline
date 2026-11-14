@@ -186,11 +186,9 @@ h1, h2 { margin: 0; font-weight: 600; }
 .tabbar [role="tab"]:first-child .tip::after { left: 23px; }
 .tabbar [role="tab"]:last-child .tip { left: auto; right: 0; transform: translate(6px, 4px); }
 .tabbar [role="tab"]:last-child .tip::after { left: auto; right: 17px; }
-.tabbar [role="tab"]:is(:hover, :focus-visible) .tip,
-.tabbar [role="tab"][aria-selected="true"] .tip { opacity: 1; transform: translate(-50%, 0); }
-.tabbar [role="tab"]:first-child:is(:hover, :focus-visible, [aria-selected="true"]) .tip { transform: translate(-6px, 0); }
-.tabbar [role="tab"]:last-child:is(:hover, :focus-visible, [aria-selected="true"]) .tip { transform: translate(6px, 0); }
-.tabbar:hover [role="tab"][aria-selected="true"]:not(:hover) .tip { opacity: 0; }
+.tabbar [role="tab"]:is(:hover, :focus-visible) .tip { opacity: 1; transform: translate(-50%, 0); }
+.tabbar [role="tab"]:first-child:is(:hover, :focus-visible) .tip { transform: translate(-6px, 0); }
+.tabbar [role="tab"]:last-child:is(:hover, :focus-visible) .tip { transform: translate(6px, 0); }
 .tabbar [role="tab"][data-level="RED"]::after, .tabbar [role="tab"][data-level="AMBER"]::after {
   content: ""; position: absolute; top: 2px; right: 2px; width: 10px; height: 10px; border-radius: 50%; box-shadow: 0 0 0 2px rgba(30, 18, 11, .9);
 }
@@ -387,7 +385,7 @@ h1, h2, .brand, .tab-title, .skyfix-head h2, .more h2 { font-family: var(--displ
 .tip { transform-origin: 50% 100%; scale: .75; transition: opacity .2s cubic-bezier(.5, 0, .75, 0), scale .2s cubic-bezier(.5, 0, .75, 0), transform .2s; }
 .tabbar [role="tab"]:first-child .tip { transform-origin: 20px 100%; }
 .tabbar [role="tab"]:last-child .tip { transform-origin: calc(100% - 20px) 100%; }
-.tabbar [role="tab"]:is(:hover, :focus-visible) .tip, .tabbar [role="tab"][aria-selected="true"] .tip { scale: 1; transition: opacity .4s var(--ease-tip), scale .4s var(--ease-tip), transform .4s var(--ease-tip); }
+.tabbar [role="tab"]:is(:hover, :focus-visible) .tip { scale: 1; transition: opacity .4s var(--ease-tip), scale .4s var(--ease-tip), transform .4s var(--ease-tip); }
 
 /* tab content: lines rise in, staggered */
 .tab:not([hidden]) > * { animation: rise .55s var(--ease-out) both; }
@@ -438,6 +436,7 @@ h1, h2, .brand, .tab-title, .skyfix-head h2, .more h2 { font-family: var(--displ
 }
 .caption:not([hidden]) { animation: lift-in .5s var(--ease-out) both; }
 @keyframes lift-in { from { opacity: 0; translate: 0 10px; } }
+.map-wrap:has(.skyfix[open]) :is(.caption, .legend) { display: none; }
 
 /* welcome card */
 .welcome {
@@ -456,3 +455,19 @@ h1, h2, .brand, .tab-title, .skyfix-head h2, .more h2 { font-family: var(--displ
   .caption { max-width: calc(100% - 32px); bottom: var(--s4); font-size: 13px; }
   .welcome { width: calc(100% - 24px); top: 50%; padding: var(--s5); }
 }
+
+/* Skyline Fix, plain-language layout */
+.skyfix-lead { margin: 0; font-size: 14px; color: var(--muted); }
+.skyfix-prog { display: grid; gap: var(--s2); min-width: 0; }
+.skyfix-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.skyfix-steps li { font-size: 12px; font-weight: 500; padding: 4px 10px; border-radius: 999px; background: rgba(255, 255, 255, .06); color: var(--muted); transition: background-color .3s, color .3s; }
+.skyfix-steps li.now { background: var(--cream); color: var(--accent-ink); }
+.skyfix-steps li.done { background: rgba(76, 200, 106, .18); color: #9fe3b0; }
+.skyfix-status { margin: 0; font-size: 14px; }
+.skyfix-axis { display: flex; justify-content: space-between; margin: -6px 8px 0; font: 11px var(--mono); color: var(--muted); }
+.skyfix-big strong { font-family: var(--display); font-size: 1.7rem; }
+.skyfix-why { display: grid; gap: var(--s2); margin-top: var(--s3); }
+.skyfix-why h3 { margin: 0; font: 600 14px var(--display); }
+.skyfix-toggle { display: flex; flex-wrap: wrap; gap: var(--s2); }
+.skyfix-toggle .btn[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); font-weight: 600; }
+.skyfix-explain { margin: 0; font-size: 13px; color: var(--muted); }
