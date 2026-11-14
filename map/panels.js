@@ -107,17 +107,50 @@ function dataBadge(data, usingStubs) {
   $('notch').classList.add('has-mock');
 }
 
-function factorItem(f, byKey) {
+function factorItem(f, byKey, keyNum) {
   const li = el('li', f.level);
   li.dataset.key = f.keys?.[0] || '';
   li.tabIndex = 0;
   const text = el('div');
   text.append(el('strong', '', f.label));
+  if (keyNum) text.append(el('span', 'keynum', keyNum));
   const tag = tagFor(f.keys || [], byKey);
   if (tag) text.append(el('span', tag[1], tag[0]));
   text.append(el('div', '', f.message));
   li.append(el('span', 'dot'), text);
   return li;
+}
+
+// The key number of a limiting factor, from the budget (or the first number in its message).
+function keyNumber(f, bdg, inputs) {
+  if (f.id === 'suit_time') return bdg.marginMin <= 0 ? `home ${fmtMin(bdg.returnMin)}` : `turn back in ${fmtMin(bdg.turnBackInMin)}`;
+  if (f.id === 'radiation' && f.level === 'RED') return `home ${fmtMin(bdg.returnMin)}`;
+  if (f.id === 'radiation') return fmtNum(bdg.careerPct, 1, '% of career dose');
+  if (f.id === 'dust') return `τ ${fmtNum(inputs.tau, 1)} · ${fmtKm(bdg.visibilityKm)}`;
+  if (f.id === 'mobility') return fmtNum(bdg.speedKmh, 1, ' km/h');
+  return f.message.match(/\d[\d.,]*\s?(?:min|km|%|Pa|°C|h)\b/)?.[0] ?? '';
+}
+
+// One plain-English sentence on why the verdict is what it is: the worst factor plus the budget's numbers.
+function verdictSentence(bdg) {
+  const w = bdg.factors[0];
+  const home = fmtMin(bdg.returnMin), back = fmtMin(bdg.turnBackInMin);
+  const worstWords = { // [RED, AMBER] wording per factor id (null: that level cannot happen, fall back to the label)
+    suit_time: [`only ${fmtMin(Math.max(0, bdg.suitMinLeft))} of suit time is left and home is ${home} away.`, `the suit-time margin is thin; turn back in ${back}.`],
+    radiation: [`a solar storm started and home is ${home} away.`, 'the career radiation dose is getting high.'],
+    dust: [`dust hides landmarks beyond ${fmtKm(bdg.visibilityKm)}.`, `dust limits sight to about ${fmtKm(bdg.visibilityKm)}; turn back in ${back}.`],
+    dust_devil: [null, 'it is dust-devil hours, so visibility can drop suddenly.'],
+    cooling: ['the suit cannot cool at this air pressure.', 'the suit cooling margin is thin at this air pressure.'],
+    cold: [null, 'the air is cooling fast, so head home soon.'],
+    mobility: [null, `walking is slow (${fmtNum(bdg.speedKmh, 1, ' km/h')}) while balance recovers.`],
+    body_clock: [null, 'an early start while the body clock drifts means lower alertness.']
+  }[w.id];
+  if (bdg.headline === 'AT SHELTER') {
+    return w.id === 'radiation' ? 'At shelter: the crew is home during the solar storm.' : `At shelter: the crew is home, and ${w.label.toLowerCase()} would stop a walk right now.`;
+  }
+  if (bdg.status === 'RED') return `Return now: ${worstWords?.[0] ?? `${w.label}.`}`;
+  if (bdg.status === 'AMBER') return `Caution: ${worstWords?.[1] ?? `${w.label}.`}${worstWords ? '' : ` Turn back in ${back}.`}`;
+  return `Go: everything is within limits; turn back in ${back}.`;
 }
 
 // Clicking/pressing Enter on a factor opens its source row.
@@ -158,11 +191,16 @@ function wireTabs() {
 
 function wireDrawer() {
   const notch = $('notch'), more = $('drawer-more');
-  notch.addEventListener('click', () => {
-    const open = more.hidden;
+  const setOpen = open => {
     more.hidden = !open;
     notch.setAttribute('aria-expanded', String(open));
     $('drawer').classList.toggle('open', open);
+  };
+  notch.addEventListener('click', () => setOpen(more.hidden));
+  document.addEventListener('keydown', e => { // Esc closes the sheet and hands focus back to its button
+    if (e.key !== 'Escape' || more.hidden || document.querySelector('dialog[open]')) return;
+    setOpen(false);
+    notch.focus();
   });
 }
 
@@ -180,6 +218,15 @@ export function createPanels(data, { setInputs, usingStubs, onCondition, runHasS
   wireDrawer();
   wireFactorLists();
   $('btn-sources').addEventListener('click', () => openSources());
+  // scale hints under the sliders: endpoints from the sliders themselves, recovery day from the constants
+  const rng = id => [$(id).min, $(id).max];
+  const hints = {
+    'c-tau': `${rng('c-tau')[0]} clear sky · ${rng('c-tau')[1]} global storm`,
+    'c-ltst': `${fmtLtst(rng('c-ltst')[0])} morning · ${fmtLtst(rng('c-ltst')[1])} evening`,
+    'c-sol': `sol ${rng('c-sol')[0]} is landing day; balance recovers by sol ${data.C.sensorimotor_recovery_days}`,
+    'c-speed': 'only changes how fast the demo plays'
+  };
+  for (const h of document.querySelectorAll('[data-hint]')) h.textContent = hints[h.dataset.hint] ?? '';
 
   const sliders = [
     ['c-sol', 'o-sol', 'sol', v => `${v}`],
@@ -196,8 +243,8 @@ export function createPanels(data, { setInputs, usingStubs, onCondition, runHasS
   $('c-mode').addEventListener('change', e => setInputs({ routeMode: e.target.value }));
 
   let lastSig = '';
-  function renderFactors(bdg, derived) {
-    const sig = JSON.stringify(bdg.factors.map(f => [f.id, f.level, f.message])) + derived.warnings.join('|');
+  function renderFactors(bdg, derived, inputs) {
+    const sig = JSON.stringify(bdg.factors.map(f => [f.id, f.level, f.message, keyNumber(f, bdg, inputs)])) + derived.warnings.join('|');
     if (sig === lastSig) return;
     lastSig = sig;
     const sorted = [...bdg.factors].sort((a, b) => SEVERITY[a.level] - SEVERITY[b.level]);
@@ -205,13 +252,25 @@ export function createPanels(data, { setInputs, usingStubs, onCondition, runHasS
       // ponytail: tabs show only AMBER/RED (what needs attention); all factors stay in the Details drawer
       list.replaceChildren(...sorted.filter(f => groupOf(f) === list.dataset.group && f.level !== 'GREEN').map(f => factorItem(f, data.constantsByKey)));
     }
-    const all = sorted.map(f => factorItem(f, data.constantsByKey));
+    // Details sheet: what limits the walk, worst first; green factors collapse under "Also checked"
+    const item = f => factorItem(f, data.constantsByKey, f.level === 'GREEN' ? '' : keyNumber(f, bdg, inputs));
+    const limiting = sorted.filter(f => f.level !== 'GREEN').map(item);
     for (const w of derived.warnings) {
       const li = el('li', 'AMBER');
       li.append(el('span', 'dot'), el('div', '', w));
-      all.push(li);
+      limiting.push(li);
     }
-    $('alerts').replaceChildren(...all);
+    if (!limiting.length) limiting.push(el('li', 'none', 'Nothing is limiting the walk right now.'));
+    const fine = sorted.filter(f => f.level === 'GREEN');
+    if (fine.length) {
+      const also = el('li', 'also'), det = el('details'), list = el('ul', 'alerts');
+      det.append(el('summary', '', `Also checked (all fine): ${fine.length}`));
+      list.append(...fine.map(item));
+      det.append(list);
+      also.append(det);
+      limiting.push(also);
+    }
+    $('alerts').replaceChildren(...limiting);
     // a coloured dot on each tab shows its worst factor, so trouble is visible without opening it
     for (const t of document.querySelectorAll('[role="tab"]')) {
       const g = t.getAttribute('aria-controls').replace('tab-', '');
@@ -293,7 +352,9 @@ export function createPanels(data, { setInputs, usingStubs, onCondition, runHasS
     $('clk-eva').textContent = `${Math.round(inputs.evaMin)} min`;
 
     renderTabs(inputs, derived);
-    renderFactors(derived.budget, derived);
+    renderFactors(derived.budget, derived, inputs);
+    $('verdict').textContent = verdictSentence(derived.budget);
+    $('verdict').dataset.status = derived.budget.status;
     const events = eventsNow();
     if (events !== builtFor) { builtFor = events; checkpoints = buildTimeline(events); } // the run changed: rebuild the markers (DOM only)
     markCheckpoints(checkpoints, inputs.scenarioT);

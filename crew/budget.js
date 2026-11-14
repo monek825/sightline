@@ -38,7 +38,8 @@ export function computeLimits(inputs, C) {
   const ramp = Math.min(1, inputs.sol / C.sensorimotor_recovery_days);
   const speedKmh = C.walk_speed_kmh * (C.arrival_speed_factor_sol0 + (1 - C.arrival_speed_factor_sol0) * ramp);
   const maxSlopeDeg = inputs.sol < C.sensorimotor_recovery_days ? C.max_slope_early_deg : C.max_slope_deg;
-  let visibilityKm = Math.min(VIS_CAP_KM, KOSCHMIEDER / (inputs.tau / C.vis_dust_scale_height_km));
+  const tau = Number.isFinite(inputs.tau) && inputs.tau > 0 ? inputs.tau : 0; // NaN/negative = clear air
+  let visibilityKm = Math.min(VIS_CAP_KM, KOSCHMIEDER / (tau / C.vis_dust_scale_height_km)); // tau 0 -> Infinity -> cap
   if (inputs.sansAffected) visibilityKm = Math.min(VIS_CAP_KM, visibilityKm * C.sans_range_factor);
   return { speedKmh, maxSlopeDeg, visibilityKm };
 }
@@ -47,13 +48,14 @@ export function computeBudget(inputs, limits, routeHomeKm, C) {
   checkKeys(C);
   const homeKm = Number.isFinite(routeHomeKm) && routeHomeKm >= 0 ? routeHomeKm : 0;
   const atHabitat = homeKm < AT_HABITAT_KM;
-  const { sol, ltst, evaMin, tau, sepActive, pressurePa, tempC, sansAffected } = inputs;
+  const { sol, ltst, evaMin, sepActive, pressurePa, tempC, sansAffected } = inputs;
+  const tau = Number.isFinite(inputs.tau) && inputs.tau > 0 ? inputs.tau : 0;
   const has = k => k in C;
   const r = Math.round;
   const factors = [];
 
   // 2. suit time
-  const suitMinLeft = C.eva_design_hours * MIN_PER_HOUR - evaMin - C.eva_reserve_min;
+  const suitMinLeft = Math.max(0, C.eva_design_hours * MIN_PER_HOUR - evaMin - C.eva_reserve_min); // never negative
   const returnMin = homeKm / limits.speedKmh * MIN_PER_HOUR * C.walkback_pad;
   const marginMin = suitMinLeft - returnMin;
   const turnBackInMin = Math.max(0, marginMin);
@@ -69,9 +71,13 @@ export function computeBudget(inputs, limits, routeHomeKm, C) {
 
   factors.push({ id: 'suit_time', level: marginMin <= 0 ? 'RED' : marginMin < MARGIN_AMBER_MIN ? 'AMBER' : 'GREEN',
     label: 'Suit time',
-    message: marginMin <= 0
-      ? `No margin: ${r(suitMinLeft)} min usable, home is ${r(returnMin)} min away at today's pace. Head home now.`
-      : `Turn back in ${r(turnBackInMin)} min. ${r(suitMinLeft)} min usable, home is ${r(returnMin)} min away at today's pace.`,
+    message: suitMinLeft <= 0
+      ? (atHabitat ? 'Suit time is used up. You are at the habitat: go inside.' : `Suit time is used up and home is ${r(returnMin)} min away. Head home now.`)
+      : atHabitat
+        ? `At the habitat. ${r(suitMinLeft)} min of suit time usable.`
+        : marginMin <= 0
+          ? `No margin: ${r(suitMinLeft)} min usable, home is ${r(returnMin)} min away at today's pace. Head home now.`
+          : `${r(turnBackInMin) > 0 ? `Turn back in ${r(turnBackInMin)} min` : 'Turn back now'}. ${r(suitMinLeft)} min usable, home is ${r(returnMin)} min away at today's pace.`,
     keys: ['eva_design_hours', 'eva_reserve_min', 'walk_speed_kmh', 'walkback_pad'] });
 
   // 3. radiation
@@ -94,7 +100,7 @@ export function computeBudget(inputs, limits, routeHomeKm, C) {
   // 4. dust / visibility
   const dustLevel = tau > C.tau_red ? 'RED' : tau > C.tau_amber ? 'AMBER' : 'GREEN';
   factors.push({ id: 'dust', level: dustLevel, label: 'Dust visibility',
-    message: `Dust τ = ${Number(tau).toFixed(1)}: landmarks beyond ~${r(limits.visibilityKm)} km lost.` +
+    message: `Dust τ = ${tau.toFixed(1)}: landmarks beyond ~${r(limits.visibilityKm)} km lost.` +
       (dustLevel === 'GREEN' ? '' : ' Blind zones growing.') +
       ` For context, the Jan 2022 Jezero storm reached τ ~${C.tau_jan2022_storm}.`,
     keys: ['vis_dust_scale_height_km', 'tau_amber', 'tau_red', 'tau_jan2022_storm', ...(sansAffected ? ['sans_range_factor'] : [])] });
@@ -151,6 +157,11 @@ export function computeBudget(inputs, limits, routeHomeKm, C) {
       keys: ['perchlorate_pct'] });
   }
 
+  // another alert says go home while the clock still has time: do not print a calm "turn back in N min"
+  const su = factors.find(f => f.id === 'suit_time');
+  if (!atHabitat && su.level !== 'RED' && factors.some(f => f.level === 'RED')) {
+    su.message = `Suit time is not the limit: ${r(suitMinLeft)} min usable, home is ${r(returnMin)} min away at today's pace. Another alert says head home now.`;
+  }
   factors.sort((a, b) => RANK[a.level] - RANK[b.level]); // stable
   const status = factors[0].level;
   return {
