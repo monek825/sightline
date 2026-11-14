@@ -1,44 +1,37 @@
 // Written with AI assistance (Claude / GitHub Copilot)
-// Intro: thin line → second line swings up to 30° (quadratic ease-out) → SL logo appears in the wedge →
-// eye-blink reveal of the app (mechanism from the component hub's eye-blink transition: SVG mask ellipse
-// scaleY 0→1, 500 ms cubic-bezier(.7,0,.2,1), then a 180 ms overlay fade).
-// Timing lives in CSS; this file only steps the phases. Skipped under prefers-reduced-motion.
+// Intro: line → 30° wedge → SL logo (pure CSS keyframes, compositor-only, start at parse) → eyelids open.
+// This file only decides WHEN to open: after the logo has shown, the app has booted, and the 3D terrain
+// has been drawn at least once. Eyelid reveal adapted from the component hub's eye-blink transition
+// (650 ms cubic-bezier(.7,0,.2,1)), rebuilt as two transform-animated lids so it never janks.
 
-const PHASES = [
-  ['line', 0],      // 1. baseline draws
-  ['angle', 550],   // 2. second line swings to 30°
-  ['logo', 1150],   // 3. SL appears in the wedge
-  ['open', 2000]    // 4. mark fades, eye opens
-];
-const OPEN_MS = 250 + 500, FADE_MS = 180; // mark fades 250 ms, then the eye opens over 500 ms
-const MAX_WAIT_MS = 6000; // never hold the app longer than this, even if boot is slow
+const MIN_SHOW_MS = 1900;   // let the line → wedge → logo sequence finish
+const MAX_WAIT_MS = 15000;  // never hold the app longer than this (slow network)
+const OPEN_MS = 200 + 650, FADE_MS = 200;
 
 const intro = document.getElementById('intro');
 const later = ms => new Promise(r => setTimeout(r, ms));
+const frames = n => new Promise(r => { const f = () => (--n <= 0 ? r() : requestAnimationFrame(f)); requestAnimationFrame(f); });
 
 function done() {
-  intro.remove();
+  intro?.remove();
   document.body.classList.remove('intro-on');
 }
 
 async function run() {
   if (!intro) return;
   if (matchMedia('(prefers-reduced-motion: reduce)').matches) { done(); return; }
+  const t0 = performance.now();
   const booted = new Promise(r => {
     if (window.sightlineReady) r();
     else window.addEventListener('sightline:ready', r, { once: true });
   });
-  // the app opens in 3D: also wait for the terrain mesh (A-Frame events bubble to document)
-  const terrain = new Promise(r => document.addEventListener('terrain-loaded', r, { once: true }));
-  const ready = Promise.all([booted, terrain]);
-  void intro.offsetHeight; // commit the closed state before the first phase (hub gotcha: double rAF)
-  await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
-  const t0 = performance.now();
-  for (const [phase, at] of PHASES) {
-    if (phase === 'open') await Promise.race([ready, later(MAX_WAIT_MS)]); // hold on the logo until the app has booted
-    await later(Math.max(0, at - (performance.now() - t0)));
-    intro.classList.add(`is-${phase}`);
-  }
+  // A-Frame events bubble to document; wait 3 frames after so the texture upload + shader compile are done
+  const terrainDrawn = new Promise(r => document.addEventListener('terrain-loaded', r, { once: true })).then(() => frames(3));
+  // if the user is on the 2D map (3D failed), don't wait for terrain
+  const failed = new Promise(r => document.addEventListener('terrain-error', r, { once: true }));
+  await Promise.race([Promise.all([booted, Promise.race([terrainDrawn, failed])]), later(MAX_WAIT_MS)]);
+  await later(Math.max(0, MIN_SHOW_MS - (performance.now() - t0)));
+  intro.classList.add('is-open');
   await later(OPEN_MS);
   intro.classList.add('is-gone');
   await later(FADE_MS);
