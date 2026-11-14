@@ -582,18 +582,20 @@ body.intro-on { overflow: hidden; }
 .intro-lid { fill: var(--bg); }
 .intro-pupil { transform-box: fill-box; transform-origin: center; transform: scaleY(0); transition: transform 500ms cubic-bezier(.7, 0, .2, 1) 250ms; }
 .intro.is-open .intro-pupil { transform: scaleY(1); }
-.intro-mark { position: absolute; left: 50%; top: 50%; width: 260px; height: 160px; transform: translate(-50%, -55%); transition: opacity 250ms ease, transform 500ms var(--ease-out); }
-.intro.is-open .intro-mark { opacity: 0; transform: translate(-50%, -55%) scale(1.06); }
+.intro-mark { position: absolute; left: 50%; top: 50%; width: 240px; height: 160px; --mark-scale: 1.8; transform: translate(-50%, -55%) scale(var(--mark-scale)); transition: opacity 250ms ease, transform 500ms var(--ease-out); }
+.intro.is-open .intro-mark { opacity: 0; transform: translate(-50%, -55%) scale(calc(var(--mark-scale) * 1.06)); }
 .intro-mark svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
-.intro-mark line { stroke: var(--cream); stroke-width: 1.5; stroke-linecap: round; }
+.intro-mark line { stroke: #fff; stroke-width: 1.6; stroke-linecap: square; }
 /* 1. baseline draws left → right */
-.intro-base { stroke-dasharray: 240; stroke-dashoffset: 240; transition: stroke-dashoffset 500ms cubic-bezier(.5, 1, .89, 1); }
+.intro-base { stroke-dasharray: 220; stroke-dashoffset: 220; transition: stroke-dashoffset 500ms cubic-bezier(.5, 1, .89, 1); }
 .intro.is-line .intro-base { stroke-dashoffset: 0; }
 /* 2. the arm lies on the baseline, then swings up to 30° around the left end (quadratic ease-out) */
 .intro-arm { opacity: 0; transform-box: view-box; transform-origin: 10px 150px; transform: rotate(0deg); transition: transform 600ms cubic-bezier(.5, 1, .89, 1), opacity 1ms; }
-.intro.is-angle .intro-arm { opacity: 1; transform: rotate(-30deg); }
-/* 3. SL logo appears inside the wedge (crop of assets/logo.svg: mark bounds 532-976 x 639-871 of 1500) */
-.intro-logo { position: absolute; left: 89px; top: 66px; width: 149px; height: 78px; overflow: hidden; opacity: 0; transform: translateY(8px); clip-path: inset(0 100% 0 0); transition: opacity 400ms ease, transform 600ms var(--ease-out), clip-path 600ms cubic-bezier(.5, 1, .89, 1); }
-.intro-logo img { position: absolute; left: -178.5px; top: -214.5px; width: 503px; height: 503px; max-width: none; }
-.intro.is-logo .intro-logo { opacity: 1; transform: none; clip-path: inset(0 0 0 0); }
+.intro.is-angle .intro-arm { opacity: 1; transform: rotate(-30.09deg); } /* the logo's own slant, measured */
+/* 3. SL logo fills the wedge: its slanted top sits on the arm (measured slope 30.09°, apex = top of the L),
+   its foot on the baseline. Logo units (of 1500): bounds x 532-976, y 639-871; wedge vertex x 490. Scale 0.45 px/unit. */
+.intro-logo { position: absolute; left: 28.9px; top: 45.6px; width: 200px; height: 104.4px; overflow: hidden; clip-path: inset(0 100% 0 0); transition: clip-path 650ms cubic-bezier(.5, 1, .89, 1); }
+.intro-logo img { position: absolute; left: -239.4px; top: -287.55px; width: 675px; height: 675px; max-width: none; }
+.intro.is-logo .intro-logo { clip-path: inset(0 0 0 0); }
+@media (max-width: 600px) { .intro-mark { --mark-scale: 1.2; } }
 @media (prefers-reduced-motion: reduce) { .intro { display: none; } }
