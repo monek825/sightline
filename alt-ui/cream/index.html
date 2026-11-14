@@ -1,0 +1,174 @@
+<!doctype html>
+<!-- Written with AI assistance (Claude / GitHub Copilot) -->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <base href="../../">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sightline — Mars navigation without GPS (alt UI)</title>
+  <meta name="description" content="Sightline answers one question on a Mars spacewalk in Jezero Crater: can this astronaut still find their way home safely? Built on NASA terrain, radiation and weather data.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+  <link rel="stylesheet" href="alt-ui/cream/styles.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js" defer></script>
+  <script type="module" src="map/app.js"></script>
+</head>
+<body>
+  <main class="stage">
+    <section class="map-wrap" aria-label="Jezero Crater map">
+      <div id="map"></div>
+      <div id="view3d" class="view3d" hidden>
+        <p id="v3-note" class="v3-note"></p>
+        <p id="v3-msg" class="v3-msg" role="status" hidden></p>
+      </div>
+
+      <header class="brandbar frost">
+        <h1 class="brand">Sightline</h1>
+        <dl class="clock">
+          <div><dt>Sol</dt><dd id="clk-sol">–</dd></div>
+          <div><dt>LTST</dt><dd id="clk-ltst">–</dd></div>
+          <div><dt>EVA</dt><dd id="clk-eva">–</dd></div>
+        </dl>
+      </header>
+
+      <div class="view-toggle frost" role="group" aria-label="Map view">
+        <button type="button" id="v-2d" aria-pressed="true">2D map</button>
+        <button type="button" id="v-3d" aria-pressed="false">3D terrain</button>
+      </div>
+
+      <div id="banner" class="banner" role="alert" hidden></div>
+
+      <div class="legend frost" id="legend">
+        <span><i class="sw sw-red"></i>No landmark in sight</span>
+        <span><i class="sw sw-amber"></i>Home hidden</span>
+        <span><i class="sw sw-ring"></i>How far you can see</span>
+      </div>
+
+      <aside class="panel frost" aria-label="Walk status">
+        <div class="tab-body">
+          <section id="tab-home" class="tab" role="tabpanel" aria-labelledby="t-home">
+            <h2 id="b-headline" class="headline">–</h2>
+            <p class="question">Can this astronaut still get home?</p>
+            <p class="hero-num"><span id="b-return">–</span> <small>walk home · <span id="b-km">–</span></small></p>
+            <dl class="pairs">
+              <div><dt>Suit time left</dt><dd id="b-suit">–</dd></div>
+              <div><dt>Turn back in</dt><dd id="b-turn">–</dd></div>
+            </dl>
+            <ul class="factors" data-group="home"></ul>
+          </section>
+
+          <section id="tab-dust" class="tab" role="tabpanel" aria-labelledby="t-dust" hidden>
+            <h2 class="tab-title">How far can I see?</h2>
+            <p class="hero-num"><span id="d-vis">–</span> <small>visibility</small></p>
+            <div class="haze" aria-hidden="true"><span id="now-haze"></span></div>
+            <dl class="pairs">
+              <div><dt>Dust τ</dt><dd id="d-tau">–</dd></div>
+              <div><dt>Home seen from</dt><dd id="d-home">–</dd></div>
+            </dl>
+            <p id="now-devil" class="chip" hidden>Dust-devil hours: swirls on the map</p>
+            <ul class="factors" data-group="dust"></ul>
+          </section>
+
+          <section id="tab-pos" class="tab" role="tabpanel" aria-labelledby="t-pos" hidden>
+            <h2 class="tab-title">Where am I?</h2>
+            <p class="hero-num"><span id="p-unc">–</span> <small>position uncertainty</small></p>
+            <dl class="pairs">
+              <div><dt>Walked since fix</dt><dd id="p-since">–</dd></div>
+              <div><dt>Fix accuracy</dt><dd id="p-acc">–</dd></div>
+            </dl>
+            <button type="button" id="btn-skyline" class="btn btn-accent wide">Run Skyline Fix</button>
+            <ul class="factors" data-group="pos"></ul>
+          </section>
+
+          <section id="tab-body" class="tab" role="tabpanel" aria-labelledby="t-body" hidden>
+            <h2 class="tab-title">Is my body OK?</h2>
+            <p class="hero-num"><span id="c-sol-v">–</span> <small id="c-state">–</small></p>
+            <dl class="pairs">
+              <div><dt>Walking speed</dt><dd id="c-speed">–</dd></div>
+              <div><dt>Max slope</dt><dd id="c-slope">–</dd></div>
+            </dl>
+            <ul class="factors" data-group="body"></ul>
+          </section>
+
+          <section id="tab-route" class="tab" role="tabpanel" aria-labelledby="t-route" hidden>
+            <h2 class="tab-title">Which way?</h2>
+            <p class="hero-num"><span id="r-km">–</span> <small>route home</small></p>
+            <label class="field">Route mode
+              <select id="c-mode">
+                <option value="safest">Safest (landmarks in sight)</option>
+                <option value="homeInSight">Keep home in sight</option>
+                <option value="shortest">Shortest</option>
+              </select></label>
+            <p class="hint">Click the map or a science target to plan a route there.</p>
+            <button type="button" id="btn-helmet" class="btn wide">Open helmet view</button>
+          </section>
+        </div>
+
+        <nav class="tabbar" role="tablist" aria-label="Categories">
+          <button type="button" role="tab" id="t-home" aria-controls="tab-home" aria-selected="true" title="Get home">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11 12 4l9 7v9h-6v-6H9v6H3z"/></svg><span>Home</span></button>
+          <button type="button" role="tab" id="t-dust" aria-controls="tab-dust" aria-selected="false" tabindex="-1" title="Dust and visibility">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8h11a3 3 0 1 0-3-3M3 12h16a3 3 0 1 1-3 3M3 16h8"/></svg><span>Dust</span></button>
+          <button type="button" role="tab" id="t-pos" aria-controls="tab-pos" aria-selected="false" tabindex="-1" title="Position">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="7"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg><span>Position</span></button>
+          <button type="button" role="tab" id="t-body" aria-controls="tab-body" aria-selected="false" tabindex="-1" title="Crew body">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="5" r="2.5"/><path d="M12 8v7M7 11h10M9 22l3-7 3 7"/></svg><span>Body</span></button>
+          <button type="button" role="tab" id="t-route" aria-controls="tab-route" aria-selected="false" tabindex="-1" title="Route">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="19" r="2.5"/><circle cx="19" cy="5" r="2.5"/><path d="M7.5 19H15a3.5 3.5 0 0 0 0-7H9a3.5 3.5 0 0 1 0-7h7.5"/></svg><span>Route</span></button>
+        </nav>
+      </aside>
+    </section>
+
+    <section class="drawer" id="drawer" aria-label="Demo timeline and details">
+      <button type="button" class="notch" id="notch" aria-expanded="false" aria-controls="drawer-more">
+        <span>Details</span>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+      </button>
+
+      <div class="timeline" id="timeline">
+        <div class="dock-ctl">
+          <button type="button" id="t-play" class="btn btn-accent" aria-label="Play demo">Play demo</button>
+          <button type="button" id="t-reset" class="btn">Restart</button>
+        </div>
+        <div class="scrub-wrap">
+          <input type="range" id="t-scrub" min="0" max="200" step="1" value="0" aria-label="Scenario time">
+          <ol id="t-track" class="track" aria-label="Scenario checkpoints"></ol>
+        </div>
+        <span id="t-label" class="mono">t = 0 min</span>
+      </div>
+
+      <div class="more" id="drawer-more" hidden>
+        <section aria-labelledby="why-h">
+          <h2 id="why-h">Every factor</h2>
+          <ul id="alerts" class="alerts"></ul>
+          <p id="vis-stat" class="stat"></p>
+        </section>
+        <section class="controls" aria-labelledby="cond-h">
+          <h2 id="cond-h">Change conditions</h2>
+          <label>Sols since landing <output id="o-sol"></output>
+            <input type="range" id="c-sol" min="0" max="60" step="1"></label>
+          <label>Local solar time <output id="o-ltst"></output>
+            <input type="range" id="c-ltst" min="6" max="19" step="0.25"></label>
+          <label>Dust optical depth τ <output id="o-tau"></output>
+            <input type="range" id="c-tau" min="0.2" max="10" step="0.1"></label>
+          <label class="check"><input type="checkbox" id="c-sep"> Solar particle event</label>
+          <label class="check"><input type="checkbox" id="c-sans"> Vision changes (SANS)</label>
+          <button type="button" id="btn-sources" class="btn wide">How we know: every number and its source</button>
+        </section>
+      </div>
+    </section>
+  </main>
+
+  <dialog id="dlg-sources" class="dlg">
+    <form method="dialog" class="dlg-head"><h2>How we know: every number and its source</h2><button class="btn">Close</button></form>
+    <div class="dlg-body"><table class="src-table"><thead><tr><th>What</th><th>Value</th><th>Type</th><th>Source</th></tr></thead><tbody id="src-rows"></tbody></table></div>
+  </dialog>
+
+  <dialog id="dlg-helmet" class="dlg dlg-full">
+    <form method="dialog" class="dlg-head"><h2>Helmet view</h2><button class="btn">Close</button></form>
+    <iframe id="helmet-frame" title="Helmet view" src="about:blank"></iframe>
+  </dialog>
+</body>
+</html>
