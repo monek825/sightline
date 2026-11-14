@@ -339,7 +339,7 @@ export function createMapView(data, { onPickTarget }) {
   const store0 = { data };
   const b = data.bounds;
   const box = [[b.latMin, b.lonMin], [b.latMax, b.lonMax]];
-  const map = L.map('map', {
+  const map = L.map('map', { attributionControl: false, // imagery credits live in the Details drawer
     crs: L.CRS.EPSG4326, minZoom: 10, maxZoom: 18, zoomSnap: 1,
     maxBounds: L.latLngBounds(box).pad(0.05)
   }).setView([data.meta.home.lat, data.meta.home.lon], 13);
