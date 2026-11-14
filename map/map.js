@@ -7,8 +7,11 @@ const TILE_PATH = '/1.0.0/default/default028mm/{z}/{y}/{x}.png';
 const AFRAME_SRC = 'https://aframe.io/releases/1.6.0/aframe.min.js';
 const TERRAIN_SRC = 'lib/terrain.js';
 const EXAGGERATE = 2;
-const ASTRO_R = 25, ASTRO_LIFT = 50, BEACON_H = 400, LIFT_M = 15, ROUTE_R = 10, STEP_M = 60;
+const ASTRO_R = 25, BEACON_H = 400, LIFT_M = 15, ROUTE_R = 10, STEP_M = 60;
 const PITCH_MIN = 0.08, PITCH_MAX = 1.5, CAM_CLEARANCE_M = 40;
+// 3D look (visual only): warm tint over the greyscale CTX texture, sun placed from local solar time, slow idle orbit.
+const TERRAIN_TINT = '#f0b483', SUN_DIST = 30000, IDLE_MS = 5000, IDLE_YAW_PER_S = 0.035;
+const ZENITH_CLEAR = [128, 86, 62], LANDMARK_H = 180;
 const COLORS = { blind: [248, 81, 73, 120], homeHidden: [210, 153, 34, 32] };
 const CREAM = '#fff4e0', INK = '#1a110c', ACCENT = '#ff8a3d', DUST = '#c98a55';
 // Dust look (visual only, driven by τ): haze opacity and sky colour. Not a measured haze map.
@@ -171,12 +174,16 @@ function registerOrbit() {
   AFRAME.registerComponent('orbit-camera', {
     schema: { minDist: { default: 500 }, maxDist: { default: 25000 } },
     init() {
-      this.o = { yaw: 0.6, pitch: 0.6, dist: 4000, x: 0, y: 0, z: 0 };
+      this.o = { yaw: 0.6, pitch: 0.3, dist: 5200, x: 0, y: 0, z: 0 };
+      this.lastInput = 0;
+      this.reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
       this.heightAt = null;
       this.el.object3D.rotation.order = 'YXZ';
       const scene = this.el.sceneEl, pts = new Map();
       let pinch = 0;
       const span = () => { const [a, b] = [...pts.values()]; return Math.hypot(a[0] - b[0], a[1] - b[1]); };
+      const touched = () => { this.lastInput = performance.now(); };
+      for (const ev of ['pointerdown', 'wheel']) scene.addEventListener(ev, touched, { passive: true });
       scene.addEventListener('pointerdown', e => {
         pts.set(e.pointerId, [e.clientX, e.clientY]);
         scene.setPointerCapture(e.pointerId);
@@ -196,7 +203,8 @@ function registerOrbit() {
     },
     zoom(f) { this.o.dist = clamp(this.o.dist * f, this.data.minDist, this.data.maxDist); },
     setTarget(x, y, z) { Object.assign(this.o, { x, y, z }); },
-    tick() {
+    tick(time, dt) {
+      if (!this.reduced && time - this.lastInput > IDLE_MS && dt < 100) this.o.yaw += IDLE_YAW_PER_S * dt / 1000;
       const { yaw, pitch, dist, x, y, z } = this.o;
       const h = dist * Math.cos(pitch);
       const cx = x + h * Math.sin(yaw), cz = z + h * Math.cos(yaw);
@@ -222,14 +230,18 @@ function buildScene() {
   scene.setAttribute('xr-mode-ui', 'enabled: false');
   scene.setAttribute('background', 'color: #e3a76a');
   const flat = color => `color: ${color}; shader: flat; side: double`;
-  mk('a-entity', { light: 'type: ambient; color: #ffe6cc; intensity: 0.7' }, scene);
-  mk('a-entity', { light: 'type: directional; color: #fff0dc; intensity: 0.9', position: '-4000 5000 3000' }, scene);
+  const hemi = mk('a-entity', { light: 'type: hemisphere; color: #ffd9b0; groundColor: #4a2a18; intensity: 0.75' }, scene);
+  const sun = mk('a-entity', { light: 'type: directional; color: #fff1dc; intensity: 1.5', position: '-4000 5000 3000' }, scene);
+  const sky = mk('a-sky', { radius: 60000, material: 'shader: flat; fog: false; color: #fff' }, scene);
+  const astro = mk('a-entity', {}, scene);
+  mk('a-cone', { 'radius-bottom': 0, 'radius-top': ASTRO_R, height: ASTRO_R * 2.4, position: `0 ${ASTRO_R * 1.2} 0`, material: flat(ACCENT) }, astro);
+  mk('a-sphere', { radius: ASTRO_R * 0.9, position: `0 ${ASTRO_R * 3} 0`, material: flat(ACCENT) }, astro);
   return {
-    scene,
+    scene, hemi, sun, sky, landmarks: mk('a-entity', {}, scene),
     terrain: mk('a-entity', { 'heightgrid-terrain': `exaggerate: ${EXAGGERATE}` }, scene),
     cam: mk('a-entity', { camera: 'fov: 55; near: 10; far: 80000', 'orbit-camera': '' }, scene),
     home: mk('a-cylinder', { radius: 6, height: BEACON_H, material: flat(CREAM) }, scene),
-    astro: mk('a-sphere', { radius: ASTRO_R, material: flat(CREAM) }, scene),
+    astro,
     ring: mk('a-entity', { rotation: '-90 0 0', geometry: 'primitive: ring; radiusInner: 1; radiusOuter: 2', material: flat(ACCENT) }, scene),
     routes: mk('a-entity', {}, scene)
   };
@@ -257,17 +269,38 @@ function setRoute(s, terrain, name, route, color) {
   s.routes.setObject3D(name, new T.Mesh(geo, new T.MeshBasicMaterial({ color })));
 }
 
-function createView3D() {
+// Vertical sky gradient as a data URL: darker zenith, lighter horizon; dust flattens it.
+function skyGradient(horizon, f) {
+  const c = document.createElement('canvas');
+  c.width = 2; c.height = 256;
+  const g = c.getContext('2d'), grad = g.createLinearGradient(0, 0, 0, 256);
+  const zen = ZENITH_CLEAR.map((v, i) => Math.round(v + (horizon[i] - v) * f));
+  grad.addColorStop(0, `rgb(${zen.join(',')})`);
+  grad.addColorStop(0.5, `rgb(${horizon.join(',')})`);
+  grad.addColorStop(1, `rgb(${horizon.join(',')})`);
+  g.fillStyle = grad; g.fillRect(0, 0, 2, 256);
+  return c.toDataURL();
+}
+
+// Sun from local solar time: rises east at 06:00, highest at noon, sets west at 18:00 (simple model, Jezero ~18°N).
+function sunPosition(ltst) {
+  const day = Math.min(1, Math.max(0, (ltst - 6) / 12));
+  const el = Math.max(4, 72 * Math.sin(Math.PI * day)) * Math.PI / 180;
+  const az = (90 + 180 * day) * Math.PI / 180; // from north, clockwise
+  return [Math.sin(az) * Math.cos(el) * SUN_DIST, Math.sin(el) * SUN_DIST, -Math.cos(az) * Math.cos(el) * SUN_DIST];
+}
+
+function createView3D(data) {
   const host = $('view3d'), msg = $('v3-msg');
   $('v3-note').textContent = `Vertical scale ×${EXAGGERATE}`;
-  let s = null, starting = null, terrain = null, last = null, lastHome, lastOut, lastRadius = -1, lastTau = null;
+  let s = null, starting = null, terrain = null, last = null, lastHome, lastOut, lastRadius = -1, lastTau = null, lastSun = null;
   const say = text => { msg.textContent = text; msg.hidden = !text; };
 
   function update() {
     if (!terrain?.ready || !last) return;
     const { inputs: { astronaut: a }, derived: d } = last;
     const p = terrain.toWorld(a.lat, a.lon);
-    s.astro.object3D.position.set(p.x, p.y + ASTRO_LIFT, p.z);
+    s.astro.object3D.position.set(p.x, p.y, p.z);
     s.ring.object3D.position.set(p.x, p.y + LIFT_M, p.z);
     const r = Math.max(5, Math.round(d.posUncertaintyM));
     if (r !== lastRadius) {
@@ -278,6 +311,8 @@ function createView3D() {
     if (orbit) { orbit.setTarget(p.x, p.y, p.z); orbit.heightAt = (x, z) => terrain.heightAt(x, z); }
     if (d.routeHome !== lastHome) { lastHome = d.routeHome; setRoute(s, terrain, 'home', d.routeHome, CREAM); }
     if (d.routeOut !== lastOut) { lastOut = d.routeOut; setRoute(s, terrain, 'out', d.routeOut, ACCENT); }
+    const ltst = Math.round(last.inputs.ltst * 4) / 4;
+    if (ltst !== lastSun) { lastSun = ltst; s.sun.setAttribute('position', sunPosition(ltst).map(Math.round).join(' ')); }
     const tau = Math.round(last.inputs.tau * 10) / 10;
     if (tau !== lastTau) {
       lastTau = tau;
@@ -286,6 +321,9 @@ function createView3D() {
       const color = `rgb(${sky.join(',')})`;
       const far = Math.max(3000, d.limits.visibilityKm * 1000);
       s.scene.setAttribute('background', `color: ${color}`);
+      s.sky.setAttribute('material', `shader: flat; fog: false; src: url(${skyGradient(sky, f)})`);
+      s.sun.setAttribute('light', 'intensity', (1.6 * Math.exp(-tau / 5) + 0.25).toFixed(2));
+      s.hemi.setAttribute('light', 'intensity', (0.7 + 0.25 * f).toFixed(2));
       s.scene.setAttribute('fog', `type: linear; color: ${color}; near: ${Math.round(far * 0.15)}; far: ${Math.round(far)}`);
       host.style.background = color;
     }
@@ -303,6 +341,14 @@ function createView3D() {
       terrain = e.detail;
       say('');
       s.home.object3D.position.set(0, terrain.heightAt(0, 0) + BEACON_H / 2, 0);
+      terrain.material?.color.set(TERRAIN_TINT);
+      for (const lm of data.landmarks ?? []) {
+        if (lm.id === 'home') continue;
+        const q = terrain.toWorld(lm.lat, lm.lon);
+        const pin = mk('a-entity', { position: `${q.x} ${q.y} ${q.z}` }, s.landmarks);
+        mk('a-cylinder', { radius: 3, height: LANDMARK_H, position: `0 ${LANDMARK_H / 2} 0`, material: 'color: #fff4e0; shader: flat' }, pin);
+        mk('a-sphere', { radius: 14, position: `0 ${LANDMARK_H} 0`, material: 'color: #fff4e0; shader: flat' }, pin);
+      }
       update();
     });
     s.terrain.addEventListener('terrain-error', e => say(`3D terrain failed: ${e.detail?.message ?? 'unknown error'}`));
@@ -354,7 +400,7 @@ export function createMapView(data, { onPickTarget }) {
   const astro = L.marker([0, 0], { icon: astronautIcon(0), keyboard: false, zIndexOffset: 1000 }).addTo(map);
   map.on('click', e => onPickTarget({ lat: e.latlng.lat, lon: e.latlng.lng }));
 
-  const view3d = createView3D();
+  const view3d = createView3D(data);
   setupToggle(map, view3d);
   for (const id of ['v-2d', 'v-3d']) $(id).addEventListener('click', () => devils.refresh()); // pause/resume the devil loop
 
