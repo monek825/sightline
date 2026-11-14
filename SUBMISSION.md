@@ -19,28 +19,20 @@
 
 Turn the page **Lock** on while one person edits. Save often. Test every link in an incognito window.
 
-## High-level summary (draft, ~150 words)
-> Mars has no GPS. An astronaut on a spacewalk in Jezero Crater navigates by sight — and on real terrain, home is hidden behind ridges from most of the ground nearby. Sightline is a navigation and safety map that answers one question at every step: can this astronaut still get home safely?
-> It combines three things. SEE: blind-zone maps computed from NASA's Jezero elevation model show where no landmark is visible, and dust storms shrink visibility live. LOCATE: a 360° "Horizon Match" matches the horizon the astronaut sees to horizons computed from NASA terrain, giving a position and uncertainty circle without GPS. CREW: a body-and-suit model built on NASA measurements — Curiosity radiation data, solar storm alerts, post-flight balance and vision changes, suit time and cooling limits, cold, dust devils — becomes one Walk Budget that tells the crew when to turn back and which route keeps home in sight.
+## High-level summary (~170 words)
+> Mars has no GPS. An astronaut walking in Jezero Crater finds the way home by sight, and on the real terrain the habitat is hidden behind ridges from most of the ground nearby. Dust makes it worse: when the air fills, the hills you steer by fade out.
+> Sightline is the Mars map with no blue dot. It answers one question at every step: can this astronaut still get home?
+> It shows where no landmark is in sight, computed from NASA's Jezero elevation model, and those red zones grow live as dust rises. When the astronaut is unsure of their position, Horizon Match compares the outline of the hills they see with outlines computed from NASA terrain and gives a position with an uncertainty circle. A crew model built on NASA measurements (Curiosity radiation, the May 2024 solar storm, post-flight balance and vision changes, suit time and cooling limits) turns all of it into one walk budget: minutes left, when to turn back, and which route keeps home in sight. A helmet view shows the same answer from the astronaut's eyes.
 
-## 30-second video script
-Indonesian voice is OK **with English subtitles**. No NASA logos. No one under 18. If any AI-generated image/video is used, add a visible "SI-generated" watermark. Record with "video mode" (`v` key) in the app.
-
-| Time | Picture | Words (EN subtitles) |
-|---|---|---|
-| 0:00–0:02 | Team name over the Jezero map | "We're [team name], Jakarta." |
-| 0:02–0:05 | Zoom from orbit into Jezero | "Martian Map challenge. On Mars, there is no GPS." |
-| 0:05–0:10 | Blind zones appear in red around home | "Sightline: can this astronaut still get home? Red = home can't be seen." |
-| 0:10–0:20 | Demo player: storm banner → budget RED → dust → blind zones grow → new route → 360° Horizon Match | "Built on NASA data: Jezero terrain, Curiosity radiation, solar storm alerts, Perseverance weather. A solar storm hits. Dust rises. Sightline re-routes home and fixes position from the skyline." |
-| 0:20–0:28 | Helmet view: terrain, beacon through hill, HUD | "Tomorrow, this goes inside the helmet." |
-| 0:28–0:30 | Title card + URL | "Sightline." |
+## 30-second video
+Script, beat sheet and checks: `docs/video-script.md` ("bad news" structure, one continuous screen recording, no AI-generated pictures). Indonesian voice is OK **with English subtitles**. No NASA logos. No one under 18.
 
 ## Project details (draft outline)
 - **What it does:** SEE / LOCATE / CREW + helmet view (README section 1).
-- **How it works:** precomputed viewsheds and skylines from the 20 m CTX DTM (Python/numpy, with Mars curvature); A* route planner with slope limits and blind-zone penalties; a pure-function crew model where every constant is tagged NASA data vs estimate; Leaflet map on NASA Mars Trek tiles; A-Frame 3D helmet view.
+- **How it works:** precomputed viewsheds and skylines from the CTX elevation model (Python/NumPy, with Mars curvature); a live in-browser horizon match on a 40 m grid; an A* route planner with slope limits and blind-zone penalties; a pure-function crew model where every constant is tagged NASA data or estimate; a Leaflet map on NASA Mars Trek tiles with HiRISE close-ups; an A-Frame 3D terrain and helmet view.
 - **Benefits:** a navigation aid that works with no GPS and no comms; makes "can I get home" visible; a planning tool for EVA designers.
 - **What we hope to achieve:** test Horizon Match on real Perseverance Navcam photos; place beacons to remove blind zones; feed live MEDA/DONKI data; AR in suit helmets.
-- **Honest limits:** Horizon Match tested on simulated skylines only; several crew-model constants are our estimates (marked in the app).
+- **Honest limits:** Horizon Match was tested on 5 real Perseverance panoramas (3 of them used while developing): 4 within 51–143 m, one 2.8 km off; five is too few to quote an error rate. Several crew-model constants are team estimates, and the app marks each one.
 - **Tools:** HTML/CSS/JavaScript, Leaflet, A-Frame/three.js, Python, NumPy, Pillow, GitHub Pages, Claude, GitHub Copilot.
 
 ## AI use text
