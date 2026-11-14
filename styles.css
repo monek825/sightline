@@ -800,4 +800,9 @@ body.is-3d .legend { bottom: calc(var(--notch-d) + 84px); } /* the 3D note below
   .src-table tr { display: grid; grid-template-columns: 1fr auto; column-gap: var(--s3); padding: var(--s2) 0; border-bottom: 1px solid var(--line); }
   .src-table td { border: 0; padding: 2px 0; }
   .src-table td:nth-child(3), .src-table td:nth-child(4) { grid-column: 1 / -1; font-size: 12px; color: var(--muted); }
+  .src-table tr { grid-template-columns: 1fr; }
+  .src-table td:nth-child(2) { white-space: normal; }
 }
+
+/* Clash Display only at 20px and up (round 2) */
+#verdict, .verdict, .more h2 { font-family: var(--font); font-weight: 600; }
