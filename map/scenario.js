@@ -50,7 +50,7 @@ function eventsUpTo(scenario, t) {
 }
 
 /** Pure: a NEW scenario with one user condition edit applied (input never mutated).
- *  key: 'tau' | 'ltst' | 'sol' | 'sepActive'; anything else returns the scenario unchanged (same object).
+ *  key: 'tau' | 'ltst' | 'sol' | 'sepActive' | 'returnHome'; anything else returns the scenario unchanged (same object).
  *  tau / ltst apply from demo time t on. 'sepActive' is a run setting, not a live switch: on = the scripted sep_onset
  *  of `original` (the unedited scenario) is part of the run, off = no sep_onset / sep_end at all.
  *  An edit that changes nothing (setting already holds, or no scripted storm to add) returns the same object. */
@@ -61,6 +61,10 @@ export function editScenario(scenario, t, key, value, hourMin, original = scenar
   if (key === 'tau') return withEvents([...evs.filter(e => e.type !== 'tau' || e.tMin < t), { tMin: t, type: 'tau', value }]);
   if (key === 'ltst') return { ...scenario, startLtst: value - t / hourMin };
   if (key === 'sol') return { ...scenario, sol: value };
+  if (key === 'returnHome') { // turn back at t; one event at most, false removes it
+    const rest = evs.filter(e => e.type !== 'return_home');
+    return value === false ? (rest.length === evs.length ? scenario : withEvents(rest)) : withEvents([...rest, { tMin: t, type: 'return_home' }]);
+  }
   if (key !== 'sepActive') return scenario;
   const storm = e => e.type === 'sep_onset' || e.type === 'sep_end';
   const rest = evs.filter(e => !storm(e));
@@ -74,7 +78,8 @@ export function editScenario(scenario, t, key, value, hourMin, original = scenar
 /** Plan both legs once. Same inputs → same legs → same video every time.
  *  targetOverride ({lat, lon, id?}) replaces the scripted target (clicked point drives the walk);
  *  outMode is the outbound route mode then (ignored without an override). The return leg is always 'safest'.
- *  Without a sep_onset the crew still turns back (sepT = turn-back time, so that they are home at EVA end).
+ *  A return_home event turns back too: the leg switches at the earliest of it and the sep_onset, planned from there.
+ *  Without either the crew still turns back (sepT = turn-back time, so that they are home at EVA end).
  *  from ({prefix, tMin}, with an override) re-plans mid-walk: the walked prefix is kept and the fresh leg starts at its end,
  *  planned with the limits/visibility in force at tMin (what the orange line uses); walking speed stays the t = 0 one. */
 export function prepareScenario(scenario, data, M, targetOverride = null, outMode = 'safest', from = null) {
@@ -104,11 +109,13 @@ export function prepareScenario(scenario, data, M, targetOverride = null, outMod
     const r = M.planRoute(data.grid, data.bounds, vis, at, data.meta.home, { ...opts, maxSlopeDeg: lim.maxSlopeDeg });
     return r.ok ? r.points : [[at.lat, at.lon], [data.meta.home.lat, data.meta.home.lon]];
   };
+  const home = scenario.events.find(e => e.type === 'return_home');
+  const swT = Math.min(sep?.tMin ?? Infinity, home?.tMin ?? Infinity);
   let back, sepT;
-  if (sep) { // storm: turn back at its onset
-    const at = pointAlong(outPts, mPerMin * sep.tMin);
-    back = toHome(at, M.computeLimits({ ...base, tau: tauAt(sep.tMin), sepActive: true }, C));
-    sepT = sep.tMin;
+  if (swT < Infinity) { // storm and/or return_home: turn back at the earliest
+    const at = pointAlong(outPts, mPerMin * swT);
+    back = toHome(at, M.computeLimits({ ...base, tau: tauAt(swT), sepActive: Boolean(sep) && sep.tMin <= swT }, C));
+    sepT = swT;
   } else { // no storm: walk out, wait at the target, turn back in time to be home at EVA end
     const arrT = legLengthM(outPts) / mPerMin;
     const [lat, lon] = outPts.at(-1);

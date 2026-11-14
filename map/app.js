@@ -21,6 +21,7 @@ const CAPTIONS = {
     : `Dust is rising (τ ${e.value}). Red areas: no landmark in sight, so it's easy to get lost there.`,
   skyline_fix: () => 'Lost without GPS? Horizon Match finds the position by matching the horizon to NASA terrain.',
   sep_onset: () => 'Solar storm (a replay of May 2024). Radiation means: turn back to shelter now.',
+  return_home: () => 'Turning back to the habitat now.',
   eva_end: () => 'Back at the habitat. The walk budget kept the astronaut safe.'
 };
 
@@ -94,6 +95,7 @@ function setupScenario(data, M, sky) {
   const play = document.getElementById('t-play');
   const scrub = document.getElementById('t-scrub');
   const label = document.getElementById('t-label');
+  const homeBtn = document.getElementById('t-home');
   scrub.max = prep.endT;
   let t = 0, playing = false, last = 0, raf = 0;
   let speed = 1; // playback multiplier 1-10: player state, not model state (never in the store)
@@ -111,6 +113,7 @@ function setupScenario(data, M, sky) {
     if (caption.textContent !== text) { caption.textContent = text; caption.hidden = !text; }
     scrub.value = t;
     label.textContent = `t = ${Math.round(t)} min`;
+    homeBtn.disabled = !(t > 0 && t < prep.sepT && t < prep.endT); // a press only acts on the outbound leg
   };
   caption.textContent = 'Press play to watch the 100-second story.';
   caption.hidden = false;
@@ -141,7 +144,11 @@ function setupScenario(data, M, sky) {
     play.dataset.state = 'paused'; play.setAttribute('aria-label', 'Play demo');
   }
   play.addEventListener('click', () => (playing ? stop() : start()));
-  document.getElementById('t-reset').addEventListener('click', () => { stop(); t = 0; apply(); });
+  document.getElementById('t-reset').addEventListener('click', () => {
+    stop();
+    const sc = editScenario(scenario, t, 'returnHome', false);
+    if (sc === scenario || !swap(sc, prep.target, prep.custom ? getStore().inputs.routeMode : 'safest', 'zero')) { t = 0; apply(); }
+  });
   scrub.addEventListener('input', () => { stop(); t = Number(scrub.value); apply(); });
   document.addEventListener('visibilitychange', () => { if (document.hidden) stop(); });
   // swap in a re-prepared walk for scenario `sc`; false (nothing changed) if the new one is unreachable.
@@ -163,7 +170,12 @@ function setupScenario(data, M, sky) {
     return true;
   };
   // re-plan the walk for a target + mode; an unreachable one keeps the old walk
-  const replan = (target, mode) => swap(scenario, target, mode, 'auto');
+  const replan = (target, mode) => swap(editScenario(scenario, t, 'returnHome', false), target, mode, 'auto');
+  // turn back to the habitat now, from here; only on the outbound leg
+  homeBtn.addEventListener('click', () => {
+    if (!(t > 0 && t < prep.sepT && t < prep.endT)) return;
+    swap(editScenario(scenario, t, 'returnHome', true), prep.target, prep.custom ? getStore().inputs.routeMode : 'safest', 'keep');
+  });
   // a condition control edit from demo time t on; sol is a different EVA day, so it restarts the walk
   const runHasSep = () => scenario.events.some(e => e.type === 'sep_onset'); // the run setting behind the checkbox
   const setCondition = (key, value) => {
