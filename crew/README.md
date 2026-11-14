@@ -37,7 +37,7 @@ Export it: `export const REQUIRED_KEYS = [...]`.
 {
   status: 'GREEN' | 'AMBER' | 'RED',
   headline: 'GO' | 'CAUTION' | 'RETURN NOW' | 'AT SHELTER',   // AT SHELTER = RED while at the habitat
-  suitMinLeft: 265,          // usable suit time left (after reserve)
+  suitMinLeft: 265,          // usable suit time left (after reserve), never below 0
   returnMin: 62,             // minutes needed to walk home incl. safety pad
   marginMin: 203,            // suitMinLeft - returnMin
   turnBackInMin: 203,        // same as margin, floored at 0

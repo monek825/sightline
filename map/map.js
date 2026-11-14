@@ -37,10 +37,13 @@ const DEVIL_TIMELAPSE = 30;        // shown 30x faster than real time so the dri
 const DEVIL_WIND_DEG = 60;         // drift direction (towards ENE); illustrative
 const DEVIL_RESPAWN_M = 3500;      // a devil that drifts this far away is replaced upwind
 const DEVIL_WIDTH_M = 150;         // drawn width; Newman et al. 2022 saw devils up to ~270 m wide
+const DEVIL_HEIGHT_M = 800;        // 3D column height; illustrative (Jezero devils are typically hundreds of metres to over a kilometre tall)
+const DEVIL_NOTE = 'Dust devils: illustrative, not a forecast';
 const M_PER_DEG = 2 * Math.PI * 3396190 / 360;
 const DEVIL_SVG = '<svg viewBox="-20 -20 40 40" aria-hidden="true"><circle r="15"/><path d="M0-16A16 16 0 0 1 14 8M0 16A16 16 0 0 1-14-8"/><path d="M0-9A9 9 0 0 1 8 4M0 9A9 9 0 0 1-8-4"/></svg>';
 
-// Moving dust devils: one rAF loop, runs only while visible (devil hours, 2D map shown, tab visible).
+// Moving dust devils: the single source of their positions (lat/lon, drawn on the 2D map and in the 3D view).
+// One rAF loop, runs only while visible (devil hours, 2D map or 3D view shown, tab visible).
 function createDevils(map, C) {
   const layer = L.layerGroup().addTo(map);
   const speedMs = C.dust_devil_drift_ms ?? 5;
@@ -61,24 +64,25 @@ function createDevils(map, C) {
       const m = L.marker(place(anchor.lat, anchor.lon, off), { icon: icon(), keyboard: false, interactive: true })
         .bindTooltip(`Dust-devil hours (illustrative, not a forecast). Drifting with the wind at ~${speedMs} m/s, shown ${DEVIL_TIMELAPSE}× faster.`)
         .addTo(layer);
-      return { m, off };
+      const [lat, lon] = place(anchor.lat, anchor.lon, off);
+      return { m, off, lat, lon };
     });
   }
   function frame(now) {
     const dt = Math.min(0.1, (now - last) / 1000); last = now;
     const step = speedMs * DEVIL_TIMELAPSE * dt;
     for (const it of items) {
-      const ll = it.m.getLatLng();
-      let [lat, lon] = place(ll.lat, ll.lng, [Math.sin(rad) * step, Math.cos(rad) * step]);
+      let [lat, lon] = place(it.lat, it.lon, [Math.sin(rad) * step, Math.cos(rad) * step]);
       const dE = (lon - anchor.lon) * M_PER_DEG * Math.cos(anchor.lat * Math.PI / 180), dN = (lat - anchor.lat) * M_PER_DEG;
       if (Math.hypot(dE, dN) > DEVIL_RESPAWN_M) [lat, lon] = place(anchor.lat, anchor.lon, [-Math.sin(rad) * 2500 + it.off[1] * 0.5, -Math.cos(rad) * 2500 + it.off[0] * 0.5]);
+      it.lat = lat; it.lon = lon;
       it.m.setLatLng([lat, lon]);
     }
     raf = requestAnimationFrame(frame);
   }
   const run = () => {
     cancelAnimationFrame(raf);
-    if (on && !reduce && !document.hidden && !$('map').hidden) { last = performance.now(); raf = requestAnimationFrame(frame); }
+    if (on && !reduce && !document.hidden && (!$('map').hidden || !$('view3d').hidden)) { last = performance.now(); raf = requestAnimationFrame(frame); }
   };
   map.on('zoomend', () => { const ic = icon(); items.forEach(it => it.m.setIcon(ic)); });
   document.addEventListener('visibilitychange', run);
@@ -91,7 +95,9 @@ function createDevils(map, C) {
       on = active;
       run();
     },
-    refresh: run
+    refresh: run,
+    active: () => on,
+    positions: () => items   // live [{lat, lon}, …]; read-only for callers
   };
 }
 const $ = id => document.getElementById(id);
@@ -123,6 +129,21 @@ function drawOverlayCanvas(vis) {
 }
 
 // A route line with a dark casing underneath so it reads over orange-brown terrain.
+// Routes are re-planned every few hundred metres (lib/pipeline.js), so between re-plans the line starts behind the
+// astronaut. Draw it from the astronaut instead: drop the points already passed (nearest point, within 500 m).
+const TRIM_MAX_M = 500;
+function fromHere(points, a) {
+  if (!points?.length || !a) return points ?? [];
+  const k = Math.cos(a.lat * Math.PI / 180);
+  let best = 0, bestD = Infinity;
+  for (let i = 0; i < points.length; i++) {
+    const d = (points[i][0] - a.lat) ** 2 + ((points[i][1] - a.lon) * k) ** 2;
+    if (d < bestD) { bestD = d; best = i; }
+  }
+  if (Math.sqrt(bestD) * M_PER_DEG > TRIM_MAX_M) return points;
+  return [[a.lat, a.lon], ...points.slice(best + 1)];
+}
+
 function routeLine(map, color, weight, dashArray) {
   const casing = L.polyline([], { color: INK, weight: weight + 4, opacity: 0.85 }).addTo(map);
   const line = L.polyline([], { color, weight, opacity: 1, dashArray }).addTo(map);
@@ -242,8 +263,10 @@ function mk(tag, attrs, parent) {
 }
 
 // tint #fff = image shown untinted (as on the 2D map)
+// Phones / low-core machines get every 2nd grid point (4x fewer triangles); desktops keep the full 40 m grid.
 // patches: HiRISE close-up images (~0.7 m/px) near home and Three Forks, blended into the CTX ground (lib/terrain.js)
-const terrainAttr = src => `src: ${src}; exaggerate: ${EXAGGERATE}; tint: #ffffff; patches: data/hirise_patches.json`;
+const LOW_END = matchMedia('(pointer: coarse)').matches || (navigator.hardwareConcurrency ?? 8) <= 4 || (navigator.deviceMemory ?? 8) <= 4;
+const terrainAttr = src => `src: ${src}; exaggerate: ${EXAGGERATE}; tint: #ffffff; step: ${LOW_END ? 2 : 1}; patches: data/hirise_patches.json`;
 
 function buildScene() {
   const scene = document.createElement('a-scene');
@@ -298,8 +321,20 @@ function setRoute(s, terrain, name, route, color, k = 1) {
   if (!route?.ok || route.points.length < 2) { if (old) s.routes.removeObject3D(name); return; }
   const T = AFRAME.THREE;
   const pts = drape(terrain, route.points).map(p => new T.Vector3(p.x, p.y + LIFT_M * k, p.z));
-  const geo = new T.TubeGeometry(new T.CatmullRomCurve3(pts), Math.min(pts.length * 2, 1200), ROUTE_R * k, 5, false);
-  s.routes.setObject3D(name, new T.Mesh(geo, new T.MeshBasicMaterial({ color })));
+  const segs = Math.min(pts.length * 2, 1200);
+  const geo = new T.TubeGeometry(new T.CatmullRomCurve3(pts), segs, ROUTE_R * k, 5, false);
+  const mesh = new T.Mesh(geo, new T.MeshBasicMaterial({ color }));
+  mesh.userData.trim = { pts, segs, radial: 5 };
+  s.routes.setObject3D(name, mesh);
+}
+// start the 3D route at the astronaut: skip the tube segments before the nearest sample (index buffer is segment-major)
+function trimRoute(s, name, p) {
+  const m = s.routes.getObject3D(name), t = m?.userData.trim;
+  if (!t) return;
+  let best = 0, bestD = Infinity;
+  for (let i = 0; i < t.pts.length; i++) { const d = (t.pts[i].x - p.x) ** 2 + (t.pts[i].z - p.z) ** 2; if (d < bestD) { bestD = d; best = i; } }
+  const start = Math.sqrt(bestD) > TRIM_MAX_M ? 0 : Math.floor(best / (t.pts.length - 1) * t.segs);
+  m.geometry.setDrawRange(start * t.radial * 6, Infinity);
 }
 
 // Vertical sky gradient as a data URL: darker zenith, lighter horizon; dust flattens it.
@@ -323,12 +358,118 @@ function sunPosition(ltst) {
   return [Math.sin(az) * Math.cos(el) * SUN_DIST, Math.sin(el) * SUN_DIST, -Math.cos(az) * Math.cos(el) * SUN_DIST];
 }
 
-function createView3D(data, onPickTarget) {
+// Translucent spinning dust-devil columns (illustrative). One lathe geometry (tapered, wider and fainter at the top,
+// flared base skirt), uniforms shared by all columns. Copied and adapted from helmet/helmet.js makeDevils().
+function makeDevilColumns(T, parent) {
+  const U = { uTime: { value: 0 }, uFar: { value: 8000 }, uCam: { value: new T.Vector3() }, uColor: { value: new T.Color(0xc79a74) } };
+  const prof = [];
+  for (let i = 0; i <= 24; i++) { const t = i / 24; prof.push(new T.Vector2(0.55 + 0.45 * t + 0.9 * Math.exp(-t * 28), t)); }
+  const geo = new T.LatheGeometry(prof, 32);   // unit height; radius 1 = half the width
+  const meshes = [];
+  for (let i = 0; i < DEVIL_SPAWN_M.length; i++) {
+    const mat = new T.ShaderMaterial({
+      uniforms: Object.assign({ uSeed: { value: i * 7.3 } }, U), transparent: true, depthWrite: false, side: T.DoubleSide, fog: false,
+      vertexShader: `
+        #include <common>
+        #include <logdepthbuf_pars_vertex>
+        uniform float uTime, uSeed; varying vec2 vUv; varying vec3 vW;
+        void main() {
+          vUv = uv;
+          vec3 p = position;
+          float lean = smoothstep(0.0, 1.0, p.y);
+          p.x += sin(p.y * 3.0 + uTime * 0.7 + uSeed) * 0.3 * lean;   // the column leans and snakes
+          p.z += cos(p.y * 2.3 + uTime * 0.5 + uSeed) * 0.2 * lean;
+          vec4 w = modelMatrix * vec4(p, 1.0);
+          vW = w.xyz;
+          gl_Position = projectionMatrix * viewMatrix * w;
+          #include <logdepthbuf_vertex>
+        }`,
+      fragmentShader: `
+        #include <common>
+        #include <logdepthbuf_pars_fragment>
+        uniform float uTime, uSeed, uFar; uniform vec3 uCam, uColor; varying vec2 vUv; varying vec3 vW;
+        void main() {
+          #include <logdepthbuf_fragment>
+          float a = vUv.x * 6.2832, y = vUv.y;
+          float sw = sin(a * 3.0 + y * 14.0 - uTime * 5.0 + uSeed) * 0.5 + 0.5;
+          sw *= sin(a * 5.0 - y * 9.0 - uTime * 3.3) * 0.25 + 0.75;
+          float body = smoothstep(0.0, 0.03, y) * (1.0 - 0.7 * y);         // faint towards the top
+          float skirt = exp(-y * 22.0) * 0.5;                              // soft base skirt of dust
+          float d = length(vW.xz - uCam.xz);
+          float alpha = ((0.24 + 0.36 * sw) * body + skirt * (0.5 + 0.5 * sw)) * (1.0 - smoothstep(0.55 * uFar, uFar, d));
+          if (alpha < 0.005) discard;
+          gl_FragColor = vec4(uColor * (0.85 + 0.25 * sw), alpha);
+          #include <colorspace_fragment>
+        }`
+    });
+    const m = new T.Mesh(geo, mat);
+    m.frustumCulled = false; m.visible = false; m.renderOrder = 4;
+    parent.add(m);
+    meshes.push(m);
+  }
+  return { U, meshes };
+}
+
+// Blowing dust over the 3D view (visual only): two layers of soft noise drifting with the wind, opacity from tau.
+// CSS transform animation (compositor), so it costs no frame time; one 256 px noise texture, generated once.
+const VEIL_PER_TAU = 0.075, VEIL_MAX = 0.75;
+function dustNoise() {
+  const N = 256, c = document.createElement('canvas');
+  c.width = c.height = N;
+  const g = c.getContext('2d'), img = g.createImageData(N, N);
+  const rnd = (x, y, sx, sy) => { const k = ((x % sx + sx) % sx) * 7919 + ((y % sy + sy) % sy) * 104729; const v = Math.sin(k) * 43758.5453; return v - Math.floor(v); };
+  const smooth = (x, y, sx, sy) => {   // value noise that wraps every sx (x) and sy (y) cells, so the tile has no seams
+    const x0 = Math.floor(x), y0 = Math.floor(y), fx = x - x0, fy = y - y0, u = fx * fx * (3 - 2 * fx), v = fy * fy * (3 - 2 * fy);
+    return (rnd(x0, y0, sx, sy) * (1 - u) + rnd(x0 + 1, y0, sx, sy) * u) * (1 - v) + (rnd(x0, y0 + 1, sx, sy) * (1 - u) + rnd(x0 + 1, y0 + 1, sx, sy) * u) * v;
+  };
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+    let n = 0, amp = 0.6;
+    for (const s of [4, 8, 16]) { n += amp * smooth(x * s / N, y * (s / 2) / N, s, s / 2); amp *= 0.5; } // half as many cells in y: wind streaks
+    img.data.set([214, 160, 112, Math.round(Math.min(1, Math.max(0, n - 0.3) * 2.2) * 255)], (y * N + x) * 4); // dust colour baked in
+  }
+  g.putImageData(img, 0, 0);
+  return c.toDataURL();
+}
+function addDustVeil(host) {
+  const veil = document.createElement('div');
+  veil.className = 'dust-veil';
+  veil.setAttribute('aria-hidden', 'true');
+  const url = `url(${dustNoise()})`;
+  for (const cls of ['veil-a', 'veil-b']) {
+    const layer = document.createElement('div');
+    layer.className = `veil-layer ${cls}`;
+    layer.style.setProperty('--noise', url);
+    veil.append(layer);
+  }
+  host.append(veil);
+}
+
+function createView3D(data, onPickTarget, devils) {
   const host = $('view3d'), msg = $('v3-msg');
   let s = null, starting = null, terrain = null, last = null, lastHome, lastOut, lastRadius = -1, lastTau = null, lastSun = null, lastVis = null, blind3d = null;
   let routeK = 1, retried = false, groundU = null, rocks = null;
   const say = text => { msg.textContent = text; msg.hidden = !text; };
-  $('v3-note').textContent = `Vertical scale ×${EXAGGERATE} (true) · rover and habitat true size`;
+  const noteBase = `Vertical scale ×${EXAGGERATE} (true) · rover and habitat true size`;
+  let noteDevils = null, dv3 = null, dvAff = null, dvT0 = performance.now();
+  const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const setNote = on => { if (on === noteDevils) return; noteDevils = on; $('v3-note').textContent = on ? `${noteBase} · ${DEVIL_NOTE}` : noteBase; };
+  setNote(false);
+
+  // Per frame: stand each column on the ground at the 2D map's devil position (affine lat/lon → world, no allocation).
+  function updateDevils3D(cx, cy, cz) {
+    if (!dv3) return;
+    const act = devils.active(), pos = devils.positions(), hours = act && terrain?.ready && pos.length > 0;
+    dv3.U.uTime.value = reduceMotion ? 0 : (performance.now() - dvT0) / 1000;
+    dv3.U.uCam.value.set(cx, cy, cz);
+    for (let i = 0; i < dv3.meshes.length; i++) {
+      const m = dv3.meshes[i], it = pos[i];
+      if (!hours || !it) { m.visible = false; continue; }
+      const x = dvAff.x0 + (it.lon - dvAff.lon0) * dvAff.kx, z = dvAff.z0 + (it.lat - dvAff.lat0) * dvAff.kz, g = terrain.heightAt(x, z);
+      if (!Number.isFinite(g)) { m.visible = false; continue; }
+      m.position.set(x, g - 2, z);
+      m.visible = true;
+    }
+  }
 
   // Per frame from orbit-camera: marker size, route thickness, near plane and close-up ground follow the zoom.
   function onZoom(dist, cx, cy, cz, camH) {
@@ -348,6 +489,7 @@ function createView3D(data, onPickTarget) {
     if (groundU) groundU.uGCam.value.set(cx, cy, cz);
     const o = s.cam.components['orbit-camera'].o;
     if (rocks) rocks.update(o.x, o.z, 0, 0, camH);
+    updateDevils3D(cx, cy, cz);
   }
 
   // Blind zones draped on the terrain: a second mesh sharing the terrain geometry, transparent, drawn on top.
@@ -372,9 +514,12 @@ function createView3D(data, onPickTarget) {
   function update() {
     if (!terrain?.ready || !last) return;
     updateBlind(last.derived.vis, last.derived.visKey);
+    setNote(devils.active());
+    if (!devils.active() && dv3) for (const m of dv3.meshes) m.visible = false;
     const { inputs: { astronaut: a }, derived: d } = last;
     const p = terrain.toWorld(a.lat, a.lon);
     s.astro.object3D.position.set(p.x, p.y, p.z);
+    trimRoute(s, 'home', p); trimRoute(s, 'out', p);
     s.ring.object3D.position.set(p.x, p.y + Math.max(0.1, LIFT_M * routeK), p.z);
     const r = Math.max(5, Math.round(d.posUncertaintyM));
     if (r + routeK * 1e6 !== lastRadius) {      // line width follows the zoom (thin when close)
@@ -395,16 +540,20 @@ function createView3D(data, onPickTarget) {
       const sky = SKY_CLEAR.map((c, i) => Math.round(c + (SKY_DUSTY[i] - c) * f));
       const color = `rgb(${sky.join(',')})`;
       const far = Math.max(3000, d.limits.visibilityKm * 1000);
+      if (dv3) { dv3.U.uColor.value.set(`rgb(${sky.map(c => Math.round(c * 0.8)).join(',')})`); dv3.U.uFar.value = far; }
       s.scene.setAttribute('background', `color: ${color}`);
       s.sky.setAttribute('material', `shader: flat; fog: false; src: url(${skyGradient(sky, f)})`);
       s.sun.setAttribute('light', 'intensity', (1.6 * Math.exp(-tau / 5) + 0.25).toFixed(2));
       s.hemi.setAttribute('light', 'intensity', (0.7 + 0.25 * f).toFixed(2));
-      s.scene.setAttribute('fog', `type: linear; color: ${color}; near: ${Math.round(far * 0.15)}; far: ${Math.round(far)}`);
+      // storms: haze starts right in front of the camera; clear days: only far away
+      s.scene.setAttribute('fog', `type: linear; color: ${color}; near: ${Math.round(far * (0.15 - 0.15 * f))}; far: ${Math.round(far)}`);
       host.style.background = color;
+      host.style.setProperty('--veil', String(Math.min(VEIL_MAX, tau * VEIL_PER_TAU).toFixed(2)));
     }
   }
 
   async function init() {
+    addDustVeil(host);
     say('Loading 3D terrain…');
     try {
       if (!window.AFRAME) await loadScript(AFRAME_SRC);
@@ -437,6 +586,11 @@ function createView3D(data, onPickTarget) {
         rocks = G.rocks(AFRAME.THREE, (x, z) => terrain.heightAt(x, z), det, MAP_ROCK_LAYERS);
         s.scene.object3D.add(rocks.group);
       }
+      dv3 = makeDevilColumns(AFRAME.THREE, s.scene.object3D);
+      for (const m of dv3.meshes) m.scale.set(DEVIL_WIDTH_M / 2, DEVIL_HEIGHT_M, DEVIL_WIDTH_M / 2);
+      const bb = data.bounds, nw = terrain.toWorld(bb.latMax, bb.lonMin), se = terrain.toWorld(bb.latMin, bb.lonMax);
+      dvAff = { lon0: bb.lonMin, lat0: bb.latMax, x0: nw.x, z0: nw.z, kx: (se.x - nw.x) / (bb.lonMax - bb.lonMin), kz: (se.z - nw.z) / (bb.latMin - bb.latMax) };
+      lastTau = null;   // re-run the sky pass so the columns pick up the current colour
       const orbit = s.cam.components['orbit-camera'];
       if (orbit) orbit.onTick = onZoom;
       for (const lm of data.landmarks ?? []) {
@@ -487,7 +641,20 @@ function createView3D(data, onPickTarget) {
       }
       say(`3D terrain failed: ${e.detail?.message ?? 'unknown error'}`);
     });
-    s.scene.addEventListener('loaded', () => { if (host.hidden) s.scene.pause(); update(); });
+    s.scene.addEventListener('loaded', () => {
+      if (host.hidden) s.scene.pause();
+      update();
+      // GPU ran out of memory or the driver reset: fall back to the 2D map instead of a dead white screen
+      s.scene.canvas?.addEventListener('webglcontextlost', e => {
+        e.preventDefault();
+        $('v-2d').click();
+        say('3D view stopped (graphics memory). Showing the 2D map; reload to try 3D again.');
+        const b = $('banner');
+        b.textContent = '3D view stopped on this device, so the 2D map is shown. Reload to try 3D again.';
+        b.hidden = false;
+        setTimeout(() => { b.hidden = true; }, 6000);
+      }, { once: true });
+    });
     host.prepend(s.scene);
   }
 
@@ -536,7 +703,7 @@ export function createMapView(data, { onPickTarget }) {
   const astro = L.marker([0, 0], { icon: astronautIcon(0), keyboard: false, zIndexOffset: 1000 }).addTo(map);
   map.on('click', e => onPickTarget({ lat: e.latlng.lat, lon: e.latlng.lng }));
 
-  const view3d = createView3D(data, onPickTarget);
+  const view3d = createView3D(data, onPickTarget, devils);
   setupToggle(map, view3d);
   for (const id of ['v-2d', 'v-3d']) $(id).addEventListener('click', () => devils.refresh()); // pause/resume the devil loop
 
@@ -558,9 +725,9 @@ export function createMapView(data, { onPickTarget }) {
     if (h !== lastHeading) { astro.setIcon(astronautIcon(h)); lastHeading = h; }
     uncertainty.setLatLng([a.lat, a.lon]).setRadius(derived.posUncertaintyM);
     renderWeather(store);
-    setRouteHome(derived.routeHome?.ok ? derived.routeHome.points : []);
-    setRouteAlt(derived.routeAlt?.ok ? derived.routeAlt.points : []);
-    setRouteOut(derived.routeOut?.ok ? derived.routeOut.points : []);
+    setRouteHome(derived.routeHome?.ok ? fromHere(derived.routeHome.points, a) : []);
+    setRouteAlt(derived.routeAlt?.ok ? fromHere(derived.routeAlt.points, a) : []);
+    setRouteOut(derived.routeOut?.ok ? fromHere(derived.routeOut.points, a) : []);
     view3d.render(store);
   }
   return { map, render };

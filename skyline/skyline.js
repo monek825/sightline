@@ -1,12 +1,13 @@
 // Written with AI assistance (Claude / GitHub Copilot)
-// LOCATE — Horizon Match panel. Turn 360° → search heat map → fix. Data: data/skyline/<site>.json (Sean's scripts/skyline.py).
+// LOCATE — Horizon Match panel. Turn 360° → topographic scan of the search area (topo.js) → fix. Data: data/skyline/<site>.json (Sean's scripts/skyline.py).
 // UI only: the one state write is setInputs() from a click/handler, never from a subscriber.
 
 import { R } from '../lib/geo.js';
 import { setInputs, getStore } from '../lib/store.js';
+import { topoScan, SCAN_MS } from './topo.js';
 
 const SWEEP_MS = 4000;
-const SEARCH_MS = 1200;
+const SEARCH_MS = SCAN_MS; // the topographic scan (skyline/topo.js)
 const MORPH_MS = 400; // 360° <-> 96° circle change
 const STEPS = ['Look around', 'Compare with the map', 'You are here'];
 const M_PER_DEG = 2 * Math.PI * R / 360;
@@ -107,22 +108,6 @@ function chartScale(s) {
 }
 const points = (arr, { x, y }, upto = arr.length) => arr.slice(0, upto).map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
 
-function heatImage(grid) {
-  const { n, rmsDeg } = grid;
-  const best = Math.min(...rmsDeg), worst = Math.max(...rmsDeg);
-  const c = document.createElement('canvas');
-  c.width = c.height = n;
-  const ctx = c.getContext('2d');
-  const img = ctx.createImageData(n, n);
-  for (let i = 0; i < n * n; i++) {
-    const good = 1 - (rmsDeg[i] - best) / Math.max(worst - best, 1e-6); // 1 = best match
-    const a = good ** 4;
-    img.data.set([255, 196 + 59 * a, 90 + 120 * a, Math.round(a * 220)], i * 4);
-  }
-  ctx.putImageData(img, 0, 0);
-  return c.toDataURL();
-}
-
 function gridBounds(g) {
   const half = (g.n - 1) / 2 * g.stepM + g.stepM / 2;
   const dLat = half / M_PER_DEG;
@@ -212,6 +197,7 @@ export function closeFix() {
   cancelAnimationFrame(ui.raf);
   if (ui.cmp) { ui.cmp.circle.remove(); ui.cmp.marker.remove(); ui.cmp = null; }
   if (ui.overlay) { ui.overlay.remove(); ui.overlay = null; }
+  if (ui.scan) { ui.scan.then(c => c?.remove()); ui.scan = null; }
   if (ui.dlg.open) ui.dlg.close();
   const cb = ui.onClose; ui.onClose = null;
   cb?.();
@@ -266,14 +252,15 @@ export async function openSkylineFix(siteId, map, opts = {}) {
   // 2. Search the map
   const later = (ms, fn) => ui.timers.push(setTimeout(fn, reduced ? 0 : ms));
   later(SWEEP_MS, () => {
-    setStep(1, 'Checking every spot nearby on the map. Bright = similar hills.');
-    ui.overlay = L.imageOverlay(heatImage(s.grid), gridBounds(s.grid), { opacity: 0.85, interactive: false, className: 'skyfix-heat' }).addTo(map);
+    setStep(1, 'Scanning the NASA terrain map: every dot is a spot whose horizon is being compared.');
+    ui.scan = topoScan(map, s, { reduced }).catch(err => { console.error(err); return null; });
     map.flyToBounds(gridBounds(s.grid), { duration: reduced ? 0 : 0.8, padding: [40, 40] });
   });
 
   // 3. Fix
   later(SWEEP_MS + SEARCH_MS, () => {
     setStep(2, 'Best match found.');
+    ui.scan?.then(c => c?.lock());
     [...step.children].forEach(li => { li.className = 'done'; });
     best.setAttribute('points', points(s.best, sc));
     showResult(result, s, map, reduced);

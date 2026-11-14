@@ -240,21 +240,38 @@ h1, h2 { margin: 0; font-weight: 600; }
 .cp.current .cp-dot { transform: scale(1.5); border-color: var(--cream); }
 .cp.current .cp-label { color: var(--cream); font-weight: 600; }
 
+/* details sheet: verdict sentence, what limits the walk, what-if controls, sources */
 .more {
-  display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: var(--s6);
-  padding: var(--s4) var(--s6) var(--s5); max-height: 42vh; overflow-y: auto; border-top: 1px solid var(--line);
+  display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: var(--s4) var(--s6); align-content: start;
+  padding: var(--s5) var(--s6); max-height: 42vh; overflow-y: auto; overscroll-behavior: contain; border: 0;
 }
-.more h2 { font-size: 15px; margin-bottom: var(--s3); }
+.more > * { min-width: 0; }
+.more h2 { font-size: 16px; margin: 0 0 var(--s3); }
 .mock-badge { grid-column: 1 / -1; margin: 0; background: #3a2605; color: #ffd27a; border-radius: var(--r-sm); padding: var(--s2) var(--s3); font: 12px/1.4 var(--mono); }
 .mock-badge strong { color: var(--cream); margin-right: 4px; }
-.stat { margin: var(--s3) 0 0; color: var(--muted); font-size: 13px; }
-.controls { display: grid; gap: var(--s2); align-content: start; }
-.controls label { display: grid; grid-template-columns: 1fr auto; gap: 2px var(--s2); font-size: 13px; color: var(--muted); align-items: center; }
+.verdict { grid-column: 1 / -1; margin: 0; font: 600 20px/1.3 var(--display); color: var(--text); text-wrap: balance; }
+.verdict[data-status="GREEN"] { color: var(--green); }
+.verdict[data-status="AMBER"] { color: var(--amber); }
+.verdict[data-status="RED"] { color: var(--red); }
+.stat { margin: 0; color: var(--muted); font-size: 13px; }
+.alerts .keynum { font: 12px var(--mono); color: var(--cream); margin-left: var(--s2); white-space: nowrap; }
+.alerts li.none { display: block; cursor: default; color: var(--muted); }
+.alerts li.none:hover { background: rgba(0, 0, 0, .22); transform: none; }
+.alerts li.also { display: block; padding: 0; background: none; cursor: default; }
+.alerts li.also:hover { background: none; transform: none; }
+.alerts li.also summary { cursor: pointer; font-size: 13px; color: var(--muted); padding: var(--s2) 0; }
+.alerts li.also .alerts { margin-top: var(--s2); }
+.controls { display: grid; gap: var(--s3); align-content: start; }
+.controls label { display: grid; grid-template-columns: 1fr auto; gap: 2px var(--s2); font-size: 14px; color: var(--text); align-items: center; }
 .controls label[hidden] { display: none; }
-.controls label > input[type=range] { grid-column: 1 / -1; width: 100%; height: 36px; margin: 0; accent-color: var(--accent); }
-.controls output { color: var(--text); }
-.controls .check { display: flex; gap: 10px; color: var(--text); min-height: 36px; }
+.controls label > input[type=range] { grid-column: 1 / -1; width: 100%; height: 28px; margin: 0; accent-color: var(--accent); }
+.controls .sub { grid-column: 1 / -1; font-size: 12px; color: var(--muted); }
+.controls output { color: var(--cream); font-size: 13px; }
+.controls .check { display: flex; gap: 10px; min-height: 36px; }
 .controls input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--accent); }
+.more-foot { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2) var(--s4); }
+.more-foot .credit { flex: 1 1 320px; font-size: 12px; }
+.more-foot .stat:empty { display: none; }
 
 /* map markers */
 .astro-icon svg { overflow: visible; }
@@ -322,6 +339,7 @@ body.video :is(.bar-left, .view-toggle, .leaflet-control-container) { display: n
   .cp-label, .cp:nth-child(even) .cp-label { display: none; }
   .cp.current .cp-label { display: block; top: 16px; }
   .more { grid-template-columns: 1fr; padding: var(--s4); }
+  .verdict { font-size: 18px; }
 }
 /* narrow phones: the brand bar wraps to two lines (~73 px), so everything below it moves down to clear it */
 @media (max-width: 440px) {
@@ -551,7 +569,7 @@ h1, h2, .brand, .tab-title, .skyfix-head h2, .more h2 { font-family: var(--displ
 .more {
   position: absolute; left: var(--s4); bottom: calc(var(--notch-d) + var(--s3)); z-index: 1055;
   width: min(760px, calc(100% - var(--panel-w) - 56px)); max-height: calc(100% - var(--notch-d) - 96px);
-  border-top: 0; border-radius: var(--r-lg); background: var(--frost-strong);
+  border-radius: var(--r-lg); background: var(--frost-strong); backdrop-filter: var(--blur); -webkit-backdrop-filter: var(--blur);
 }
 
 /* panel stops above the bar; its tab bar now lives in the right bar */
@@ -574,26 +592,141 @@ h1, h2, .brand, .tab-title, .skyfix-head h2, .more h2 { font-family: var(--displ
   .player #t-label { display: none; }
 }
 
-/* ---------- intro: line → 30° wedge → SL logo → eye-blink reveal ---------- */
+/* ---------- intro: the SL logo is the loading bar ----------
+   A dim (grey) logo on black; a white copy is revealed left to right as loading progresses (quadratic ease-out).
+   Reveal = a wrapper sliding from -100% to 0 with the logo counter-sliding, so it's transform-only (compositor)
+   and keeps moving while the main thread parses the terrain. Then two eyelids slide open (hub eye-blink timing). */
 body.intro-on { overflow: hidden; }
-.intro { position: fixed; inset: 0; z-index: 12000; pointer-events: all; transition: opacity 180ms ease; }
-.intro.is-gone { opacity: 0; pointer-events: none; }
-.intro-eye { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
-.intro-lid { fill: var(--bg); }
-.intro-pupil { transform-box: fill-box; transform-origin: center; transform: scaleY(0); transition: transform 500ms cubic-bezier(.7, 0, .2, 1) 250ms; }
-.intro.is-open .intro-pupil { transform: scaleY(1); }
-.intro-mark { position: absolute; left: 50%; top: 50%; width: 260px; height: 160px; transform: translate(-50%, -55%); transition: opacity 250ms ease, transform 500ms var(--ease-out); }
-.intro.is-open .intro-mark { opacity: 0; transform: translate(-50%, -55%) scale(1.06); }
-.intro-mark svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
-.intro-mark line { stroke: var(--cream); stroke-width: 1.5; stroke-linecap: round; }
-/* 1. baseline draws left → right */
-.intro-base { stroke-dasharray: 240; stroke-dashoffset: 240; transition: stroke-dashoffset 500ms cubic-bezier(.5, 1, .89, 1); }
-.intro.is-line .intro-base { stroke-dashoffset: 0; }
-/* 2. the arm lies on the baseline, then swings up to 30° around the left end (quadratic ease-out) */
-.intro-arm { opacity: 0; transform-box: view-box; transform-origin: 10px 150px; transform: rotate(0deg); transition: transform 600ms cubic-bezier(.5, 1, .89, 1), opacity 1ms; }
-.intro.is-angle .intro-arm { opacity: 1; transform: rotate(-30deg); }
-/* 3. SL logo appears inside the wedge (crop of assets/logo.svg: mark bounds 532-976 x 639-871 of 1500) */
-.intro-logo { position: absolute; left: 89px; top: 66px; width: 149px; height: 78px; overflow: hidden; opacity: 0; transform: translateY(8px); clip-path: inset(0 100% 0 0); transition: opacity 400ms ease, transform 600ms var(--ease-out), clip-path 600ms cubic-bezier(.5, 1, .89, 1); }
-.intro-logo img { position: absolute; left: -178.5px; top: -214.5px; width: 503px; height: 503px; max-width: none; }
-.intro.is-logo .intro-logo { opacity: 1; transform: none; clip-path: inset(0 0 0 0); }
+.intro { position: fixed; inset: 0; z-index: 12000; pointer-events: all; overflow: hidden; --p: 0; }
+.intro.is-gone { opacity: 0; transition: opacity 200ms ease; pointer-events: none; }
+.intro-lid { position: absolute; left: -20vw; right: -20vw; height: calc(50vh + 18vh); background: #000; will-change: transform;
+  transition: transform 650ms cubic-bezier(.7, 0, .2, 1) 150ms; }
+.intro-lid-top { top: 0; border-radius: 0 0 50% 50% / 0 0 18vh 18vh; }
+.intro-lid-bottom { bottom: 0; border-radius: 50% 50% 0 0 / 18vh 18vh 0 0; }
+.intro.is-open .intro-lid-top { transform: translateY(-105%); }
+.intro.is-open .intro-lid-bottom { transform: translateY(105%); }
+
+/* logo box = the mark's bounds in the 1500-unit file (x 532-976, y 639-871), at --w px wide */
+.intro-mark { --w: 300px; position: absolute; left: 50%; top: 50%; width: var(--w); height: calc(var(--w) * 232 / 444);
+  transform: translate(-50%, -50%); transition: opacity 200ms ease; }
+.intro.is-open .intro-mark { opacity: 0; }
+.intro-logo { position: absolute; inset: 0; overflow: hidden; }
+.intro-logo img { position: absolute; max-width: none; width: calc(var(--w) * 1500 / 444); height: auto;
+  left: calc(var(--w) * -532 / 444); top: calc(var(--w) * -639 / 444); }
+.intro-logo-dim { opacity: .22; } /* white at 22% on black = grey */
+.intro-fill, .intro-fill-in { position: absolute; inset: 0; overflow: hidden; will-change: transform; }
+.intro-fill { transform: translateX(calc((var(--p) - 1) * 100%)); transition: transform var(--dur, 600ms) cubic-bezier(.5, 1, .89, 1); }
+.intro-fill-in { transform: translateX(calc((1 - var(--p)) * 100%)); transition: transform var(--dur, 600ms) cubic-bezier(.5, 1, .89, 1); }
+@media (max-width: 600px) { .intro-mark { --w: 200px; } }
 @media (prefers-reduced-motion: reduce) { .intro { display: none; } }
+
+/* ---------- Details sheet: a narrow left column, so the centre of the map stays visible ---------- */
+.more {
+  display: flex; flex-direction: column; gap: var(--s4);
+  top: 92px; bottom: calc(var(--notch-d) + var(--s3)); left: var(--s4);
+  width: min(430px, calc(100% - var(--panel-w) - 64px)); max-height: none; padding: var(--s5);
+}
+.more .verdict { font-size: 18px; }
+.more .controls { gap: var(--s3); }
+/* factors: problems as highlighted cards on top; everything fine as a quiet label-and-number list with hairlines
+   (pattern: component hub "clean dashboard kit", Wink label-and-number list: 55px rows, label left, number right, 1px line) */
+#alerts { display: grid; grid-template-columns: 1fr; gap: 0; }
+#alerts .tile {
+  display: grid; grid-template-columns: 20px 1fr auto; align-items: center; gap: 0 var(--s3);
+  min-height: 46px; padding: 0 2px; border-radius: 0; background: none; cursor: default; font-size: 14px;
+  border-bottom: 1px solid rgba(255, 244, 224, .09);
+}
+#alerts .tile:last-child { border-bottom: 0; }
+#alerts .tile:hover { transform: none; background: none; }
+#alerts .tile:focus-visible { outline-offset: -2px; }
+.tile-icon { color: var(--muted); display: grid; place-items: center; }
+.tile-icon svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.tile-head { min-width: 0; }
+.tile-head strong { font-weight: 500; font-size: 14px; color: var(--text); }
+.tile-level { display: none; }
+.tile-num { font: 13px var(--mono); color: var(--cream); white-space: nowrap; text-align: right; }
+/* a problem: its own card, coloured edge, explanation and source */
+#alerts .tile.wide {
+  grid-template-columns: 20px 1fr auto; align-items: start; gap: 4px var(--s3); padding: var(--s3) var(--s4);
+  margin-bottom: var(--s2); border-bottom: 0; border-radius: 14px; background: rgba(0, 0, 0, .28); box-shadow: inset 3px 0 0 var(--amber);
+}
+#alerts .tile.wide.RED { box-shadow: inset 3px 0 0 var(--red); }
+#alerts .tile.wide .tile-icon { margin-top: 1px; }
+.tile.wide.AMBER .tile-icon { color: #f3c66c; } .tile.wide.RED .tile-icon { color: #ff8f88; }
+.tile.wide .tile-head strong { font-weight: 600; }
+.tile.wide .tile-level { display: inline; margin-left: var(--s2); font-size: 12px; }
+.tile.RED .tile-level { color: #ff8f88; } .tile.AMBER .tile-level { color: #f3c66c; }
+.tile-msg { grid-column: 2 / -1; margin: 0; color: var(--muted); font-size: 13px; line-height: 1.45; }
+.tile .tag { grid-column: 2 / -1; justify-self: start; margin: 2px 0 0; }
+/* event buttons */
+.events { display: grid; gap: var(--s2); }
+.events h3 { margin: var(--s2) 0 0; font: 600 13px var(--display); color: var(--text); }
+.event-btns { display: flex; flex-wrap: wrap; gap: 6px; }
+.btn.ev { min-height: 34px; padding: 0 var(--s3); font-size: 13px; border-radius: 999px; }
+
+/* ---------- status card can be hidden ---------- */
+.panel { transition: transform .5s var(--ease-out), opacity .3s; }
+.panel-hide {
+  position: absolute; top: var(--s3); right: var(--s3); z-index: 2; width: 32px; height: 32px; padding: 0; border: 0; border-radius: 50%;
+  display: grid; place-items: center; background: rgba(255, 255, 255, .08); color: var(--text); cursor: pointer; transition: background-color .2s;
+}
+.panel-hide:hover { background: rgba(255, 138, 61, .25); }
+.panel-hide svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+body.panel-hidden .panel { transform: translateX(calc(100% + var(--s5))); opacity: 0; pointer-events: none; }
+body.panel-hidden .tabbar [role="tab"][aria-selected="true"] { transform: none; background: rgba(255, 255, 255, .12); color: var(--text); box-shadow: none; }
+
+@media (max-width: 1023px) {
+  .more { top: auto; bottom: auto; width: auto; padding: var(--s4); }
+  .panel-hide { display: none; }
+  body.panel-hidden .panel { transform: none; opacity: 1; pointer-events: auto; }
+}
+
+/* blowing dust over the 3D view: noise layers drift with the wind; strength from tau (--veil) */
+.dust-veil { position: absolute; inset: 0; z-index: 1; pointer-events: none; overflow: hidden; opacity: var(--veil, 0); transition: opacity 1.2s ease; }
+.veil-layer { position: absolute; top: -10%; bottom: -10%; left: 0; width: calc(100% + var(--tile-w)); background-image: var(--noise);
+  background-repeat: repeat; background-size: var(--tile-w) var(--tile-h); will-change: transform; animation: veil-drift var(--dur) linear infinite; }
+.veil-a { --tile-w: 900px; --tile-h: 520px; --dur: 38s; opacity: .85; }
+.veil-b { --tile-w: 520px; --tile-h: 300px; --dur: 21s; opacity: .6; }
+/* move exactly one tile, so the loop is seamless */
+@keyframes veil-drift { from { transform: translateX(calc(-1 * var(--tile-w))); } to { transform: translateX(0); } }
+@media (prefers-reduced-motion: reduce) { .veil-layer { animation: none; } }
+
+/* the clock already shows EVA minutes; the t label crowded the Details button */
+.player #t-label { display: none; }
+
+/* loader: playful status lines under the logo, cycling on the compositor (no JS, never freezes) */
+.intro-lines { position: absolute; left: 0; right: 0; top: calc(50% + 110px); margin: 0; height: 20px; text-align: center; transition: opacity 200ms ease; }
+.intro.is-open .intro-lines { opacity: 0; }
+.intro-lines span { position: absolute; left: 0; right: 0; font: 400 13px var(--font); color: rgba(255, 244, 224, .55); opacity: 0;
+  animation: intro-line 10s linear infinite; }
+.intro-lines span:nth-child(2) { animation-delay: 2s; }
+.intro-lines span:nth-child(3) { animation-delay: 4s; }
+.intro-lines span:nth-child(4) { animation-delay: 6s; }
+.intro-lines span:nth-child(5) { animation-delay: 8s; }
+@keyframes intro-line { 0% { opacity: 0; transform: translateY(6px); } 4%, 18% { opacity: 1; transform: none; } 22%, 100% { opacity: 0; transform: translateY(-6px); } }
+@media (max-width: 600px) { .intro-lines { top: calc(50% + 80px); } }
+
+/* loader dots: each dot fades in turn (opacity only, compositor) */
+.intro-lines i { font-style: normal; opacity: 0; animation: intro-dot 1.2s steps(1, end) infinite; }
+.intro-lines i:nth-child(2) { animation-name: intro-dot2; }
+.intro-lines i:nth-child(3) { animation-name: intro-dot3; }
+@keyframes intro-dot { 0% { opacity: 0; } 25%, 100% { opacity: 1; } }
+@keyframes intro-dot2 { 0% { opacity: 0; } 50%, 100% { opacity: 1; } }
+@keyframes intro-dot3 { 0% { opacity: 0; } 75%, 100% { opacity: 1; } }
+.intro-fill, .intro-fill-in { transition-timing-function: var(--ease, cubic-bezier(.5, 1, .89, 1)); }
+
+/* Horizon Match topographic scan (skyline/topo.js) */
+.topo-layer { pointer-events: none; }
+.topo-scan { overflow: visible; }
+.topo-wash { fill: rgba(22, 12, 6, .42); }
+.topo-line { fill: none; stroke: #ffe9cf; stroke-opacity: .75; stroke-width: 1px; vector-effect: non-scaling-stroke; }
+.topo-index { fill: none; stroke: #ff8a3d; stroke-opacity: 1; stroke-width: 1.8px; vector-effect: non-scaling-stroke; }
+.topo-ring { fill: rgba(255, 138, 61, .06); stroke: #ff8a3d; stroke-width: 2px; vector-effect: non-scaling-stroke; }
+.topo-prior { fill: none; stroke: #fff4e0; stroke-width: 1.5px; stroke-dasharray: 3 3; vector-effect: non-scaling-stroke; }
+.topo-cand { fill: #fff4e0; }
+.topo-lock { fill: #4cc86a; stroke: #fff; stroke-width: 1.5px; vector-effect: non-scaling-stroke; transform-box: fill-box; transform-origin: center; }
+.topo-lock.is-locked { animation: topo-pulse 1.4s ease-out infinite; }
+@keyframes topo-pulse { 0% { transform: scale(1); } 50% { transform: scale(1.8); } 100% { transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) { .topo-lock.is-locked { animation: none; } }
+
+.intro-lines span.slow { animation: none; opacity: 1; }

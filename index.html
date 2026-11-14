@@ -14,27 +14,28 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
   <link rel="icon" href="assets/logo.svg" type="image/svg+xml">
   <link rel="stylesheet" href="styles.css">
+  <link rel="preload" href="data/heightgrid40.json" as="fetch" crossorigin="anonymous">
+  <link rel="preload" href="data/terrain_texture.jpg" as="image">
+  <link rel="preload" href="https://aframe.io/releases/1.6.0/aframe.min.js" as="script">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js" defer></script>
   <script type="module" src="map/intro.js"></script>
   <script type="module" src="map/app.js"></script>
 </head>
 <body class="intro-on">
   <div id="intro" class="intro" aria-hidden="true">
-    <svg class="intro-eye" viewBox="0 0 100 100" preserveAspectRatio="none">
-      <defs><filter id="eye-blur" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="2.5"/></filter></defs>
-      <mask id="eye-mask">
-        <rect width="100" height="100" fill="#fff"/>
-        <ellipse class="intro-pupil" cx="50" cy="50" rx="70" ry="60" fill="#000" filter="url(#eye-blur)"/>
-      </mask>
-      <rect class="intro-lid" width="100" height="100" mask="url(#eye-mask)"/>
-    </svg>
-    <div class="intro-mark">
-      <svg viewBox="0 0 260 160">
-        <line class="intro-base" x1="10" y1="150" x2="250" y2="150"/>
-        <line class="intro-arm" x1="10" y1="150" x2="270" y2="150"/>
-      </svg>
-      <span class="intro-logo"><img src="assets/logo.svg" alt="" width="503" height="503"></span>
+    <div class="intro-lid intro-lid-top"></div>
+    <div class="intro-lid intro-lid-bottom"></div>
+    <div class="intro-mark" role="progressbar" aria-label="Loading the 3D map">
+      <span class="intro-logo intro-logo-dim"><img src="assets/logo.svg" alt="" width="1500" height="1500"></span>
+      <span class="intro-fill"><span class="intro-fill-in"><span class="intro-logo"><img src="assets/logo.svg" alt="" width="1500" height="1500"></span></span></span>
     </div>
+    <p class="intro-lines">
+      <span>Travelling to Mars<i>.</i><i>.</i><i>.</i></span>
+      <span>Landing in Jezero Crater<i>.</i><i>.</i><i>.</i></span>
+      <span>Unpacking the terrain<i>.</i><i>.</i><i>.</i></span>
+      <span>Checking the dust forecast<i>.</i><i>.</i><i>.</i></span>
+      <span>Polishing the helmet visor<i>.</i><i>.</i><i>.</i></span>
+    </p>
   </div>
   <main class="stage">
     <section class="map-wrap" aria-label="Jezero Crater map">
@@ -80,7 +81,10 @@
         <span><i class="sw sw-ring"></i>How far you can see</span>
       </div>
 
-      <aside class="panel frost" aria-label="Walk status">
+      <aside class="panel frost" id="panel" aria-label="Walk status">
+        <button type="button" class="panel-hide" id="panel-hide" aria-expanded="true" aria-controls="panel" aria-label="Hide status card">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>
+        </button>
         <div class="tab-body">
           <section id="tab-home" class="tab" role="tabpanel" aria-labelledby="t-home">
             <h2 id="b-headline" class="headline">–</h2>
@@ -169,27 +173,49 @@
         </nav>
       </div>
 
-      <div class="more frost" id="drawer-more" hidden>
-        <section aria-labelledby="why-h">
-          <h2 id="why-h">Every factor</h2>
+      <div class="more frost" id="drawer-more" hidden role="region" aria-label="Details">
+        <p id="verdict" class="verdict" role="status"></p>
+        <section class="why" aria-labelledby="why-h">
+          <h2 id="why-h">What's limiting the walk</h2>
           <ul id="alerts" class="alerts"></ul>
-          <p id="vis-stat" class="stat"></p>
-          <p class="stat credit">Map imagery: CTX mosaic NASA/JPL-Caltech/MSSS, HiRISE mosaic NASA/JPL-Caltech/UArizona, via NASA Mars Trek. Map library: Leaflet.</p>
         </section>
         <section class="controls" aria-labelledby="cond-h">
-          <h2 id="cond-h">Change conditions</h2>
-          <label>Simulation speed <output id="o-speed"></output>
-            <input type="range" id="c-speed" min="1" max="10" step="1" value="1"></label>
-          <label>Sols since landing <output id="o-sol"></output>
-            <input type="range" id="c-sol" min="0" max="60" step="1"></label>
-          <label>Local solar time <output id="o-ltst"></output>
-            <input type="range" id="c-ltst" min="6" max="19" step="0.25"></label>
-          <label>Dust optical depth τ <output id="o-tau"></output>
-            <input type="range" id="c-tau" min="0.2" max="10" step="0.1"></label>
-          <label class="check"><input type="checkbox" id="c-sep"> Solar particle event during the run</label>
+          <h2 id="cond-h">What if…</h2>
+          <label>Dust (τ) <output id="o-tau"></output>
+            <input type="range" id="c-tau" min="0.2" max="10" step="0.1">
+            <span class="sub" data-hint="c-tau"></span></label>
+          <label>Time of day <output id="o-ltst"></output>
+            <input type="range" id="c-ltst" min="6" max="19" step="0.25">
+            <span class="sub" data-hint="c-ltst"></span></label>
+          <label>Days on Mars <output id="o-sol"></output>
+            <input type="range" id="c-sol" min="0" max="60" step="1">
+            <span class="sub" data-hint="c-sol"></span></label>
+          <div class="events" role="group" aria-labelledby="ev-h">
+            <h3 id="ev-h">Make something happen now</h3>
+            <div class="event-btns">
+              <button type="button" class="btn ev" data-event="dust">Dust storm</button>
+              <button type="button" class="btn ev" data-event="clear">Dust clears</button>
+              <button type="button" class="btn ev" data-event="solar">Solar storm</button>
+              <button type="button" class="btn ev" data-event="lost">Astronaut is lost</button>
+            </div>
+            <h3>Start a new run</h3>
+            <div class="event-btns">
+              <button type="button" class="btn ev" data-event="random">Random events</button>
+              <button type="button" class="btn ev" data-event="calm">Calm day</button>
+              <button type="button" class="btn ev" data-event="scripted">The story</button>
+            </div>
+          </div>
+          <label class="check"><input type="checkbox" id="c-sep"> Solar storm during the run</label>
           <label class="check"><input type="checkbox" id="c-sans"> Vision changes (SANS)</label>
-          <button type="button" id="btn-sources" class="btn wide">How we know: every number and its source</button>
+          <label>Simulation speed <output id="o-speed"></output>
+            <input type="range" id="c-speed" min="1" max="10" step="1" value="1">
+            <span class="sub" data-hint="c-speed"></span></label>
         </section>
+        <footer class="more-foot">
+          <button type="button" id="btn-sources" class="btn">How we know: every number and its source</button>
+          <p id="vis-stat" class="stat"></p>
+          <p class="stat credit">Map imagery: CTX mosaic NASA/JPL-Caltech/MSSS, HiRISE mosaic NASA/JPL-Caltech/UArizona, via NASA Mars Trek. Map library: Leaflet.</p>
+        </footer>
       </div>
     </section>
   </main>

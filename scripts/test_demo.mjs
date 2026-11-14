@@ -139,13 +139,15 @@ const b0 = at(0).d.budget;
 check('t=0: GO / GREEN', b0.headline === 'GO' && b0.status === 'GREEN', `${b0.headline}/${b0.status}`);
 const dust = t => at(t).d.budget.factors.find(f => f.id === 'dust');
 check('tau 0.5 at t=30 keeps dust factor GREEN', dust(30).level === 'GREEN', dust(30).level);
-check('tau 6 at t=75: dust factor RED, message cites tau 6.0', dust(75).level === 'RED' && dust(75).message.includes('6.0'), `${dust(75).level}: ${dust(75).message}`);
-check('t=75: dust is the worst factor or ties for it (status RED)', at(75).d.budget.status === 'RED');
+const tS = 75 + 20; // storm event at t=75, fully arrived after the 20 min ramp (scenario.js DUST_RAMP_MIN)
+check('tau 6 reached by t=95: dust factor RED, message cites tau 6.0', dust(tS).level === 'RED' && dust(tS).message.includes('6.0'), `${dust(tS).level}: ${dust(tS).message}`);
+check('t=95: dust is the worst factor or ties for it (status RED)', at(tS).d.budget.status === 'RED');
+check('dust rises gradually: tau(80) between tau(74) and tau(95)', at(80).inputs.tau > at(74).inputs.tau && at(80).inputs.tau < at(tS).inputs.tau, `${at(74).inputs.tau} -> ${at(80).inputs.tau} -> ${at(tS).inputs.tau}`);
 const sepBad = steps.filter(s => s.t >= 60 && !['RETURN NOW', 'AT SHELTER'].includes(s.d.budget.headline));
 check('t>=60: RETURN NOW or AT SHELTER throughout', sepBad.length === 0, sepBad.slice(0, 3).map(s => `t=${s.t} ${s.d.budget.headline}`).join(', '));
 check('t=60: radiation factor RED (SEP)', at(60).d.budget.factors.find(f => f.id === 'radiation')?.level === 'RED');
-check('visibilityKm(75) < visibilityKm(74)', at(75).d.budget.visibilityKm < at(74).d.budget.visibilityKm,
-  `${at(74).d.budget.visibilityKm} -> ${at(75).d.budget.visibilityKm}`);
+check('visibilityKm(95) < visibilityKm(74)', at(tS).d.budget.visibilityKm < at(74).d.budget.visibilityKm,
+  `${at(74).d.budget.visibilityKm} -> ${at(tS).d.budget.visibilityKm}`);
 check('horizon match at t=55 lowers position uncertainty vs t=54', at(55).d.posUncertaintyM < at(54).d.posUncertaintyM || !skyResults.three_forks,
   `${at(54).d.posUncertaintyM} -> ${at(55).d.posUncertaintyM}`);
 
@@ -186,6 +188,52 @@ for (const mode of ['shortest', 'safest', 'homeInSight']) {
 for (const [label, patch] of [['tau 0', { tau: 0 }], ['tau 99', { tau: 99 }], ['astronaut outside bounds', { astronaut: { lat: bd.latMax + 1, lon: bd.lonMin } }]])
   edge(`store ${label}`, () => { setInputs(patch); const s = getStore(); finite(s.derived, 'derived'); finite(s.inputs, 'inputs'); });
 warns.length = 0;
+
+// --- crew extremes (conditions panel): every combination must give a sensible verdict and readable text ---
+section('crew extremes');
+{
+  const X = { sol: 30, ltst: 10, evaMin: 60, tau: 0.4, sepActive: false, pressurePa: 718, tempC: -30, sansAffected: false };
+  const run = (patch, km) => { const i = { ...X, ...patch }; return computeBudget(i, computeLimits(i, C), km, C); };
+  const BAD = /NaN|undefined|Infinity|-0(?!\.\d)\b|(^|[^\d.])-\d+(\.\d+)?\s*min/;
+  const clean = b => b.factors.every(f => !BAD.test(f.message)) && Object.values(b).every(v => typeof v !== 'number' || Number.isFinite(v)) &&
+    ['suitMinLeft', 'returnMin', 'turnBackInMin', 'extraOutKm', 'visibilityKm', 'speedKmh'].every(k => b[k] >= 0);
+  const dust = b => b.factors.find(f => f.id === 'dust');
+  const WORST = { sol: 0, ltst: 19, tau: 10, sepActive: true, sansAffected: true, pressurePa: 950, tempC: -80, evaMin: 480 };
+  const sorted = b => b.factors.every((f, i, a) => !i || ['RED', 'AMBER', 'GREEN'].indexOf(f.level) >= ['RED', 'AMBER', 'GREEN'].indexOf(a[i - 1].level));
+  let b = run({ tau: 10 }, 3);
+  check('extreme tau 10: dust RED, RETURN NOW, readable', dust(b).level === 'RED' && b.headline === 'RETURN NOW' && b.visibilityKm > 0 && b.visibilityKm < 10 && clean(b), dust(b).message);
+  b = run({ ltst: 19 }, 3);
+  check('extreme 19:00: cold AMBER, CAUTION', b.factors.some(f => f.id === 'cold' && f.level === 'AMBER') && b.headline === 'CAUTION' && clean(b));
+  b = run({ sol: 0 }, 3);
+  check('extreme sol 0: slow speed, slope 10, mobility AMBER', Math.abs(b.speedKmh - C.walk_speed_kmh * C.arrival_speed_factor_sol0) < 1e-9 && b.maxSlopeDeg === C.max_slope_early_deg && b.factors.some(f => f.id === 'mobility' && f.level === 'AMBER') && clean(b));
+  b = run({ sepActive: true }, 0);
+  check('solar storm at home: AT SHELTER, "stay inside", no walk time', b.status === 'RED' && b.headline === 'AT SHELTER' && b.factors[0].message.includes('stay inside') && !/home is \d+ min/.test(b.factors[0].message) && clean(b), b.factors[0].message);
+  b = run({ sepActive: true }, 3);
+  check('solar storm away: RETURN NOW, home minutes > 0, no calm "turn back in"', b.headline === 'RETURN NOW' && /home is [1-9]\d* min/.test(b.factors[0].message) && !b.factors.some(f => /Turn back in/.test(f.message)) && clean(b));
+  b = run({ sansAffected: true }, 3);
+  check('SANS on: vision factor, visibility x sans_range_factor', b.factors.some(f => f.id === 'vision') && Math.abs(b.visibilityKm - run({}, 3).visibilityKm * C.sans_range_factor) < 1e-9 && clean(b));
+  b = run({ evaMin: 480 }, 3);
+  check('EVA past design time: suitMinLeft clamps at 0, margin negative, RED', b.suitMinLeft === 0 && b.marginMin < 0 && b.status === 'RED' && clean(b));
+  b = run({ tau: 0 }, 3);
+  check('tau 0: visibility capped at 150, finite', b.visibilityKm === 150 && clean(b));
+  b = run({ tau: NaN }, NaN);
+  check('tau NaN + routeHomeKm NaN: no NaN anywhere', clean(b));
+  b = run(WORST, 39);
+  check('worst combination (away): RED, RETURN NOW, readable, sorted', b.status === 'RED' && b.headline === 'RETURN NOW' && clean(b) && sorted(b));
+  b = run(WORST, 0);
+  check('worst combination (at home): AT SHELTER, readable', b.headline === 'AT SHELTER' && clean(b));
+  let gridBad = '', cases = 0; const t0 = performance.now();
+  for (const tau of [0.2, 3.1, 10]) for (const ltst of [6, 12.5, 17, 19]) for (const sol of [0, 7, 60]) for (const sepActive of [false, true])
+    for (const sansAffected of [false, true]) for (const evaMin of [0, 420, 480]) for (const pressurePa of [718, 950]) for (const km of [0, 0.5, 12, 39, NaN, -1]) {
+      const i = { ...X, tau, ltst, sol, sepActive, sansAffected, evaMin, pressurePa }, g = computeBudget(i, computeLimits(i, C), km, C);
+      const home = !(km >= 0.05); cases++;
+      const ok = clean(g) && STATUSES.includes(g.status) && HEADLINES.includes(g.headline) && sorted(g) &&
+        g.headline === ({ GREEN: 'GO', AMBER: 'CAUTION', RED: home ? 'AT SHELTER' : 'RETURN NOW' })[g.status] &&
+        (home || !g.factors.some(f => /home is 0 min|Turn back in 0 min/.test(f.message)));
+      if (!ok && !gridBad) gridBad = JSON.stringify({ ...i, km });
+    }
+  check(`crew grid (${cases} combinations): finite, no negative minutes, headline matches status`, !gridBad && performance.now() - t0 < 2000, gridBad);
+}
 
 console.log(`\ntest_demo: ${passed} passed, ${failures.length} failed`);
 if (failures.length) { console.log('Failures:\n  ' + failures.join('\n  ')); process.exit(1); }

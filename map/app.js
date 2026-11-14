@@ -17,7 +17,7 @@ const TAU_STORM = 3; // a tau event at or above this is captioned as a dust stor
 const CAPTIONS = {
   eva_start: () => 'The astronaut walks out to the Three Forks sample depot. Green means plenty of time to get home.',
   tau: e => e.value >= TAU_STORM
-    ? `Dust storm (τ ${e.value}). Visibility drops and the red no-landmark zones grow.`
+    ? `Dust storm rolling in (τ rising to ${e.value}, sped up: real storms build over days). Visibility drops, red no-landmark zones grow.`
     : `Dust is rising (τ ${e.value}). Red areas: no landmark in sight, so it's easy to get lost there.`,
   skyline_fix: () => 'Lost without GPS? Horizon Match finds the position by matching the horizon to NASA terrain.',
   sep_onset: () => 'Solar storm (a replay of May 2024). Radiation means: turn back to shelter now.',
@@ -194,6 +194,29 @@ function setupScenario(data, M, sky) {
   };
   // changing the route mode after picking a target re-plans the walk too (value from the event, not listener order)
   document.getElementById('c-mode').addEventListener('change', e => { if (prep.custom) replan(prep.target, e.target.value); });
+  // Events you control: trigger one now, or start a scripted / random / calm run.
+  const mode0 = () => (prep.custom ? getStore().inputs.routeMode : 'safest');
+  const fixed = evs => evs.filter(e => e.type === 'eva_start' || e.type === 'eva_end' || e.type === 'skyline_fix');
+  const randomEvents = () => {
+    const r = (a, b) => Math.round(a + Math.random() * (b - a));
+    const end = data.scenario.events.find(e => e.type === 'eva_end')?.tMin ?? 200;
+    const evs = [...fixed(data.scenario.events), { tMin: r(10, 45), type: 'tau', value: +(0.4 + Math.random()).toFixed(1) }];
+    if (Math.random() < 0.7) evs.push({ tMin: r(50, end - 60), type: 'tau', value: +(3 + Math.random() * 6).toFixed(1) });
+    if (Math.random() < 0.6) evs.push({ ...data.scenario.events.find(e => e.type === 'sep_onset'), tMin: r(35, end - 50) });
+    return evs;
+  };
+  const triggerEvent = kind => {
+    if (kind === 'dust' || kind === 'clear') {   // storms build up (and clear) gradually, with gusts
+      swap(editScenario(scenario, t, 'tauRamp', kind === 'dust' ? 6 : 0.4, prep.hourMin, data.scenario), prep.target, mode0(), 'keep');
+      return apply();
+    }
+    if (kind === 'solar') { swap(editScenario(scenario, Math.max(t, 1), 'sepAt', true, prep.hourMin, data.scenario), prep.target, mode0(), 'keep'); return apply(); }
+    if (kind === 'lost') { stop(); document.getElementById('btn-skyline').click(); return; }
+    const list = kind === 'random' ? randomEvents() : kind === 'calm' ? fixed(data.scenario.events) : data.scenario.events;
+    swap(editScenario(scenario, 0, 'events', list), prep.target, mode0(), 'zero');
+    apply();
+  };
+  for (const b of document.querySelectorAll('[data-event]')) b.addEventListener('click', () => triggerEvent(b.dataset.event));
   const setSpeed = k => { speed = Math.min(10, Math.max(1, Math.round(Number(k)) || 1)); }; // takes effect on the next frame; the clock does not jump
   return { retarget: target => replan(target, getStore().inputs.routeMode), setCondition, runHasSep, runEvents: () => scenario.events, setSpeed, getSpeed: () => speed };
 }
@@ -217,6 +240,13 @@ function setupWelcome() {
 
 function setupHelmet(data) {
   const dlg = document.getElementById('dlg-helmet');
+  // the main 3D map is hidden behind the helmet window: stop drawing it (one WebGL scene at a time)
+  const pauseMain3D = paused => {
+    const sc = document.querySelector('#view3d a-scene');
+    if (!sc?.renderer) return;
+    sc.renderer.setAnimationLoop(paused ? null : sc.render);
+  };
+  dlg.addEventListener('close', () => pauseMain3D(false));
   const frame = document.getElementById('helmet-frame');
   const msg = () => {
     const { inputs, derived } = getStore();
@@ -238,6 +268,7 @@ function setupHelmet(data) {
     if (!ok) { frame.removeAttribute('src'); frame.srcdoc = '<p style="font:16px sans-serif;color:#ccc;padding:24px">Helmet view is not built yet (helmet/index.html).</p>'; }
     else if (!frame.getAttribute('src') || frame.getAttribute('src') === 'about:blank') { frame.removeAttribute('srcdoc'); frame.src = 'helmet/index.html'; }
     dlg.showModal();
+    pauseMain3D(true);
   });
 }
 

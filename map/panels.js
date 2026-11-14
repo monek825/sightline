@@ -107,17 +107,96 @@ function dataBadge(data, usingStubs) {
   $('notch').classList.add('has-mock');
 }
 
-function factorItem(f, byKey) {
+function factorItem(f, byKey, keyNum) {
   const li = el('li', f.level);
   li.dataset.key = f.keys?.[0] || '';
   li.tabIndex = 0;
   const text = el('div');
   text.append(el('strong', '', f.label));
+  if (keyNum) text.append(el('span', 'keynum', keyNum));
   const tag = tagFor(f.keys || [], byKey);
   if (tag) text.append(el('span', tag[1], tag[0]));
   text.append(el('div', '', f.message));
   li.append(el('span', 'dot'), text);
   return li;
+}
+
+// Icons for the factor tiles (24x24 stroke paths, drawn with createElementNS, no innerHTML).
+const ICONS = {
+  mobility: 'M13 4a1.5 1.5 0 1 0 0 .01M10 21l2-6 3 3v3M8 12l3-4 3 2 3 1M11 8l-1 5',
+  suit_time: 'M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18M12 7v5l3 2',
+  radiation: 'M12 12m-1.5 0a1.5 1.5 0 1 0 3 0a1.5 1.5 0 1 0-3 0M12 3a9 9 0 0 1 7.8 4.5L14 11M4.2 7.5A9 9 0 0 1 12 3M12 21a9 9 0 0 1-7.8-4.5L10 13M19.8 16.5A9 9 0 0 1 12 21',
+  dust: 'M3 8h11a3 3 0 1 0-3-3M3 12h16a3 3 0 1 1-3 3M3 16h8',
+  dust_devil: 'M4 5h16M6 9h12M8 13h8M10 17h4M11 21h2',
+  cooling: 'M10 14V5a2 2 0 1 1 4 0v9a4 4 0 1 1-4 0M12 10v7',
+  cold: 'M12 2v20M4 6l16 12M20 6 4 18',
+  vision: 'M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12M12 9a3 3 0 1 0 0 6a3 3 0 1 0 0-6',
+  body_clock: 'M20 14A8 8 0 1 1 10 4a6.5 6.5 0 0 0 10 10',
+  bone: 'M7 17l10-10M5.5 15.5a2 2 0 1 0 3 3M15.5 5.5a2 2 0 1 1 3 3M5.5 15.5a2 2 0 1 1 2-2.5M18.5 8.5a2 2 0 1 1-2.5 2',
+  post_eva: 'M3 18V8M3 14h18v4M7 11h4M21 14v-2a3 3 0 0 0-3-3h-6v5',
+  warning: 'M12 3 2 20h20zM12 10v4M12 17v.01'
+};
+function icon(id) {
+  const NS = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(NS, 'svg');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('aria-hidden', 'true');
+  const path = document.createElementNS(NS, 'path');
+  path.setAttribute('d', ICONS[id] ?? 'M12 12m-4 0a4 4 0 1 0 8 0a4 4 0 1 0-8 0');
+  svg.append(path);
+  return svg;
+}
+const LEVEL_WORD = { GREEN: 'OK', AMBER: 'Watch', RED: 'Act now' };
+function factorTile(f, keyNum, wide) {
+  const li = el('li', `tile ${f.level}${wide ? ' wide' : ''}`);
+  li.dataset.key = f.keys?.[0] || '';
+  li.tabIndex = 0;
+  if (!wide) li.title = f.message;
+  const ic = el('span', 'tile-icon');
+  ic.append(icon(f.id));
+  const head = el('div', 'tile-head');
+  head.append(el('strong', '', f.label), el('span', 'tile-level', LEVEL_WORD[f.level] ?? ''));
+  li.append(ic, head);
+  if (keyNum) li.append(el('span', 'tile-num', keyNum));
+  if (wide) {
+    li.append(el('p', 'tile-msg', f.message));
+    const tag = tagFor(f.keys || [], data_byKey);
+    if (tag) li.append(el('span', tag[1], tag[0]));
+  }
+  return li;
+}
+let data_byKey = {};
+
+// The key number of a limiting factor, from the budget (or the first number in its message).
+function keyNumber(f, bdg, inputs) {
+  if (f.id === 'suit_time') return bdg.marginMin <= 0 ? `home ${fmtMin(bdg.returnMin)}` : `turn back in ${fmtMin(bdg.turnBackInMin)}`;
+  if (f.id === 'radiation' && f.level === 'RED') return `home ${fmtMin(bdg.returnMin)}`;
+  if (f.id === 'radiation') return fmtNum(bdg.careerPct, 1, '% of career dose');
+  if (f.id === 'dust') return `τ ${fmtNum(inputs.tau, 1)} · ${fmtKm(bdg.visibilityKm)}`;
+  if (f.id === 'mobility') return fmtNum(bdg.speedKmh, 1, ' km/h');
+  return f.message.match(/\d[\d.,]*\s?(?:min|km|%|Pa|°C|h)\b/)?.[0] ?? '';
+}
+
+// One plain-English sentence on why the verdict is what it is: the worst factor plus the budget's numbers.
+function verdictSentence(bdg) {
+  const w = bdg.factors[0];
+  const home = fmtMin(bdg.returnMin), back = fmtMin(bdg.turnBackInMin);
+  const worstWords = { // [RED, AMBER] wording per factor id (null: that level cannot happen, fall back to the label)
+    suit_time: [`only ${fmtMin(Math.max(0, bdg.suitMinLeft))} of suit time is left and home is ${home} away.`, `the suit-time margin is thin; turn back in ${back}.`],
+    radiation: [`a solar storm started and home is ${home} away.`, 'the career radiation dose is getting high.'],
+    dust: [`dust hides landmarks beyond ${fmtKm(bdg.visibilityKm)}.`, `dust limits sight to about ${fmtKm(bdg.visibilityKm)}; turn back in ${back}.`],
+    dust_devil: [null, 'it is dust-devil hours, so visibility can drop suddenly.'],
+    cooling: ['the suit cannot cool at this air pressure.', 'the suit cooling margin is thin at this air pressure.'],
+    cold: [null, 'the air is cooling fast, so head home soon.'],
+    mobility: [null, `walking is slow (${fmtNum(bdg.speedKmh, 1, ' km/h')}) while balance recovers.`],
+    body_clock: [null, 'an early start while the body clock drifts means lower alertness.']
+  }[w.id];
+  if (bdg.headline === 'AT SHELTER') {
+    return w.id === 'radiation' ? 'At shelter: the crew is home during the solar storm.' : `At shelter: the crew is home, and ${w.label.toLowerCase()} would stop a walk right now.`;
+  }
+  if (bdg.status === 'RED') return `Return now: ${worstWords?.[0] ?? `${w.label}.`}`;
+  if (bdg.status === 'AMBER') return `Caution: ${worstWords?.[1] ?? `${w.label}.`}${worstWords ? '' : ` Turn back in ${back}.`}`;
+  return `Go: everything is within limits; turn back in ${back}.`;
 }
 
 // Clicking/pressing Enter on a factor opens its source row.
@@ -135,7 +214,19 @@ function wireFactorLists() {
 }
 
 // WAI-ARIA tabs: click or arrow keys switch the category.
+// The status card can be hidden to see the map; any tab brings it back.
+function wirePanelHide() {
+  const btn = $('panel-hide');
+  const set = hidden => {
+    document.body.classList.toggle('panel-hidden', hidden);
+    btn.setAttribute('aria-expanded', String(!hidden));
+  };
+  btn.addEventListener('click', () => set(true));
+  for (const t of document.querySelectorAll('[role="tab"]')) t.addEventListener('click', () => set(false));
+}
+
 function wireTabs() {
+  wirePanelHide();
   const tabs = [...document.querySelectorAll('[role="tab"]')];
   const select = tab => {
     for (const t of tabs) {
@@ -158,15 +249,21 @@ function wireTabs() {
 
 function wireDrawer() {
   const notch = $('notch'), more = $('drawer-more');
-  notch.addEventListener('click', () => {
-    const open = more.hidden;
+  const setOpen = open => {
     more.hidden = !open;
     notch.setAttribute('aria-expanded', String(open));
     $('drawer').classList.toggle('open', open);
+  };
+  notch.addEventListener('click', () => setOpen(more.hidden));
+  document.addEventListener('keydown', e => { // Esc closes the sheet and hands focus back to its button
+    if (e.key !== 'Escape' || more.hidden || document.querySelector('dialog[open]')) return;
+    setOpen(false);
+    notch.focus();
   });
 }
 
 export function createPanels(data, { setInputs, usingStubs, onCondition, runHasSep, runEvents, onSpeed, getSpeed, speedBase }) {
+  data_byKey = data.constantsByKey;
   buildSources(data);
   dataBadge(data, usingStubs);
   const eventsNow = () => runEvents?.() ?? data.scenario?.events ?? []; // the run's current events (condition edits replace them)
@@ -180,6 +277,15 @@ export function createPanels(data, { setInputs, usingStubs, onCondition, runHasS
   wireDrawer();
   wireFactorLists();
   $('btn-sources').addEventListener('click', () => openSources());
+  // scale hints under the sliders: endpoints from the sliders themselves, recovery day from the constants
+  const rng = id => [$(id).min, $(id).max];
+  const hints = {
+    'c-tau': `${rng('c-tau')[0]} clear sky · ${rng('c-tau')[1]} global storm`,
+    'c-ltst': `${fmtLtst(rng('c-ltst')[0])} morning · ${fmtLtst(rng('c-ltst')[1])} evening`,
+    'c-sol': `sol ${rng('c-sol')[0]} is landing day; balance recovers by sol ${data.C.sensorimotor_recovery_days}`,
+    'c-speed': 'only changes how fast the demo plays'
+  };
+  for (const h of document.querySelectorAll('[data-hint]')) h.textContent = hints[h.dataset.hint] ?? '';
 
   const sliders = [
     ['c-sol', 'o-sol', 'sol', v => `${v}`],
@@ -196,8 +302,8 @@ export function createPanels(data, { setInputs, usingStubs, onCondition, runHasS
   $('c-mode').addEventListener('change', e => setInputs({ routeMode: e.target.value }));
 
   let lastSig = '';
-  function renderFactors(bdg, derived) {
-    const sig = JSON.stringify(bdg.factors.map(f => [f.id, f.level, f.message])) + derived.warnings.join('|');
+  function renderFactors(bdg, derived, inputs) {
+    const sig = JSON.stringify(bdg.factors.map(f => [f.id, f.level, f.message, keyNumber(f, bdg, inputs)])) + derived.warnings.join('|');
     if (sig === lastSig) return;
     lastSig = sig;
     const sorted = [...bdg.factors].sort((a, b) => SEVERITY[a.level] - SEVERITY[b.level]);
@@ -205,13 +311,11 @@ export function createPanels(data, { setInputs, usingStubs, onCondition, runHasS
       // ponytail: tabs show only AMBER/RED (what needs attention); all factors stay in the Details drawer
       list.replaceChildren(...sorted.filter(f => groupOf(f) === list.dataset.group && f.level !== 'GREEN').map(f => factorItem(f, data.constantsByKey)));
     }
-    const all = sorted.map(f => factorItem(f, data.constantsByKey));
-    for (const w of derived.warnings) {
-      const li = el('li', 'AMBER');
-      li.append(el('span', 'dot'), el('div', '', w));
-      all.push(li);
-    }
-    $('alerts').replaceChildren(...all);
+    // Details sheet: every factor as an icon tile in a bento grid, worst first.
+    // Amber/red tiles are wide and carry the full explanation; green tiles are compact (full text on hover/focus).
+    const tiles = sorted.map(f => factorTile(f, keyNumber(f, bdg, inputs), f.level !== 'GREEN'));
+    for (const w of derived.warnings) tiles.unshift(factorTile({ id: 'warning', level: 'AMBER', label: 'Data note', message: w }, '', true));
+    $('alerts').replaceChildren(...tiles);
     // a coloured dot on each tab shows its worst factor, so trouble is visible without opening it
     for (const t of document.querySelectorAll('[role="tab"]')) {
       const g = t.getAttribute('aria-controls').replace('tab-', '');
@@ -293,7 +397,9 @@ export function createPanels(data, { setInputs, usingStubs, onCondition, runHasS
     $('clk-eva').textContent = `${Math.round(inputs.evaMin)} min`;
 
     renderTabs(inputs, derived);
-    renderFactors(derived.budget, derived);
+    renderFactors(derived.budget, derived, inputs);
+    $('verdict').textContent = verdictSentence(derived.budget);
+    $('verdict').dataset.status = derived.budget.status;
     const events = eventsNow();
     if (events !== builtFor) { builtFor = events; checkpoints = buildTimeline(events); } // the run changed: rebuild the markers (DOM only)
     markCheckpoints(checkpoints, inputs.scenarioT);
