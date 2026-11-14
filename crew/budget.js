@@ -9,7 +9,7 @@ export const REQUIRED_KEYS = [
   'cruise_dose_msv_per_day', 'transit_days', 'surface_dose_msv_per_sol', 'career_limit_msv',
   'may2024_sep_dose_ugy', 'terrain_shielding_pct', 'vis_dust_scale_height_km', 'sans_range_factor',
   'tau_amber', 'tau_red', 'tau_jan2022_storm', 'dust_devil_peak_start_ltst', 'dust_devil_peak_end_ltst',
-  'dust_devil_max_wind_ms', 'mars_wind_earth_equiv_ms', 'sublimator_max_pressure_pa', 'cold_amber_c',
+  'dust_devil_max_wind_ms', 'mars_wind_earth_equiv_ms', 'evap_cooler_max_pressure_pa', 'water_triple_point_pa', 'cold_amber_c',
   'cold_return_ltst', 'sans_diopter_shift', 'sol_drift_min', 'bone_loss_pct_per_month', 'perchlorate_pct'
 ];
 
@@ -63,9 +63,12 @@ export function computeBudget(inputs, limits, routeHomeKm, C) {
 
   // 1. mobility
   const early = sol < C.sensorimotor_recovery_days;
+  const FULL_BALANCE_SOL = has('sensorimotor_full_recovery_days') ? C.sensorimotor_full_recovery_days : C.sensorimotor_recovery_days;
+  const settling = !early && sol < FULL_BALANCE_SOL;   // most tasks recovered; full agility can take up to ~2 weeks
   factors.push({ id: 'mobility', level: early ? 'AMBER' : 'GREEN', label: 'Walking speed',
     message: `Walking ${limits.speedKmh.toFixed(1)} km/h today, max slope ${r(limits.maxSlopeDeg)}°.` +
-      (early ? ` Balance is still recovering until sol ${C.sensorimotor_recovery_days}.` : '') +
+      (early ? ` Balance is still recovering. Most tasks recover by sol ${C.sensorimotor_recovery_days}.` : '') +
+      (settling ? ` Most functions have recovered. Full balance can take up to ~${FULL_BALANCE_SOL} days, so take care on steep ground.` : '') +
       ' The route planner handles slope, so home time uses flat-ground speed.',
     keys: ['walk_speed_kmh', 'arrival_speed_factor_sol0', 'sensorimotor_recovery_days', 'max_slope_early_deg', 'max_slope_deg'] });
 
@@ -112,14 +115,16 @@ export function computeBudget(inputs, limits, routeHomeKm, C) {
       keys: ['dust_devil_peak_start_ltst', 'dust_devil_peak_end_ltst', 'dust_devil_max_wind_ms', 'mars_wind_earth_equiv_ms'] });
   }
 
-  // 6. cooling
-  const marginPa = C.sublimator_max_pressure_pa - pressurePa;
-  const coolKeys = ['sublimator_max_pressure_pa'];
+  // 6. cooling. Mars air (~718 Pa) is above water's triple point (611.657 Pa), so an ISS-style sublimator cannot work;
+  // a Mars suit uses a water-membrane evaporator (SWME), which NASA tested against Mars back-pressure up to ~933 Pa.
+  const marginPa = C.evap_cooler_max_pressure_pa - pressurePa;
+  const coolKeys = ['evap_cooler_max_pressure_pa', 'water_triple_point_pa'];
   if (has('jezero_pressure_pa')) coolKeys.push('jezero_pressure_pa');
+  const noSublimator = pressurePa > C.water_triple_point_pa ? ` (A space-station sublimator would not work here: it needs less than ${C.water_triple_point_pa} Pa.)` : '';
   factors.push({ id: 'cooling', level: marginPa <= 0 ? 'RED' : marginPa < COOLING_AMBER_PA ? 'AMBER' : 'GREEN', label: 'Suit cooling',
-    message: marginPa <= 0
-      ? `Cooling fails. ${pressurePa} Pa outside is above the ${C.sublimator_max_pressure_pa} Pa limit of the suit evaporator (SWME).`
-      : `${marginPa < COOLING_AMBER_PA ? 'Cooling margin is thin' : 'Cooling is OK'}: ${pressurePa} Pa against the ${C.sublimator_max_pressure_pa} Pa limit of the suit evaporator (SWME).`,
+    message: (marginPa <= 0
+      ? `Cooling is at risk. ${pressurePa} Pa outside is above the ${C.evap_cooler_max_pressure_pa} Pa NASA tested the suit's evaporator cooler to.`
+      : `${marginPa < COOLING_AMBER_PA ? 'Cooling margin is thin' : 'Cooling is OK'}: ${pressurePa} Pa outside, evaporator cooler tested to ${C.evap_cooler_max_pressure_pa} Pa.`) + noSublimator,
     keys: coolKeys });
 
   // 7. cold
@@ -132,7 +137,8 @@ export function computeBudget(inputs, limits, routeHomeKm, C) {
   // 8. vision
   if (sansAffected) {
     factors.push({ id: 'vision', level: 'GREEN', label: 'Vision (SANS)',
-      message: `Spaceflight eye changes (up to +${C.sans_diopter_shift} D far-sighted shift) make distant landmarks harder to recognise. Landmark range is reduced ${r((1 - C.sans_range_factor) * PCT)}%.`,
+      message: `Spaceflight eye changes (up to +${C.sans_diopter_shift} D far-sighted shift) mainly blur near vision, so wear the corrective glasses for maps and displays. ` +
+        (C.sans_range_factor < 1 ? `Landmark range is reduced ${r((1 - C.sans_range_factor) * PCT)}% (assumption).` : 'There is no evidence it shortens how far you can recognise hills.'),
       keys: ['sans_diopter_shift', 'sans_range_factor'] });
   }
 

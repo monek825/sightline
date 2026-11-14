@@ -42,10 +42,10 @@ export function computeBudget(inputs, limits, routeHomeKm, C) {
       message: `Peak dust-devil time. Winds up to ${C.dust_devil_max_wind_ms} m/s push like ~${C.mars_wind_earth_equiv_ms} m/s on Earth; the risk is sudden zero visibility.`,
       keys: ['dust_devil_peak_start_ltst', 'dust_devil_max_wind_ms', 'mars_wind_earth_equiv_ms'] });
   }
-  const marginPa = C.sublimator_max_pressure_pa - inputs.pressurePa;
+  const marginPa = C.evap_cooler_max_pressure_pa - inputs.pressurePa;
   f.push({ id: 'cooling', level: marginPa <= 0 ? 'RED' : marginPa < 100 ? 'AMBER' : 'GREEN', label: 'Suit cooling',
-    message: `${inputs.pressurePa} Pa outside vs ${C.sublimator_max_pressure_pa} Pa sublimator limit.`,
-    keys: ['sublimator_max_pressure_pa', 'jezero_pressure_pa'] });
+    message: `${inputs.pressurePa} Pa outside vs ${C.evap_cooler_max_pressure_pa} Pa evaporator cooler test limit (a sublimator needs < ${C.water_triple_point_pa} Pa).`,
+    keys: ['evap_cooler_max_pressure_pa', 'water_triple_point_pa', 'jezero_pressure_pa'] });
 
   f.sort((a, b) => RANK[a.level] - RANK[b.level]);
   const status = f[0]?.level ?? 'GREEN';

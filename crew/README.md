@@ -28,7 +28,7 @@ Needs no route. Implements factor 1 (speed + slope limit, flat-ground speed — 
 
 ### Required constant keys
 `computeLimits`/`computeBudget` must throw a clear error at load if any key is missing (the loader checks this list too):
-`walk_speed_kmh, walkback_pad, arrival_speed_factor_sol0, sensorimotor_recovery_days, max_slope_early_deg, max_slope_deg, eva_design_hours, eva_reserve_min, cruise_dose_msv_per_day, transit_days, surface_dose_msv_per_sol, career_limit_msv, may2024_sep_dose_ugy, terrain_shielding_pct, vis_dust_scale_height_km, sans_range_factor, tau_amber, tau_red, tau_jan2022_storm, dust_devil_peak_start_ltst, dust_devil_peak_end_ltst, dust_devil_max_wind_ms, mars_wind_earth_equiv_ms, sublimator_max_pressure_pa, cold_amber_c, cold_return_ltst, sans_diopter_shift, sol_drift_min, bone_loss_pct_per_month, perchlorate_pct`
+`walk_speed_kmh, walkback_pad, arrival_speed_factor_sol0, sensorimotor_recovery_days, max_slope_early_deg, max_slope_deg, eva_design_hours, eva_reserve_min, cruise_dose_msv_per_day, transit_days, surface_dose_msv_per_sol, career_limit_msv, may2024_sep_dose_ugy, terrain_shielding_pct, vis_dust_scale_height_km, sans_range_factor, tau_amber, tau_red, tau_jan2022_storm, dust_devil_peak_start_ltst, dust_devil_peak_end_ltst, dust_devil_max_wind_ms, mars_wind_earth_equiv_ms, evap_cooler_max_pressure_pa, water_triple_point_pa, cold_amber_c, cold_return_ltst, sans_diopter_shift, sol_drift_min, bone_loss_pct_per_month, perchlorate_pct`
 
 Export it: `export const REQUIRED_KEYS = [...]`.
 
@@ -79,24 +79,24 @@ All numbers come from `C` (crew_constants.json). Names below are the `key`s.
 - Note in UI: DONKI reports events seen near Earth; we use it as a **replay trigger** for the Mars event, not a live Mars forecast.
 
 ### 4. Dust storms → visibility (feeds blind zones)
-- Horizontal visibility (Koschmieder): `visKm = 3.912 / (tau / vis_dust_scale_height_km)` (scale height 11 km = estimate: near-surface dust scale height ~8–11 km, CO₂ scale height ~10.8 km; indicative only, terrain limits the view first).
-- If `sansAffected`: `visKm *= sans_range_factor` (0.8, estimate).
+- Horizontal visibility (Koschmieder): `visKm = 3.912 / (tau / vis_dust_scale_height_km)` (scale height 10.5 km: Lemmon et al. 2022 express Jezero line-of-sight dust opacity per 10.5 km, about the gas scale height; well-mixed dust. A model: dust settling low after a storm can make visibility ~2× worse, as Curiosity measured at Gale in 2018. That case is what Horizon Match's "Lost in dust" mode is for).
+- If `sansAffected`: `visKm *= sans_range_factor` (1.0: no study links SANS to shorter distance vision; was 0.8 with no basis).
 - Cap at 150 km (beyond the crater anyway).
-- AMBER if tau > `tau_amber` (1.0); RED if tau > `tau_red` (3.0). Message: "Dust τ = 2.0 → landmarks beyond ~22 km lost. Blind zones growing."
-- Context line: Jezero normal τ ≈ 0.3–0.5; the Jan 2022 regional storm pushed τ to ~1.7–2 (`tau_jan2022_storm`).
+- AMBER if tau > `tau_amber` (1.0); RED if tau > `tau_red` (3.0). Message: "Dust τ = 2.0 → landmarks beyond ~21 km lost. Blind zones growing."
+- Context line: Jezero τ ≈ 0.3 before and ≈ 0.4 after the Jan 2022 storm (higher in the dusty season); the Jan 2022 regional storm pushed τ to ~1.7–2 (`tau_jan2022_storm`).
 
 ### 5. Dust devils
-- If `ltst` within `dust_devil_peak_start_ltst`–`dust_devil_peak_end_ltst` (11–14 h) → AMBER: "Dust-devil peak hours (Perseverance saw >4 per sol, peak 12–13 h). Winds up to 32 m/s feel like a ~3.8 m/s breeze on Earth (same dynamic pressure; force equivalence only) because the air is ~70× thinner — not a knock-down risk; risk is sudden zero visibility and dust on visor/joints. Keep a landmark in sight."
+- If `ltst` within `dust_devil_peak_start_ltst`–`dust_devil_peak_end_ltst` (11–14 h) → AMBER: "Dust-devil peak hours (Perseverance recorded >4 vortices per sol, over a quarter of them dusty; peak 12–13 h). Winds up to 32 m/s feel like a ~3.6 m/s breeze on Earth because the air is ~80× thinner — not a knock-down risk; risk is sudden zero visibility and dust on visor/joints. Keep a landmark in sight."
 
 ### 6. Suit cooling vs air pressure
-- Suit cooling by the water membrane evaporator (SWME) needs ambient pressure ≤ `sublimator_max_pressure_pa` (~933 Pa = 7 Torr; key name kept, a true sublimator cannot work above water's ~611 Pa triple point).
-- `marginPa = sublimator_max_pressure_pa − pressurePa`. RED if ≤ 0, AMBER if < 100, else GREEN with message "Cooling OK: 718 Pa vs 933 Pa limit (Perseverance MEDA)".
+- An ISS-style sublimator needs outside pressure below water's triple point (`water_triple_point_pa`, 611.657 Pa); Jezero (~625–761 Pa) is above it, so it cannot work on Mars (NASA ICES-2024-463). A Mars suit uses a water-membrane evaporator (SWME), tested by NASA against Mars back-pressure up to `evap_cooler_max_pressure_pa` (~933 Pa = 7 Torr).
+- `marginPa = evap_cooler_max_pressure_pa − pressurePa`. RED if ≤ 0, AMBER if < 100, else GREEN with message "Cooling OK: 718 Pa outside, evaporator cooler tested to 933 Pa" plus a note that a sublimator would not work.
 
 ### 7. Cold
 - AMBER if `tempC < cold_amber_c` (−70) or `ltst > cold_return_ltst` (16.5): "Air cools fast before dusk (Jezero swings ~50–60 °C per sol). Plan to be home by 17:00."
 
 ### 8. Vision (SANS)
-- If `sansAffected`: info factor (level GREEN): "Spaceflight eye changes (+0.5 to +1.75 D far-sighted shift) make distant landmarks harder to recognise — landmark range reduced 20%." (keys `sans_diopter_shift`, `sans_range_factor`)
+- If `sansAffected`: info factor (level GREEN): "Spaceflight eye changes (up to +1.75 D far-sighted shift) mainly blur near vision: wear the corrective glasses for maps and displays. No evidence it shortens how far you can recognise hills." (keys `sans_diopter_shift`, `sans_range_factor`)
 
 ### 9. Body clock
 - Info only: "Sol is 39.6 min longer than an Earth day → body clock drifts; after sol N the crew has shifted N×39.6 min." Level AMBER if `sol` ≥ 3 and ltst < 8 (early starts while drifting) — estimate rule.
@@ -105,7 +105,7 @@ All numbers come from `C` (crew_constants.json). Names below are the `key`s.
 - Info factor while sol < 30: "Bone loss in transit ~1–1.5% per month → avoid falls; max slope lowered to 10° until sol 7."
 
 ### 11. After the EVA (checklist, not a level)
-- When `evaMin` reaches EVA end: show "Dust-off before entry: soil is ~0.5–1% perchlorate (thyroid risk)."
+- When `evaMin` reaches EVA end: show "Dust-off before entry: soil is ~0.5% perchlorate (Phoenix: 0.4–0.6%; thyroid risk)."
 - Trigger: fires when `suitMinLeft <= 0`, or when the crew is at the habitat (route home < 0.05 km) with `evaMin > 0` and `distSinceFixM` (metres walked since the last fix, 0 if missing) greater than 100 m, so it does not show at the start of a walk.
 
 ### Combining
@@ -117,7 +117,7 @@ At least these, with `console.assert` and a visible PASS/FAIL list on the page:
 1. Sol 30, evaMin 60, home 2 km, τ 0.4, no SEP, 718 Pa, −30 °C, ltst 10 → GREEN.
 2. Same but `sepActive: true` → RED, headline "RETURN NOW".
 3. evaMin 420, home 3 km → suit time RED (margin ≤ 0).
-4. τ 2.0 → visibilityKm ≈ 29 (no SANS); with SANS ≈ 23.
+4. τ 2.0 → visibilityKm ≈ 20.5 (no SANS); with SANS the same (sans_range_factor 1.0).
 5. Sol 0 → speed = 0.6 × base, maxSlopeDeg 10.
 6. pressurePa 950 → cooling RED.
 

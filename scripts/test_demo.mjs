@@ -11,6 +11,8 @@ import { initVisibility, visibilityArrays } from '../map/visibility.js';
 import { createPipeline } from '../lib/pipeline.js';
 import { initStore, setInputs, getStore } from '../lib/store.js';
 import { prepareScenario, stateAt } from '../map/scenario.js';
+import { lostInDustPlan, nearestClear, compass8 } from '../skyline/lostdust.js';
+import { liveMatch, deadReckoningPrior } from '../skyline/livematch.js';
 
 const MAX_DERIVE_MS = 50;
 const STATUSES = ['GREEN', 'AMBER', 'RED'];
@@ -233,6 +235,38 @@ section('crew extremes');
       if (!ok && !gridBad) gridBad = JSON.stringify({ ...i, km });
     }
   check(`crew grid (${cases} combinations): finite, no negative minutes, headline matches status`, !gridBad && performance.now() - t0 < 2000, gridBad);
+}
+
+// ---------- Lost in dust (skyline/lostdust.js) ----------
+{
+  // 3 x 3 grid over a small box; only the centre-right cell is clear
+  const grid = { w: 3, h: 3 }, bounds = { latMin: 0, latMax: 0.03, lonMin: 0, lonMax: 0.03 };
+  const flag = Uint8Array.from([1, 1, 1, 1, 1, 0, 1, 1, 1]);
+  const at = { lat: 0.015, lon: 0.005 };                       // centre-left cell
+  const n = nearestClear(flag, grid, bounds, at);
+  check('lost in dust: nearest clear cell is due east', n && Math.abs(n.bearingDeg - 90) < 1 && n.distM > 1000 && compass8(n.bearingDeg) === 'E', JSON.stringify(n));
+  check('lost in dust: no clear cell -> null', nearestClear(new Uint8Array(9).fill(1), grid, bounds, at) === null);
+  const p = lostInDustPlan({ astronaut: at, visKm: 0.3, vis: { blind: flag, homeHidden: new Uint8Array(9).fill(1) }, grid, bounds,
+    posUncertaintyM: 120, driftPct: 3, routeHomeKm: 8, budget: { suitMinLeft: 200, returnMin: 90 }, reason: 'manual' });
+  check('lost in dust: end uncertainty = now + 3% of the walk home', Math.abs(p.endUncertaintyM - (120 + 0.03 * 8000)) < 1e-9);
+  check('lost in dust: may miss the habitat when arrival uncertainty > visibility', p.mayMissHabitat === true && p.uncertaintyExceedsVisibility === false);
+  check('lost in dust: spare wait time = suit time - walk home', p.spareMin === 110 && p.sightHome === null && p.sightAny !== null);
+  const q = lostInDustPlan({ astronaut: at, visKm: 5, vis: null, grid, bounds, posUncertaintyM: 50, driftPct: 3, routeHomeKm: null,
+    budget: { suitMinLeft: 30, returnMin: 60 }, reason: 'visibility' });
+  check('lost in dust: no route / no grid / no spare time are handled', q.endUncertaintyM === null && q.mayMissHabitat === false && q.spareMin === 0 && q.sightAny === null);
+}
+
+// ---------- Live Horizon Match (skyline/livematch.js) ----------
+{
+  const g40 = JSON.parse(fs.readFileSync(new URL('../data/heightgrid40.json', import.meta.url)));
+  const bnd = JSON.parse(fs.readFileSync(new URL('../data/meta.json', import.meta.url))).bounds;
+  const run = (truth, seed) => liveMatch({ grid: g40, bounds: bnd, truth, prior: deadReckoningPrior(truth, 500, seed), eyeM: 1.7, visKm: 100, seed });
+  const land = { lat: 18.44463, lon: 77.45089 };
+  const a = run(land, 7), a2 = run(land, 7);
+  check('live match: landing site, 500 m step-count error -> fix within 100 m', a.fix && a.errorM <= 100, `error ${a.errorM} m, unc ${a.uncertaintyM} m, fix ${a.fix}`);
+  check('live match: deterministic for the same situation', a.estimate.lat === a2.estimate.lat && a.estimate.lon === a2.estimate.lon);
+  const o = run({ lat: 18.47, lon: 77.40 }, 7);
+  check('live match: a different place gives a different position (not a replayed site)', Math.abs(o.estimate.lat - a.estimate.lat) > 0.01 && o.errorM <= 300, `error ${o.errorM} m`);
 }
 
 console.log(`\ntest_demo: ${passed} passed, ${failures.length} failed`);

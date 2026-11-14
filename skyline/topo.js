@@ -113,7 +113,7 @@ export async function topoScan(map, s, { reduced = false } = {}) {
   let raf = 0;
   const t0 = performance.now();
   const frame = now => {
-    const t = now - t0;
+    const t = Math.max(0, now - t0);   // the first rAF timestamp can be slightly before t0 (negative radius error)
     const f = Math.min(1, t / RING_MS), rr = maxR * (1 - (1 - f) ** 2);    // quadratic ease-out
     reveal.setAttribute('r', rr.toFixed(1));
     ring.setAttribute('r', rr.toFixed(1));

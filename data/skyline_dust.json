@@ -1,0 +1,6254 @@
+{
+ "method": "Simulated skylines from the CTX DTM (not real photos). Terrain beyond the visibility V is hidden for both the observed skyline and the candidates; directions whose highest visible point is in the outer 15% of V are not scored (dust fade, not a hill). Edge noise 0.15 and 0.30 deg. 5 sites x 4 truth positions (0-50 m off-grid), prior 1-2 km off, 61 x 61 / 100 m grid, heading unknown.",
+ "rule": {
+  "minScoredDirections": 30,
+  "maxUncertaintyM": 500,
+  "maxRmsOverNoise": 3.0
+ },
+ "falseFixDefinitionM": "error > max(300 m, 2 x claimed uncertainty)",
+ "fadeFraction": 0.85,
+ "visKm": [
+  15,
+  10,
+  6,
+  4,
+  3,
+  2,
+  1.5,
+  1,
+  0.6,
+  0.3
+ ],
+ "noisesDeg": [
+  0.15,
+  0.3
+ ],
+ "reliableMinVisKm": null,
+ "reliableNote": "reliableMinVisKm (fix claimed in >= 80% of cases AND no false fix, both noise levels) was set before the first run. It is null: even in clear air the self-check claims a fix in only 55-80% of cases, because its RMS limit (3 x edge noise) also rejects good matches when the true position is between grid nodes. The check is conservative: it says 'no fix' rather than give a wrong one.",
+ "noFalseFixMinVisKm": 1.5,
+ "appRule": "Used by skyline/skyline.js: visibility >= noFalseFixMinVisKm -> dust-aware Horizon Match (may answer 'no fix'); below it, or when the self-check says no fix -> lost-in-dust mode. Chosen after the first run from the false-fix criterion alone (stated here so it is not mistaken for a pre-registered rule).",
+ "summary": [
+  {
+   "noise": 0.15,
+   "visKm": 15,
+   "cases": 20,
+   "fixClaimed": 11,
+   "falseFixes": 0,
+   "medianScored": 164,
+   "medianErrorAllM": 38,
+   "worstErrorAllM": 101,
+   "worstErrorOfClaimedFixesM": 101
+  },
+  {
+   "noise": 0.15,
+   "visKm": 10,
+   "cases": 20,
+   "fixClaimed": 11,
+   "falseFixes": 0,
+   "medianScored": 166,
+   "medianErrorAllM": 38,
+   "worstErrorAllM": 84,
+   "worstErrorOfClaimedFixesM": 67
+  },
+  {
+   "noise": 0.15,
+   "visKm": 6,
+   "cases": 20,
+   "fixClaimed": 10,
+   "falseFixes": 0,
+   "medianScored": 163,
+   "medianErrorAllM": 42,
+   "worstErrorAllM": 1312,
+   "worstErrorOfClaimedFixesM": 43
+  },
+  {
+   "noise": 0.15,
+   "visKm": 4,
+   "cases": 20,
+   "fixClaimed": 10,
+   "falseFixes": 0,
+   "medianScored": 158,
+   "medianErrorAllM": 42,
+   "worstErrorAllM": 1312,
+   "worstErrorOfClaimedFixesM": 50
+  },
+  {
+   "noise": 0.15,
+   "visKm": 3,
+   "cases": 20,
+   "fixClaimed": 9,
+   "falseFixes": 0,
+   "medianScored": 163,
+   "medianErrorAllM": 42,
+   "worstErrorAllM": 1133,
+   "worstErrorOfClaimedFixesM": 50
+  },
+  {
+   "noise": 0.15,
+   "visKm": 2,
+   "cases": 20,
+   "fixClaimed": 5,
+   "falseFixes": 0,
+   "medianScored": 158,
+   "medianErrorAllM": 41,
+   "worstErrorAllM": 1071,
+   "worstErrorOfClaimedFixesM": 50
+  },
+  {
+   "noise": 0.15,
+   "visKm": 1.5,
+   "cases": 20,
+   "fixClaimed": 3,
+   "falseFixes": 0,
+   "medianScored": 151,
+   "medianErrorAllM": 44,
+   "worstErrorAllM": 2880,
+   "worstErrorOfClaimedFixesM": 50
+  },
+  {
+   "noise": 0.15,
+   "visKm": 1,
+   "cases": 20,
+   "fixClaimed": 4,
+   "falseFixes": 0,
+   "medianScored": 152,
+   "medianErrorAllM": 50,
+   "worstErrorAllM": 2173,
+   "worstErrorOfClaimedFixesM": 50
+  },
+  {
+   "noise": 0.15,
+   "visKm": 0.6,
+   "cases": 20,
+   "fixClaimed": 3,
+   "falseFixes": 0,
+   "medianScored": 112,
+   "medianErrorAllM": 43,
+   "worstErrorAllM": 4195,
+   "worstErrorOfClaimedFixesM": 50
+  },
+  {
+   "noise": 0.15,
+   "visKm": 0.3,
+   "cases": 20,
+   "fixClaimed": 1,
+   "falseFixes": 0,
+   "medianScored": 105,
+   "medianErrorAllM": 1702,
+   "worstErrorAllM": 4330,
+   "worstErrorOfClaimedFixesM": 31
+  },
+  {
+   "noise": 0.3,
+   "visKm": 15,
+   "cases": 20,
+   "fixClaimed": 16,
+   "falseFixes": 0,
+   "medianScored": 164,
+   "medianErrorAllM": 38,
+   "worstErrorAllM": 75,
+   "worstErrorOfClaimedFixesM": 67
+  },
+  {
+   "noise": 0.3,
+   "visKm": 10,
+   "cases": 20,
+   "fixClaimed": 16,
+   "falseFixes": 0,
+   "medianScored": 166,
+   "medianErrorAllM": 38,
+   "worstErrorAllM": 136,
+   "worstErrorOfClaimedFixesM": 136
+  },
+  {
+   "noise": 0.3,
+   "visKm": 6,
+   "cases": 20,
+   "fixClaimed": 16,
+   "falseFixes": 0,
+   "medianScored": 163,
+   "medianErrorAllM": 42,
+   "worstErrorAllM": 1312,
+   "worstErrorOfClaimedFixesM": 67
+  },
+  {
+   "noise": 0.3,
+   "visKm": 4,
+   "cases": 20,
+   "fixClaimed": 16,
+   "falseFixes": 0,
+   "medianScored": 158,
+   "medianErrorAllM": 42,
+   "worstErrorAllM": 1312,
+   "worstErrorOfClaimedFixesM": 67
+  },
+  {
+   "noise": 0.3,
+   "visKm": 3,
+   "cases": 20,
+   "fixClaimed": 16,
+   "falseFixes": 0,
+   "medianScored": 163,
+   "medianErrorAllM": 42,
+   "worstErrorAllM": 1133,
+   "worstErrorOfClaimedFixesM": 67
+  },
+  {
+   "noise": 0.3,
+   "visKm": 2,
+   "cases": 20,
+   "fixClaimed": 12,
+   "falseFixes": 0,
+   "medianScored": 158,
+   "medianErrorAllM": 50,
+   "worstErrorAllM": 1133,
+   "worstErrorOfClaimedFixesM": 67
+  },
+  {
+   "noise": 0.3,
+   "visKm": 1.5,
+   "cases": 20,
+   "fixClaimed": 11,
+   "falseFixes": 0,
+   "medianScored": 151,
+   "medianErrorAllM": 44,
+   "worstErrorAllM": 1133,
+   "worstErrorOfClaimedFixesM": 50
+  },
+  {
+   "noise": 0.3,
+   "visKm": 1,
+   "cases": 20,
+   "fixClaimed": 12,
+   "falseFixes": 1,
+   "medianScored": 152,
+   "medianErrorAllM": 50,
+   "worstErrorAllM": 2073,
+   "worstErrorOfClaimedFixesM": 707
+  },
+  {
+   "noise": 0.3,
+   "visKm": 0.6,
+   "cases": 20,
+   "fixClaimed": 8,
+   "falseFixes": 1,
+   "medianScored": 112,
+   "medianErrorAllM": 50,
+   "worstErrorAllM": 4195,
+   "worstErrorOfClaimedFixesM": 1506
+  },
+  {
+   "noise": 0.3,
+   "visKm": 0.3,
+   "cases": 20,
+   "fixClaimed": 5,
+   "falseFixes": 2,
+   "medianScored": 105,
+   "medianErrorAllM": 1585,
+   "worstErrorAllM": 3834,
+   "worstErrorOfClaimedFixesM": 2024
+  }
+ ],
+ "cases": [
+  {
+   "site": "landing",
+   "truth": 0,
+   "noise": 0.15,
+   "visKm": 15,
+   "scored": 143,
+   "errorM": 18,
+   "uncertaintyM": 141,
+   "minRms": 0.19,
+   "fix": true,
+   "estimate": {
+    "lat": 18.44463,
+    "lon": 77.45089
+   }
+  },
+  {
+   "site": "landing",
+   "truth": 0,
+   "noise": 0.15,
+   "visKm": 10,
+   "scored": 108,
+   "errorM": 18,
+   "uncertaintyM": 141,
+   "minRms": 0.204,
+   "fix": true,
+   "estimate": {
+    "lat": 18.44463,
+    "lon": 77.45089
+   }
+  },
+  {
+   "site": "landing",
+   "truth": 0,
+   "noise": 0.15,
+   "visKm": 6,
+   "scored": 166,
+   "errorM": 18,
+   "uncertaintyM": 141,
+   "minRms": 0.198,
+   "fix": true,
+   "estimate": {
+    "lat": 18.44463,
+    "lon": 77.45089
+   }
+  },
+  {
+   "site": "landing",
+   "truth": 0,
+   "noise": 0.15,
+   "visKm": 4,
+   "scored": 171,
+   "errorM": 18,
+   "uncertaintyM": 141,
+   "minRms": 0.203,
+   "fix": true,
+   "estimate": {
+    "lat": 18.44463,
+    "lon": 77.45089
+   }
+  },
+  {
+   "site": "landing",
+   "truth": 0,
+   "noise": 0.15,
+   "visKm": 3,
+   "scored": 166,
+   "errorM": 18,
+   "uncertaintyM": 141,
+   "minRms": 0.209,
+   "fix": true,
+   "estimate": {
+    "lat": 18.44463,
+    "lon": 77.45089
+   }
+  },
+  {
+   "site": "landing",
+   "truth": 0,
+   "noise": 0.15,
+   "visKm": 2,
+   "scored": 166,
+   "errorM": 18,
+   "uncertaintyM": 2138,
+   "minRms": 0.237,
+   "fix": false,
+   "estimate": {
+    "lat": 18.44463,
+    "lon": 77.45089
+   }
+  },
+  {
+   "site": "landing",
+   "truth": 0,
+   "noise": 0.15,
+   "visKm": 1.5,
+   "scored": 160,
+   "errorM": 18,
+   "uncertaintyM": 2943,
+   "minRms": 0.26,
+   "fix": false,
+   "estimate": {
+    "lat": 18.44463,
+    "lon": 77.45089
+   }
+  },
+  {
+   "site": "landing",
+   "truth": 0,
+   "noise": 0.15,
+   "visKm": 1,
+   "scored": 162,
+   "errorM": 18,
+   "uncertaintyM": 141,
+   "minRms": 0.261,
+   "fix": true,
+   "estimate": {
+    "lat": 18.44463,
+    "lon": 77.45089
+   }
+  },
+  {
+   "site": "landing",
+   "truth": 0,
+   "noise": 0.15,
+   "visKm": 0.6,
+   "scored": 141,
+   "errorM": 18,
+   "uncertaintyM": 3622,
+   "minRms": 0.279,
+   "fix": false,
+   "estimate": {
+    "lat": 18.44463,
+    "lon": 77.45089
+   }
+  },
+  {
+   "site": "landing",
+   "truth": 0,
+   "noise": 0.15,
+   "visKm": 0.3,
+   "scored": 106,
+   "errorM": 1743,
+   "uncertaintyM": 3338,
+   "minRms": 0.291,
+   "fix": false,
+   "estimate": {
+    "lat": 18.41764,
+    "lon": 77.46334
+   }
+  },
+  {
+   "site": "landing",
+   "truth": 0,
+   "noise": 0.3,
+   "visKm": 15,
+   "scored": 143,
+   "errorM": 18,
+   "uncertaintyM": 361,
+   "minRms": 0.356,
+   "fix": true,
+   "estimate": {
+    "lat": 18.44463,
+    "lon": 77.45089
+   }
+  },
+  {
+   "site": "landing",
+   "truth": 0,
+   "noise": 0.3,
+   "visKm": 10,
+   "scored": 108,
+   "errorM": 18,
+   "uncertaintyM": 141,
+   "minRms": 0.347,
+   "fix": true,
+   "estimate": {
+    "lat": 18.44463,
+    "lon": 77.45089
+   }
+  },
+  {
+   "site": "landing",
+   "truth": 0,
+   "noise": 0.3,
+   "visKm": 6,
+   "scored": 166,
+   "errorM": 18,
+   "uncertaintyM": 141,
+   "minRms": 0.35,
+   "fix": true,
+   "estimate": {
+    "lat": 18.44463,
+    "lon": 77.45089
+   }
+  },
+  {
+   "site": "landing",
+   "truth": 0,
+   "noise": 0.3,
+   "visKm": 4,
+   "scored": 171,
+   "errorM": 18,
+   "uncertaintyM": 141,
+   "minRms": 0.362,
+   "fix": true,
+   "estimate": {
+    "lat": 18.44463,
+    "lon": 77.45089
+   }
+  },
+  {
+   "site": "landing",
+   "truth": 0,
+   "noise": 0.3,
+   "visKm": 3,
+   "scored": 166,
+   "errorM": 18,
+   "uncertaintyM": 141,
+   "minRms": 0.365,
+   "fix": true,
+   "estimate": {
+    "lat": 18.44463,
+    "lon": 77.45089
+   }
+  },
+  {
+   "site": "landing",
+   "truth": 0,
+   "noise": 0.3,
+   "visKm": 2,
+   "scored": 166,
+   "errorM": 18,
+   "uncertaintyM": 2138,
+   "minRms": 0.376,
+   "fix": false,
+   "estimate": {
+    "lat": 18.44463,
+    "lon": 77.45089
+   }
+  },
+  {
+   "site": "landing",
+   "truth": 0,
+   "noise": 0.3,
+   "visKm": 1.5,
+   "scored": 160,
+   "errorM": 18,
+   "uncertaintyM": 2943,
+   "minRms": 0.395,
+   "fix": false,
+   "estimate": {
+    "lat": 18.44463,
+    "lon": 77.45089
+   }
+  },
+  {
+   "site": "landing",
+   "truth": 0,
+   "noise": 0.3,
+   "visKm": 1,
+   "scored": 162,
+   "errorM": 18,
+   "uncertaintyM": 2943,
+   "minRms": 0.394,
+   "fix": false,
+   "estimate": {
+    "lat": 18.44463,
+    "lon": 77.45089
+   }
+  },
+  {
+   "site": "landing",
+   "truth": 0,
+   "noise": 0.3,
+   "visKm": 0.6,
+   "scored": 141,
+   "errorM": 18,
+   "uncertaintyM": 3758,
+   "minRms": 0.402,
+   "fix": false,
+   "estimate": {
+    "lat": 18.44463,
+    "lon": 77.45089
+   }
+  },
+  {
+   "site": "landing",
+   "truth": 0,
+   "noise": 0.3,
+   "visKm": 0.3,
+   "scored": 106,
+   "errorM": 1121,
+   "uncertaintyM": 4383,
+   "minRms": 0.404,
+   "fix": false,
+   "estimate": {
+    "lat": 18.44632,
+    "lon": 77.43132
+   }
+  },
+  {
+   "site": "landing",
+   "truth": 1,
+   "noise": 0.15,
+   "visKm": 15,
+   "scored": 143,
+   "errorM": 38,
+   "uncertaintyM": 50,
+   "minRms": 0.172,
+   "fix": true,
+   "estimate": {
+    "lat": 18.44463,
+    "lon": 77.45267
+   }
+  },
+  {
+   "site": "landing",
+   "truth": 1,
+   "noise": 0.15,
+   "visKm": 10,
+   "scored": 113,
+   "errorM": 38,
+   "uncertaintyM": 50,
+   "minRms": 0.174,
+   "fix": true,
+   "estimate": {
+    "lat": 18.44463,
+    "lon": 77.45267
+   }
+  },
+  {
+   "site": "landing",
+   "truth": 1,
+   "noise": 0.15,
+   "visKm": 6,
+   "scored": 173,
+   "errorM": 38,
+   "uncertaintyM": 50,
+   "minRms": 0.19,
+   "fix": true,
+   "estimate": {
+    "lat": 18.44463,
+    "lon": 77.45267
+   }
+  },
+  {
+   "site": "landing",
+   "truth": 1,
+   "noise": 0.15,
+   "visKm": 4,
+   "scored": 174,
+   "errorM": 38,
+   "uncertaintyM": 50,
+   "minRms": 0.211,
+   "fix": true,
+   "estimate": {
+    "lat": 18.44463,
+    "lon": 77.45267
+   }
+  },
+  {
+   "site": "landing",
+   "truth": 1,
+   "noise": 0.15,
+   "visKm": 3,
+   "scored": 166,
+   "errorM": 38,
+   "uncertaintyM": 50,
+   "minRms": 0.224,
+   "fix": true,
+   "estimate": {
+    "lat": 18.44463,
+    "lon": 77.45267
+   }
+  },
+  {
+   "site": "landing",
+   "truth": 1,
+   "noise": 0.15,
+   "visKm": 2,
+   "scored": 161,
+   "errorM": 38,
+   "uncertaintyM": 2159,
+   "minRms": 0.279,
+   "fix": false,
+   "estimate": {
+    "lat": 18.44463,
+    "lon": 77.45267
+   }
+  },
+  {
+   "site": "landing",
+   "truth": 1,
+   "noise": 0.15,
+   "visKm": 1.5,
+   "scored": 161,
+   "errorM": 1019,
+   "uncertaintyM": 1253,
+   "minRms": 0.281,
+   "fix": false,
+   "estimate": {
+    "lat": 18.42776,
+    "lon": 77.45445
+   }
+  },
+  {
+   "site": "landing",
+   "truth": 1,
+   "noise": 0.15,
+   "visKm": 1,
+   "scored": 163,
+   "errorM": 1019,
+   "uncertaintyM": 1105,
+   "minRms": 0.255,
+   "fix": false,
+   "estimate": {
+    "lat": 18.42776,
+    "lon": 77.45445
+   }
+  },
+  {
+   "site": "landing",
+   "truth": 1,
+   "noise": 0.15,
+   "visKm": 0.6,
+   "scored": 143,
+   "errorM": 1019,
+   "uncertaintyM": 1530,
+   "minRms": 0.228,
+   "fix": false,
+   "estimate": {
+    "lat": 18.42776,
+    "lon": 77.45445
+   }
+  },
+  {
+   "site": "landing",
+   "truth": 1,
+   "noise": 0.15,
+   "visKm": 0.3,
+   "scored": 140,
+   "errorM": 2886,
+   "uncertaintyM": 2968,
+   "minRms": 0.303,
+   "fix": false,
+   "estimate": {
+    "lat": 18.42607,
+    "lon": 77.40465
+   }
+  },
+  {
+   "site": "landing",
+   "truth": 1,
+   "noise": 0.3,
+   "visKm": 15,
+   "scored": 143,
+   "errorM": 38,
+   "uncertaintyM": 50,
+   "minRms": 0.293,
+   "fix": true,
+   "estimate": {
+    "lat": 18.44463,
+    "lon": 77.45267
+   }
+  },
+  {
+   "site": "landing",
+   "truth": 1,
+   "noise": 0.3,
+   "visKm": 10,
+   "scored": 113,
+   "errorM": 38,
+   "uncertaintyM": 50,
+   "minRms": 0.304,
+   "fix": true,
+   "estimate": {
+    "lat": 18.44463,
+    "lon": 77.45267
+   }
+  },
+  {
+   "site": "landing",
+   "truth": 1,
+   "noise": 0.3,
+   "visKm": 6,
+   "scored": 173,
+   "errorM": 38,
+   "uncertaintyM": 100,
+   "minRms": 0.309,
+   "fix": true,
+   "estimate": {
+    "lat": 18.44463,
+    "lon": 77.45267
+   }
+  },
+  {
+   "site": "landing",
+   "truth": 1,
+   "noise": 0.3,
+   "visKm": 4,
+   "scored": 174,
+   "errorM": 38,
+   "uncertaintyM": 100,
+   "minRms": 0.327,
+   "fix": true,
+   "estimate": {
+    "lat": 18.44463,
+    "lon": 77.45267
+   }
+  },
+  {
+   "site": "landing",
+   "truth": 1,
+   "noise": 0.3,
+   "visKm": 3,
+   "scored": 166,
+   "errorM": 38,
+   "uncertaintyM": 100,
+   "minRms": 0.333,
+   "fix": true,
+   "estimate": {
+    "lat": 18.44463,
+    "lon": 77.45267
+   }
+  },
+  {
+   "site": "landing",
+   "truth": 1,
+   "noise": 0.3,
+   "visKm": 2,
+   "scored": 161,
+   "errorM": 1019,
+   "uncertaintyM": 1253,
+   "minRms": 0.352,
+   "fix": false,
+   "estimate": {
+    "lat": 18.42776,
+    "lon": 77.45445
+   }
+  },
+  {
+   "site": "landing",
+   "truth": 1,
+   "noise": 0.3,
+   "visKm": 1.5,
+   "scored": 161,
+   "errorM": 1019,
+   "uncertaintyM": 1105,
+   "minRms": 0.347,
+   "fix": false,
+   "estimate": {
+    "lat": 18.42776,
+    "lon": 77.45445
+   }
+  },
+  {
+   "site": "landing",
+   "truth": 1,
+   "noise": 0.3,
+   "visKm": 1,
+   "scored": 163,
+   "errorM": 1019,
+   "uncertaintyM": 3734,
+   "minRms": 0.347,
+   "fix": false,
+   "estimate": {
+    "lat": 18.42776,
+    "lon": 77.45445
+   }
+  },
+  {
+   "site": "landing",
+   "truth": 1,
+   "noise": 0.3,
+   "visKm": 0.6,
+   "scored": 143,
+   "errorM": 1019,
+   "uncertaintyM": 4111,
+   "minRms": 0.344,
+   "fix": false,
+   "estimate": {
+    "lat": 18.42776,
+    "lon": 77.45445
+   }
+  },
+  {
+   "site": "landing",
+   "truth": 1,
+   "noise": 0.3,
+   "visKm": 0.3,
+   "scored": 140,
+   "errorM": 2886,
+   "uncertaintyM": 1703,
+   "minRms": 0.378,
+   "fix": false,
+   "estimate": {
+    "lat": 18.42607,
+    "lon": 77.40465
+   }
+  },
+  {
+   "site": "landing",
+   "truth": 2,
+   "noise": 0.15,
+   "visKm": 15,
+   "scored": 136,
+   "errorM": 101,
+   "uncertaintyM": 316,
+   "minRms": 0.163,
+   "fix": true,
+   "estimate": {
+    "lat": 18.44294,
+    "lon": 77.44911
+   }
+  },
+  {
+   "site": "landing",
+   "truth": 2,
+   "noise": 0.15,
+   "visKm": 10,
+   "scored": 100,
+   "errorM": 67,
+   "uncertaintyM": 224,
+   "minRms": 0.169,
+   "fix": true,
+   "estimate": {
+    "lat": 18.44294,
+    "lon": 77.45089
+   }
+  },
+  {
+   "site": "landing",
+   "truth": 2,
+   "noise": 0.15,
+   "visKm": 6,
+   "scored": 151,
+   "errorM": 42,
+   "uncertaintyM": 141,
+   "minRms": 0.178,
+   "fix": true,
+   "estimate": {
+    "lat": 18.44463,
+    "lon": 77.45089
+   }
+  },
+  {
+   "site": "landing",
+   "truth": 2,
+   "noise": 0.15,
+   "visKm": 4,
+   "scored": 159,
+   "errorM": 42,
+   "uncertaintyM": 100,
+   "minRms": 0.18,
+   "fix": true,
+   "estimate": {
+    "lat": 18.44463,
+    "lon": 77.45089
+   }
+  },
+  {
+   "site": "landing",
+   "truth": 2,
+   "noise": 0.15,
+   "visKm": 3,
+   "scored": 161,
+   "errorM": 42,
+   "uncertaintyM": 100,
+   "minRms": 0.174,
+   "fix": true,
+   "estimate": {
+    "lat": 18.44463,
+    "lon": 77.45089
+   }
+  },
+  {
+   "site": "landing",
+   "truth": 2,
+   "noise": 0.15,
+   "visKm": 2,
+   "scored": 145,
+   "errorM": 42,
+   "uncertaintyM": 2040,
+   "minRms": 0.188,
+   "fix": false,
+   "estimate": {
+    "lat": 18.44463,
+    "lon": 77.45089
+   }
+  },
+  {
+   "site": "landing",
+   "truth": 2,
+   "noise": 0.15,
+   "visKm": 1.5,
+   "scored": 131,
+   "errorM": 67,
+   "uncertaintyM": 1942,
+   "minRms": 0.225,
+   "fix": false,
+   "estimate": {
+    "lat": 18.44294,
+    "lon": 77.45089
+   }
+  },
+  {
+   "site": "landing",
+   "truth": 2,
+   "noise": 0.15,
+   "visKm": 1,
+   "scored": 159,
+   "errorM": 87,
+   "uncertaintyM": 2040,
+   "minRms": 0.249,
+   "fix": false,
+   "estimate": {
+    "lat": 18.44463,
+    "lon": 77.44911
+   }
+  },
+  {
+   "site": "landing",
+   "truth": 2,
+   "noise": 0.15,
+   "visKm": 0.6,
+   "scored": 113,
+   "errorM": 42,
+   "uncertaintyM": 2912,
+   "minRms": 0.24,
+   "fix": false,
+   "estimate": {
+    "lat": 18.44463,
+    "lon": 77.45089
+   }
+  },
+  {
+   "site": "landing",
+   "truth": 2,
+   "noise": 0.15,
+   "visKm": 0.3,
+   "scored": 98,
+   "errorM": 2055,
+   "uncertaintyM": 6748,
+   "minRms": 0.273,
+   "fix": false,
+   "estimate": {
+    "lat": 18.475,
+    "lon": 77.4669
+   }
+  },
+  {
+   "site": "landing",
+   "truth": 2,
+   "noise": 0.3,
+   "visKm": 15,
+   "scored": 136,
+   "errorM": 42,
+   "uncertaintyM": 300,
+   "minRms": 0.299,
+   "fix": true,
+   "estimate": {
+    "lat": 18.44463,
+    "lon": 77.45089
+   }
+  },
+  {
+   "site": "landing",
+   "truth": 2,
+   "noise": 0.3,
+   "visKm": 10,
+   "scored": 100,
+   "errorM": 136,
+   "uncertaintyM": 283,
+   "minRms": 0.312,
+   "fix": true,
+   "estimate": {
+    "lat": 18.44294,
+    "lon": 77.45267
+   }
+  },
+  {
+   "site": "landing",
+   "truth": 2,
+   "noise": 0.3,
+   "visKm": 6,
+   "scored": 151,
+   "errorM": 42,
+   "uncertaintyM": 141,
+   "minRms": 0.322,
+   "fix": true,
+   "estimate": {
+    "lat": 18.44463,
+    "lon": 77.45089
+   }
+  },
+  {
+   "site": "landing",
+   "truth": 2,
+   "noise": 0.3,
+   "visKm": 4,
+   "scored": 159,
+   "errorM": 42,
+   "uncertaintyM": 141,
+   "minRms": 0.327,
+   "fix": true,
+   "estimate": {
+    "lat": 18.44463,
+    "lon": 77.45089
+   }
+  },
+  {
+   "site": "landing",
+   "truth": 2,
+   "noise": 0.3,
+   "visKm": 3,
+   "scored": 161,
+   "errorM": 42,
+   "uncertaintyM": 141,
+   "minRms": 0.321,
+   "fix": true,
+   "estimate": {
+    "lat": 18.44463,
+    "lon": 77.45089
+   }
+  },
+  {
+   "site": "landing",
+   "truth": 2,
+   "noise": 0.3,
+   "visKm": 2,
+   "scored": 145,
+   "errorM": 67,
+   "uncertaintyM": 1965,
+   "minRms": 0.345,
+   "fix": false,
+   "estimate": {
+    "lat": 18.44294,
+    "lon": 77.45089
+   }
+  },
+  {
+   "site": "landing",
+   "truth": 2,
+   "noise": 0.3,
+   "visKm": 1.5,
+   "scored": 131,
+   "errorM": 87,
+   "uncertaintyM": 2088,
+   "minRms": 0.353,
+   "fix": false,
+   "estimate": {
+    "lat": 18.44463,
+    "lon": 77.44911
+   }
+  },
+  {
+   "site": "landing",
+   "truth": 2,
+   "noise": 0.3,
+   "visKm": 1,
+   "scored": 159,
+   "errorM": 87,
+   "uncertaintyM": 2040,
+   "minRms": 0.368,
+   "fix": false,
+   "estimate": {
+    "lat": 18.44463,
+    "lon": 77.44911
+   }
+  },
+  {
+   "site": "landing",
+   "truth": 2,
+   "noise": 0.3,
+   "visKm": 0.6,
+   "scored": 113,
+   "errorM": 42,
+   "uncertaintyM": 4919,
+   "minRms": 0.375,
+   "fix": false,
+   "estimate": {
+    "lat": 18.44463,
+    "lon": 77.45089
+   }
+  },
+  {
+   "site": "landing",
+   "truth": 2,
+   "noise": 0.3,
+   "visKm": 0.3,
+   "scored": 98,
+   "errorM": 2049,
+   "uncertaintyM": 4827,
+   "minRms": 0.344,
+   "fix": false,
+   "estimate": {
+    "lat": 18.47837,
+    "lon": 77.45445
+   }
+  },
+  {
+   "site": "landing",
+   "truth": 3,
+   "noise": 0.15,
+   "visKm": 15,
+   "scored": 139,
+   "errorM": 37,
+   "uncertaintyM": 141,
+   "minRms": 0.144,
+   "fix": true,
+   "estimate": {
+    "lat": 18.44294,
+    "lon": 77.45267
+   }
+  },
+  {
+   "site": "landing",
+   "truth": 3,
+   "noise": 0.15,
+   "visKm": 10,
+   "scored": 106,
+   "errorM": 37,
+   "uncertaintyM": 50,
+   "minRms": 0.15,
+   "fix": true,
+   "estimate": {
+    "lat": 18.44294,
+    "lon": 77.45267
+   }
+  },
+  {
+   "site": "landing",
+   "truth": 3,
+   "noise": 0.15,
+   "visKm": 6,
+   "scored": 151,
+   "errorM": 37,
+   "uncertaintyM": 50,
+   "minRms": 0.154,
+   "fix": true,
+   "estimate": {
+    "lat": 18.44294,
+    "lon": 77.45267
+   }
+  },
+  {
+   "site": "landing",
+   "truth": 3,
+   "noise": 0.15,
+   "visKm": 4,
+   "scored": 153,
+   "errorM": 37,
+   "uncertaintyM": 50,
+   "minRms": 0.153,
+   "fix": true,
+   "estimate": {
+    "lat": 18.44294,
+    "lon": 77.45267
+   }
+  },
+  {
+   "site": "landing",
+   "truth": 3,
+   "noise": 0.15,
+   "visKm": 3,
+   "scored": 157,
+   "errorM": 37,
+   "uncertaintyM": 50,
+   "minRms": 0.155,
+   "fix": true,
+   "estimate": {
+    "lat": 18.44294,
+    "lon": 77.45267
+   }
+  },
+  {
+   "site": "landing",
+   "truth": 3,
+   "noise": 0.15,
+   "visKm": 2,
+   "scored": 142,
+   "errorM": 37,
+   "uncertaintyM": 50,
+   "minRms": 0.159,
+   "fix": true,
+   "estimate": {
+    "lat": 18.44294,
+    "lon": 77.45267
+   }
+  },
+  {
+   "site": "landing",
+   "truth": 3,
+   "noise": 0.15,
+   "visKm": 1.5,
+   "scored": 116,
+   "errorM": 37,
+   "uncertaintyM": 50,
+   "minRms": 0.173,
+   "fix": true,
+   "estimate": {
+    "lat": 18.44294,
+    "lon": 77.45267
+   }
+  },
+  {
+   "site": "landing",
+   "truth": 3,
+   "noise": 0.15,
+   "visKm": 1,
+   "scored": 162,
+   "errorM": 37,
+   "uncertaintyM": 50,
+   "minRms": 0.172,
+   "fix": true,
+   "estimate": {
+    "lat": 18.44294,
+    "lon": 77.45267
+   }
+  },
+  {
+   "site": "landing",
+   "truth": 3,
+   "noise": 0.15,
+   "visKm": 0.6,
+   "scored": 136,
+   "errorM": 37,
+   "uncertaintyM": 50,
+   "minRms": 0.176,
+   "fix": true,
+   "estimate": {
+    "lat": 18.44294,
+    "lon": 77.45267
+   }
+  },
+  {
+   "site": "landing",
+   "truth": 3,
+   "noise": 0.15,
+   "visKm": 0.3,
+   "scored": 112,
+   "errorM": 37,
+   "uncertaintyM": 1628,
+   "minRms": 0.196,
+   "fix": false,
+   "estimate": {
+    "lat": 18.44294,
+    "lon": 77.45267
+   }
+  },
+  {
+   "site": "landing",
+   "truth": 3,
+   "noise": 0.3,
+   "visKm": 15,
+   "scored": 139,
+   "errorM": 37,
+   "uncertaintyM": 224,
+   "minRms": 0.274,
+   "fix": true,
+   "estimate": {
+    "lat": 18.44294,
+    "lon": 77.45267
+   }
+  },
+  {
+   "site": "landing",
+   "truth": 3,
+   "noise": 0.3,
+   "visKm": 10,
+   "scored": 106,
+   "errorM": 37,
+   "uncertaintyM": 200,
+   "minRms": 0.295,
+   "fix": true,
+   "estimate": {
+    "lat": 18.44294,
+    "lon": 77.45267
+   }
+  },
+  {
+   "site": "landing",
+   "truth": 3,
+   "noise": 0.3,
+   "visKm": 6,
+   "scored": 151,
+   "errorM": 37,
+   "uncertaintyM": 141,
+   "minRms": 0.293,
+   "fix": true,
+   "estimate": {
+    "lat": 18.44294,
+    "lon": 77.45267
+   }
+  },
+  {
+   "site": "landing",
+   "truth": 3,
+   "noise": 0.3,
+   "visKm": 4,
+   "scored": 153,
+   "errorM": 37,
+   "uncertaintyM": 141,
+   "minRms": 0.289,
+   "fix": true,
+   "estimate": {
+    "lat": 18.44294,
+    "lon": 77.45267
+   }
+  },
+  {
+   "site": "landing",
+   "truth": 3,
+   "noise": 0.3,
+   "visKm": 3,
+   "scored": 157,
+   "errorM": 37,
+   "uncertaintyM": 141,
+   "minRms": 0.283,
+   "fix": true,
+   "estimate": {
+    "lat": 18.44294,
+    "lon": 77.45267
+   }
+  },
+  {
+   "site": "landing",
+   "truth": 3,
+   "noise": 0.3,
+   "visKm": 2,
+   "scored": 142,
+   "errorM": 37,
+   "uncertaintyM": 50,
+   "minRms": 0.286,
+   "fix": true,
+   "estimate": {
+    "lat": 18.44294,
+    "lon": 77.45267
+   }
+  },
+  {
+   "site": "landing",
+   "truth": 3,
+   "noise": 0.3,
+   "visKm": 1.5,
+   "scored": 116,
+   "errorM": 37,
+   "uncertaintyM": 50,
+   "minRms": 0.284,
+   "fix": true,
+   "estimate": {
+    "lat": 18.44294,
+    "lon": 77.45267
+   }
+  },
+  {
+   "site": "landing",
+   "truth": 3,
+   "noise": 0.3,
+   "visKm": 1,
+   "scored": 162,
+   "errorM": 37,
+   "uncertaintyM": 50,
+   "minRms": 0.291,
+   "fix": true,
+   "estimate": {
+    "lat": 18.44294,
+    "lon": 77.45267
+   }
+  },
+  {
+   "site": "landing",
+   "truth": 3,
+   "noise": 0.3,
+   "visKm": 0.6,
+   "scored": 136,
+   "errorM": 37,
+   "uncertaintyM": 141,
+   "minRms": 0.3,
+   "fix": true,
+   "estimate": {
+    "lat": 18.44294,
+    "lon": 77.45267
+   }
+  },
+  {
+   "site": "landing",
+   "truth": 3,
+   "noise": 0.3,
+   "visKm": 0.3,
+   "scored": 112,
+   "errorM": 1602,
+   "uncertaintyM": 4610,
+   "minRms": 0.318,
+   "fix": false,
+   "estimate": {
+    "lat": 18.41595,
+    "lon": 77.44733
+   }
+  },
+  {
+   "site": "three_forks",
+   "truth": 0,
+   "noise": 0.15,
+   "visKm": 15,
+   "scored": 169,
+   "errorM": 31,
+   "uncertaintyM": 50,
+   "minRms": 0.332,
+   "fix": true,
+   "estimate": {
+    "lat": 18.45252,
+    "lon": 77.4072
+   }
+  },
+  {
+   "site": "three_forks",
+   "truth": 0,
+   "noise": 0.15,
+   "visKm": 10,
+   "scored": 166,
+   "errorM": 31,
+   "uncertaintyM": 50,
+   "minRms": 0.337,
+   "fix": true,
+   "estimate": {
+    "lat": 18.45252,
+    "lon": 77.4072
+   }
+  },
+  {
+   "site": "three_forks",
+   "truth": 0,
+   "noise": 0.15,
+   "visKm": 6,
+   "scored": 164,
+   "errorM": 31,
+   "uncertaintyM": 50,
+   "minRms": 0.35,
+   "fix": true,
+   "estimate": {
+    "lat": 18.45252,
+    "lon": 77.4072
+   }
+  },
+  {
+   "site": "three_forks",
+   "truth": 0,
+   "noise": 0.15,
+   "visKm": 4,
+   "scored": 177,
+   "errorM": 31,
+   "uncertaintyM": 50,
+   "minRms": 0.347,
+   "fix": true,
+   "estimate": {
+    "lat": 18.45252,
+    "lon": 77.4072
+   }
+  },
+  {
+   "site": "three_forks",
+   "truth": 0,
+   "noise": 0.15,
+   "visKm": 3,
+   "scored": 180,
+   "errorM": 31,
+   "uncertaintyM": 50,
+   "minRms": 0.346,
+   "fix": true,
+   "estimate": {
+    "lat": 18.45252,
+    "lon": 77.4072
+   }
+  },
+  {
+   "site": "three_forks",
+   "truth": 0,
+   "noise": 0.15,
+   "visKm": 2,
+   "scored": 173,
+   "errorM": 31,
+   "uncertaintyM": 50,
+   "minRms": 0.352,
+   "fix": true,
+   "estimate": {
+    "lat": 18.45252,
+    "lon": 77.4072
+   }
+  },
+  {
+   "site": "three_forks",
+   "truth": 0,
+   "noise": 0.15,
+   "visKm": 1.5,
+   "scored": 159,
+   "errorM": 31,
+   "uncertaintyM": 50,
+   "minRms": 0.367,
+   "fix": true,
+   "estimate": {
+    "lat": 18.45252,
+    "lon": 77.4072
+   }
+  },
+  {
+   "site": "three_forks",
+   "truth": 0,
+   "noise": 0.15,
+   "visKm": 1,
+   "scored": 167,
+   "errorM": 31,
+   "uncertaintyM": 50,
+   "minRms": 0.362,
+   "fix": true,
+   "estimate": {
+    "lat": 18.45252,
+    "lon": 77.4072
+   }
+  },
+  {
+   "site": "three_forks",
+   "truth": 0,
+   "noise": 0.15,
+   "visKm": 0.6,
+   "scored": 53,
+   "errorM": 31,
+   "uncertaintyM": 50,
+   "minRms": 0.277,
+   "fix": true,
+   "estimate": {
+    "lat": 18.45252,
+    "lon": 77.4072
+   }
+  },
+  {
+   "site": "three_forks",
+   "truth": 0,
+   "noise": 0.15,
+   "visKm": 0.3,
+   "scored": 79,
+   "errorM": 31,
+   "uncertaintyM": 50,
+   "minRms": 0.384,
+   "fix": true,
+   "estimate": {
+    "lat": 18.45252,
+    "lon": 77.4072
+   }
+  },
+  {
+   "site": "three_forks",
+   "truth": 0,
+   "noise": 0.3,
+   "visKm": 15,
+   "scored": 169,
+   "errorM": 31,
+   "uncertaintyM": 50,
+   "minRms": 0.402,
+   "fix": true,
+   "estimate": {
+    "lat": 18.45252,
+    "lon": 77.4072
+   }
+  },
+  {
+   "site": "three_forks",
+   "truth": 0,
+   "noise": 0.3,
+   "visKm": 10,
+   "scored": 166,
+   "errorM": 31,
+   "uncertaintyM": 50,
+   "minRms": 0.401,
+   "fix": true,
+   "estimate": {
+    "lat": 18.45252,
+    "lon": 77.4072
+   }
+  },
+  {
+   "site": "three_forks",
+   "truth": 0,
+   "noise": 0.3,
+   "visKm": 6,
+   "scored": 164,
+   "errorM": 31,
+   "uncertaintyM": 50,
+   "minRms": 0.418,
+   "fix": true,
+   "estimate": {
+    "lat": 18.45252,
+    "lon": 77.4072
+   }
+  },
+  {
+   "site": "three_forks",
+   "truth": 0,
+   "noise": 0.3,
+   "visKm": 4,
+   "scored": 177,
+   "errorM": 31,
+   "uncertaintyM": 50,
+   "minRms": 0.413,
+   "fix": true,
+   "estimate": {
+    "lat": 18.45252,
+    "lon": 77.4072
+   }
+  },
+  {
+   "site": "three_forks",
+   "truth": 0,
+   "noise": 0.3,
+   "visKm": 3,
+   "scored": 180,
+   "errorM": 31,
+   "uncertaintyM": 50,
+   "minRms": 0.414,
+   "fix": true,
+   "estimate": {
+    "lat": 18.45252,
+    "lon": 77.4072
+   }
+  },
+  {
+   "site": "three_forks",
+   "truth": 0,
+   "noise": 0.3,
+   "visKm": 2,
+   "scored": 173,
+   "errorM": 31,
+   "uncertaintyM": 50,
+   "minRms": 0.419,
+   "fix": true,
+   "estimate": {
+    "lat": 18.45252,
+    "lon": 77.4072
+   }
+  },
+  {
+   "site": "three_forks",
+   "truth": 0,
+   "noise": 0.3,
+   "visKm": 1.5,
+   "scored": 159,
+   "errorM": 31,
+   "uncertaintyM": 50,
+   "minRms": 0.426,
+   "fix": true,
+   "estimate": {
+    "lat": 18.45252,
+    "lon": 77.4072
+   }
+  },
+  {
+   "site": "three_forks",
+   "truth": 0,
+   "noise": 0.3,
+   "visKm": 1,
+   "scored": 167,
+   "errorM": 31,
+   "uncertaintyM": 50,
+   "minRms": 0.427,
+   "fix": true,
+   "estimate": {
+    "lat": 18.45252,
+    "lon": 77.4072
+   }
+  },
+  {
+   "site": "three_forks",
+   "truth": 0,
+   "noise": 0.3,
+   "visKm": 0.6,
+   "scored": 53,
+   "errorM": 31,
+   "uncertaintyM": 50,
+   "minRms": 0.359,
+   "fix": true,
+   "estimate": {
+    "lat": 18.45252,
+    "lon": 77.4072
+   }
+  },
+  {
+   "site": "three_forks",
+   "truth": 0,
+   "noise": 0.3,
+   "visKm": 0.3,
+   "scored": 79,
+   "errorM": 31,
+   "uncertaintyM": 50,
+   "minRms": 0.425,
+   "fix": true,
+   "estimate": {
+    "lat": 18.45252,
+    "lon": 77.4072
+   }
+  },
+  {
+   "site": "three_forks",
+   "truth": 1,
+   "noise": 0.15,
+   "visKm": 15,
+   "scored": 170,
+   "errorM": 43,
+   "uncertaintyM": 50,
+   "minRms": 0.412,
+   "fix": true,
+   "estimate": {
+    "lat": 18.45252,
+    "lon": 77.4072
+   }
+  },
+  {
+   "site": "three_forks",
+   "truth": 1,
+   "noise": 0.15,
+   "visKm": 10,
+   "scored": 171,
+   "errorM": 43,
+   "uncertaintyM": 50,
+   "minRms": 0.414,
+   "fix": true,
+   "estimate": {
+    "lat": 18.45252,
+    "lon": 77.4072
+   }
+  },
+  {
+   "site": "three_forks",
+   "truth": 1,
+   "noise": 0.15,
+   "visKm": 6,
+   "scored": 168,
+   "errorM": 43,
+   "uncertaintyM": 50,
+   "minRms": 0.439,
+   "fix": true,
+   "estimate": {
+    "lat": 18.45252,
+    "lon": 77.4072
+   }
+  },
+  {
+   "site": "three_forks",
+   "truth": 1,
+   "noise": 0.15,
+   "visKm": 4,
+   "scored": 176,
+   "errorM": 43,
+   "uncertaintyM": 50,
+   "minRms": 0.434,
+   "fix": true,
+   "estimate": {
+    "lat": 18.45252,
+    "lon": 77.4072
+   }
+  },
+  {
+   "site": "three_forks",
+   "truth": 1,
+   "noise": 0.15,
+   "visKm": 3,
+   "scored": 180,
+   "errorM": 43,
+   "uncertaintyM": 50,
+   "minRms": 0.43,
+   "fix": true,
+   "estimate": {
+    "lat": 18.45252,
+    "lon": 77.4072
+   }
+  },
+  {
+   "site": "three_forks",
+   "truth": 1,
+   "noise": 0.15,
+   "visKm": 2,
+   "scored": 168,
+   "errorM": 43,
+   "uncertaintyM": 50,
+   "minRms": 0.442,
+   "fix": true,
+   "estimate": {
+    "lat": 18.45252,
+    "lon": 77.4072
+   }
+  },
+  {
+   "site": "three_forks",
+   "truth": 1,
+   "noise": 0.15,
+   "visKm": 1.5,
+   "scored": 158,
+   "errorM": 43,
+   "uncertaintyM": 50,
+   "minRms": 0.456,
+   "fix": false,
+   "estimate": {
+    "lat": 18.45252,
+    "lon": 77.4072
+   }
+  },
+  {
+   "site": "three_forks",
+   "truth": 1,
+   "noise": 0.15,
+   "visKm": 1,
+   "scored": 163,
+   "errorM": 43,
+   "uncertaintyM": 50,
+   "minRms": 0.453,
+   "fix": false,
+   "estimate": {
+    "lat": 18.45252,
+    "lon": 77.4072
+   }
+  },
+  {
+   "site": "three_forks",
+   "truth": 1,
+   "noise": 0.15,
+   "visKm": 0.6,
+   "scored": 72,
+   "errorM": 43,
+   "uncertaintyM": 1700,
+   "minRms": 0.348,
+   "fix": false,
+   "estimate": {
+    "lat": 18.45252,
+    "lon": 77.4072
+   }
+  },
+  {
+   "site": "three_forks",
+   "truth": 1,
+   "noise": 0.15,
+   "visKm": 0.3,
+   "scored": 95,
+   "errorM": 2024,
+   "uncertaintyM": 2062,
+   "minRms": 0.515,
+   "fix": false,
+   "estimate": {
+    "lat": 18.42553,
+    "lon": 77.38408
+   }
+  },
+  {
+   "site": "three_forks",
+   "truth": 1,
+   "noise": 0.3,
+   "visKm": 15,
+   "scored": 170,
+   "errorM": 43,
+   "uncertaintyM": 50,
+   "minRms": 0.456,
+   "fix": true,
+   "estimate": {
+    "lat": 18.45252,
+    "lon": 77.4072
+   }
+  },
+  {
+   "site": "three_forks",
+   "truth": 1,
+   "noise": 0.3,
+   "visKm": 10,
+   "scored": 171,
+   "errorM": 43,
+   "uncertaintyM": 50,
+   "minRms": 0.459,
+   "fix": true,
+   "estimate": {
+    "lat": 18.45252,
+    "lon": 77.4072
+   }
+  },
+  {
+   "site": "three_forks",
+   "truth": 1,
+   "noise": 0.3,
+   "visKm": 6,
+   "scored": 168,
+   "errorM": 43,
+   "uncertaintyM": 50,
+   "minRms": 0.497,
+   "fix": true,
+   "estimate": {
+    "lat": 18.45252,
+    "lon": 77.4072
+   }
+  },
+  {
+   "site": "three_forks",
+   "truth": 1,
+   "noise": 0.3,
+   "visKm": 4,
+   "scored": 176,
+   "errorM": 43,
+   "uncertaintyM": 50,
+   "minRms": 0.493,
+   "fix": true,
+   "estimate": {
+    "lat": 18.45252,
+    "lon": 77.4072
+   }
+  },
+  {
+   "site": "three_forks",
+   "truth": 1,
+   "noise": 0.3,
+   "visKm": 3,
+   "scored": 180,
+   "errorM": 43,
+   "uncertaintyM": 50,
+   "minRms": 0.49,
+   "fix": true,
+   "estimate": {
+    "lat": 18.45252,
+    "lon": 77.4072
+   }
+  },
+  {
+   "site": "three_forks",
+   "truth": 1,
+   "noise": 0.3,
+   "visKm": 2,
+   "scored": 168,
+   "errorM": 43,
+   "uncertaintyM": 50,
+   "minRms": 0.505,
+   "fix": true,
+   "estimate": {
+    "lat": 18.45252,
+    "lon": 77.4072
+   }
+  },
+  {
+   "site": "three_forks",
+   "truth": 1,
+   "noise": 0.3,
+   "visKm": 1.5,
+   "scored": 158,
+   "errorM": 43,
+   "uncertaintyM": 50,
+   "minRms": 0.504,
+   "fix": true,
+   "estimate": {
+    "lat": 18.45252,
+    "lon": 77.4072
+   }
+  },
+  {
+   "site": "three_forks",
+   "truth": 1,
+   "noise": 0.3,
+   "visKm": 1,
+   "scored": 163,
+   "errorM": 43,
+   "uncertaintyM": 50,
+   "minRms": 0.516,
+   "fix": true,
+   "estimate": {
+    "lat": 18.45252,
+    "lon": 77.4072
+   }
+  },
+  {
+   "site": "three_forks",
+   "truth": 1,
+   "noise": 0.3,
+   "visKm": 0.6,
+   "scored": 72,
+   "errorM": 1657,
+   "uncertaintyM": 3002,
+   "minRms": 0.452,
+   "fix": false,
+   "estimate": {
+    "lat": 18.43902,
+    "lon": 77.38052
+   }
+  },
+  {
+   "site": "three_forks",
+   "truth": 1,
+   "noise": 0.3,
+   "visKm": 0.3,
+   "scored": 95,
+   "errorM": 2024,
+   "uncertaintyM": 50,
+   "minRms": 0.54,
+   "fix": true,
+   "estimate": {
+    "lat": 18.42553,
+    "lon": 77.38408
+   }
+  },
+  {
+   "site": "three_forks",
+   "truth": 2,
+   "noise": 0.15,
+   "visKm": 15,
+   "scored": 160,
+   "errorM": 38,
+   "uncertaintyM": 50,
+   "minRms": 1.276,
+   "fix": false,
+   "estimate": {
+    "lat": 18.46264,
+    "lon": 77.40364
+   }
+  },
+  {
+   "site": "three_forks",
+   "truth": 2,
+   "noise": 0.15,
+   "visKm": 10,
+   "scored": 144,
+   "errorM": 38,
+   "uncertaintyM": 50,
+   "minRms": 1.328,
+   "fix": false,
+   "estimate": {
+    "lat": 18.46264,
+    "lon": 77.40364
+   }
+  },
+  {
+   "site": "three_forks",
+   "truth": 2,
+   "noise": 0.15,
+   "visKm": 6,
+   "scored": 123,
+   "errorM": 68,
+   "uncertaintyM": 50,
+   "minRms": 1.246,
+   "fix": false,
+   "estimate": {
+    "lat": 18.46433,
+    "lon": 77.40364
+   }
+  },
+  {
+   "site": "three_forks",
+   "truth": 2,
+   "noise": 0.15,
+   "visKm": 4,
+   "scored": 157,
+   "errorM": 819,
+   "uncertaintyM": 100,
+   "minRms": 1.124,
+   "fix": false,
+   "estimate": {
+    "lat": 18.45252,
+    "lon": 77.39475
+   }
+  },
+  {
+   "site": "three_forks",
+   "truth": 2,
+   "noise": 0.15,
+   "visKm": 3,
+   "scored": 169,
+   "errorM": 819,
+   "uncertaintyM": 50,
+   "minRms": 1.167,
+   "fix": false,
+   "estimate": {
+    "lat": 18.45252,
+    "lon": 77.39475
+   }
+  },
+  {
+   "site": "three_forks",
+   "truth": 2,
+   "noise": 0.15,
+   "visKm": 2,
+   "scored": 167,
+   "errorM": 819,
+   "uncertaintyM": 50,
+   "minRms": 1.125,
+   "fix": false,
+   "estimate": {
+    "lat": 18.45252,
+    "lon": 77.39475
+   }
+  },
+  {
+   "site": "three_forks",
+   "truth": 2,
+   "noise": 0.15,
+   "visKm": 1.5,
+   "scored": 149,
+   "errorM": 819,
+   "uncertaintyM": 50,
+   "minRms": 1.17,
+   "fix": false,
+   "estimate": {
+    "lat": 18.45252,
+    "lon": 77.39475
+   }
+  },
+  {
+   "site": "three_forks",
+   "truth": 2,
+   "noise": 0.15,
+   "visKm": 1,
+   "scored": 133,
+   "errorM": 885,
+   "uncertaintyM": 50,
+   "minRms": 1.223,
+   "fix": false,
+   "estimate": {
+    "lat": 18.45252,
+    "lon": 77.39297
+   }
+  },
+  {
+   "site": "three_forks",
+   "truth": 2,
+   "noise": 0.15,
+   "visKm": 0.6,
+   "scored": 112,
+   "errorM": 38,
+   "uncertaintyM": 100,
+   "minRms": 1.611,
+   "fix": false,
+   "estimate": {
+    "lat": 18.46264,
+    "lon": 77.40364
+   }
+  },
+  {
+   "site": "three_forks",
+   "truth": 2,
+   "noise": 0.15,
+   "visKm": 0.3,
+   "scored": 105,
+   "errorM": 38,
+   "uncertaintyM": 50,
+   "minRms": 1.612,
+   "fix": false,
+   "estimate": {
+    "lat": 18.46264,
+    "lon": 77.40364
+   }
+  },
+  {
+   "site": "three_forks",
+   "truth": 2,
+   "noise": 0.3,
+   "visKm": 15,
+   "scored": 160,
+   "errorM": 38,
+   "uncertaintyM": 50,
+   "minRms": 1.28,
+   "fix": false,
+   "estimate": {
+    "lat": 18.46264,
+    "lon": 77.40364
+   }
+  },
+  {
+   "site": "three_forks",
+   "truth": 2,
+   "noise": 0.3,
+   "visKm": 10,
+   "scored": 144,
+   "errorM": 38,
+   "uncertaintyM": 50,
+   "minRms": 1.335,
+   "fix": false,
+   "estimate": {
+    "lat": 18.46264,
+    "lon": 77.40364
+   }
+  },
+  {
+   "site": "three_forks",
+   "truth": 2,
+   "noise": 0.3,
+   "visKm": 6,
+   "scored": 123,
+   "errorM": 68,
+   "uncertaintyM": 50,
+   "minRms": 1.245,
+   "fix": false,
+   "estimate": {
+    "lat": 18.46433,
+    "lon": 77.40364
+   }
+  },
+  {
+   "site": "three_forks",
+   "truth": 2,
+   "noise": 0.3,
+   "visKm": 4,
+   "scored": 157,
+   "errorM": 819,
+   "uncertaintyM": 860,
+   "minRms": 1.142,
+   "fix": false,
+   "estimate": {
+    "lat": 18.45252,
+    "lon": 77.39475
+   }
+  },
+  {
+   "site": "three_forks",
+   "truth": 2,
+   "noise": 0.3,
+   "visKm": 3,
+   "scored": 169,
+   "errorM": 819,
+   "uncertaintyM": 50,
+   "minRms": 1.199,
+   "fix": false,
+   "estimate": {
+    "lat": 18.45252,
+    "lon": 77.39475
+   }
+  },
+  {
+   "site": "three_forks",
+   "truth": 2,
+   "noise": 0.3,
+   "visKm": 2,
+   "scored": 167,
+   "errorM": 819,
+   "uncertaintyM": 50,
+   "minRms": 1.163,
+   "fix": false,
+   "estimate": {
+    "lat": 18.45252,
+    "lon": 77.39475
+   }
+  },
+  {
+   "site": "three_forks",
+   "truth": 2,
+   "noise": 0.3,
+   "visKm": 1.5,
+   "scored": 149,
+   "errorM": 819,
+   "uncertaintyM": 50,
+   "minRms": 1.19,
+   "fix": false,
+   "estimate": {
+    "lat": 18.45252,
+    "lon": 77.39475
+   }
+  },
+  {
+   "site": "three_forks",
+   "truth": 2,
+   "noise": 0.3,
+   "visKm": 1,
+   "scored": 133,
+   "errorM": 885,
+   "uncertaintyM": 50,
+   "minRms": 1.219,
+   "fix": false,
+   "estimate": {
+    "lat": 18.45252,
+    "lon": 77.39297
+   }
+  },
+  {
+   "site": "three_forks",
+   "truth": 2,
+   "noise": 0.3,
+   "visKm": 0.6,
+   "scored": 112,
+   "errorM": 38,
+   "uncertaintyM": 100,
+   "minRms": 1.62,
+   "fix": false,
+   "estimate": {
+    "lat": 18.46264,
+    "lon": 77.40364
+   }
+  },
+  {
+   "site": "three_forks",
+   "truth": 2,
+   "noise": 0.3,
+   "visKm": 0.3,
+   "scored": 105,
+   "errorM": 38,
+   "uncertaintyM": 50,
+   "minRms": 1.594,
+   "fix": false,
+   "estimate": {
+    "lat": 18.46264,
+    "lon": 77.40364
+   }
+  },
+  {
+   "site": "three_forks",
+   "truth": 3,
+   "noise": 0.15,
+   "visKm": 15,
+   "scored": 177,
+   "errorM": 50,
+   "uncertaintyM": 50,
+   "minRms": 0.438,
+   "fix": true,
+   "estimate": {
+    "lat": 18.45083,
+    "lon": 77.41254
+   }
+  },
+  {
+   "site": "three_forks",
+   "truth": 3,
+   "noise": 0.15,
+   "visKm": 10,
+   "scored": 169,
+   "errorM": 50,
+   "uncertaintyM": 50,
+   "minRms": 0.449,
+   "fix": true,
+   "estimate": {
+    "lat": 18.45083,
+    "lon": 77.41254
+   }
+  },
+  {
+   "site": "three_forks",
+   "truth": 3,
+   "noise": 0.15,
+   "visKm": 6,
+   "scored": 165,
+   "errorM": 50,
+   "uncertaintyM": 50,
+   "minRms": 0.46,
+   "fix": false,
+   "estimate": {
+    "lat": 18.45083,
+    "lon": 77.41254
+   }
+  },
+  {
+   "site": "three_forks",
+   "truth": 3,
+   "noise": 0.15,
+   "visKm": 4,
+   "scored": 180,
+   "errorM": 50,
+   "uncertaintyM": 50,
+   "minRms": 0.447,
+   "fix": true,
+   "estimate": {
+    "lat": 18.45083,
+    "lon": 77.41254
+   }
+  },
+  {
+   "site": "three_forks",
+   "truth": 3,
+   "noise": 0.15,
+   "visKm": 3,
+   "scored": 180,
+   "errorM": 50,
+   "uncertaintyM": 50,
+   "minRms": 0.447,
+   "fix": true,
+   "estimate": {
+    "lat": 18.45083,
+    "lon": 77.41254
+   }
+  },
+  {
+   "site": "three_forks",
+   "truth": 3,
+   "noise": 0.15,
+   "visKm": 2,
+   "scored": 180,
+   "errorM": 50,
+   "uncertaintyM": 50,
+   "minRms": 0.447,
+   "fix": true,
+   "estimate": {
+    "lat": 18.45083,
+    "lon": 77.41254
+   }
+  },
+  {
+   "site": "three_forks",
+   "truth": 3,
+   "noise": 0.15,
+   "visKm": 1.5,
+   "scored": 180,
+   "errorM": 50,
+   "uncertaintyM": 50,
+   "minRms": 0.447,
+   "fix": true,
+   "estimate": {
+    "lat": 18.45083,
+    "lon": 77.41254
+   }
+  },
+  {
+   "site": "three_forks",
+   "truth": 3,
+   "noise": 0.15,
+   "visKm": 1,
+   "scored": 150,
+   "errorM": 50,
+   "uncertaintyM": 50,
+   "minRms": 0.447,
+   "fix": true,
+   "estimate": {
+    "lat": 18.45083,
+    "lon": 77.41254
+   }
+  },
+  {
+   "site": "three_forks",
+   "truth": 3,
+   "noise": 0.15,
+   "visKm": 0.6,
+   "scored": 90,
+   "errorM": 50,
+   "uncertaintyM": 50,
+   "minRms": 0.361,
+   "fix": true,
+   "estimate": {
+    "lat": 18.45083,
+    "lon": 77.41254
+   }
+  },
+  {
+   "site": "three_forks",
+   "truth": 3,
+   "noise": 0.15,
+   "visKm": 0.3,
+   "scored": 135,
+   "errorM": 3004,
+   "uncertaintyM": 4793,
+   "minRms": 0.476,
+   "fix": false,
+   "estimate": {
+    "lat": 18.4947,
+    "lon": 77.38586
+   }
+  },
+  {
+   "site": "three_forks",
+   "truth": 3,
+   "noise": 0.3,
+   "visKm": 15,
+   "scored": 177,
+   "errorM": 50,
+   "uncertaintyM": 50,
+   "minRms": 0.499,
+   "fix": true,
+   "estimate": {
+    "lat": 18.45083,
+    "lon": 77.41254
+   }
+  },
+  {
+   "site": "three_forks",
+   "truth": 3,
+   "noise": 0.3,
+   "visKm": 10,
+   "scored": 169,
+   "errorM": 50,
+   "uncertaintyM": 50,
+   "minRms": 0.508,
+   "fix": true,
+   "estimate": {
+    "lat": 18.45083,
+    "lon": 77.41254
+   }
+  },
+  {
+   "site": "three_forks",
+   "truth": 3,
+   "noise": 0.3,
+   "visKm": 6,
+   "scored": 165,
+   "errorM": 50,
+   "uncertaintyM": 50,
+   "minRms": 0.517,
+   "fix": true,
+   "estimate": {
+    "lat": 18.45083,
+    "lon": 77.41254
+   }
+  },
+  {
+   "site": "three_forks",
+   "truth": 3,
+   "noise": 0.3,
+   "visKm": 4,
+   "scored": 180,
+   "errorM": 50,
+   "uncertaintyM": 50,
+   "minRms": 0.511,
+   "fix": true,
+   "estimate": {
+    "lat": 18.45083,
+    "lon": 77.41254
+   }
+  },
+  {
+   "site": "three_forks",
+   "truth": 3,
+   "noise": 0.3,
+   "visKm": 3,
+   "scored": 180,
+   "errorM": 50,
+   "uncertaintyM": 50,
+   "minRms": 0.511,
+   "fix": true,
+   "estimate": {
+    "lat": 18.45083,
+    "lon": 77.41254
+   }
+  },
+  {
+   "site": "three_forks",
+   "truth": 3,
+   "noise": 0.3,
+   "visKm": 2,
+   "scored": 180,
+   "errorM": 50,
+   "uncertaintyM": 50,
+   "minRms": 0.511,
+   "fix": true,
+   "estimate": {
+    "lat": 18.45083,
+    "lon": 77.41254
+   }
+  },
+  {
+   "site": "three_forks",
+   "truth": 3,
+   "noise": 0.3,
+   "visKm": 1.5,
+   "scored": 180,
+   "errorM": 50,
+   "uncertaintyM": 50,
+   "minRms": 0.511,
+   "fix": true,
+   "estimate": {
+    "lat": 18.45083,
+    "lon": 77.41254
+   }
+  },
+  {
+   "site": "three_forks",
+   "truth": 3,
+   "noise": 0.3,
+   "visKm": 1,
+   "scored": 150,
+   "errorM": 50,
+   "uncertaintyM": 50,
+   "minRms": 0.495,
+   "fix": true,
+   "estimate": {
+    "lat": 18.45083,
+    "lon": 77.41254
+   }
+  },
+  {
+   "site": "three_forks",
+   "truth": 3,
+   "noise": 0.3,
+   "visKm": 0.6,
+   "scored": 90,
+   "errorM": 50,
+   "uncertaintyM": 50,
+   "minRms": 0.44,
+   "fix": true,
+   "estimate": {
+    "lat": 18.45083,
+    "lon": 77.41254
+   }
+  },
+  {
+   "site": "three_forks",
+   "truth": 3,
+   "noise": 0.3,
+   "visKm": 0.3,
+   "scored": 135,
+   "errorM": 1828,
+   "uncertaintyM": 4793,
+   "minRms": 0.521,
+   "fix": false,
+   "estimate": {
+    "lat": 18.42047,
+    "lon": 77.41965
+   }
+  },
+  {
+   "site": "cheyava_falls",
+   "truth": 0,
+   "noise": 0.15,
+   "visKm": 15,
+   "scored": 180,
+   "errorM": 26,
+   "uncertaintyM": 50,
+   "minRms": 0.683,
+   "fix": false,
+   "estimate": {
+    "lat": 18.495,
+    "lon": 77.30628
+   }
+  },
+  {
+   "site": "cheyava_falls",
+   "truth": 0,
+   "noise": 0.15,
+   "visKm": 10,
+   "scored": 180,
+   "errorM": 26,
+   "uncertaintyM": 50,
+   "minRms": 0.683,
+   "fix": false,
+   "estimate": {
+    "lat": 18.495,
+    "lon": 77.30628
+   }
+  },
+  {
+   "site": "cheyava_falls",
+   "truth": 0,
+   "noise": 0.15,
+   "visKm": 6,
+   "scored": 179,
+   "errorM": 26,
+   "uncertaintyM": 50,
+   "minRms": 0.684,
+   "fix": false,
+   "estimate": {
+    "lat": 18.495,
+    "lon": 77.30628
+   }
+  },
+  {
+   "site": "cheyava_falls",
+   "truth": 0,
+   "noise": 0.15,
+   "visKm": 4,
+   "scored": 172,
+   "errorM": 26,
+   "uncertaintyM": 50,
+   "minRms": 0.698,
+   "fix": false,
+   "estimate": {
+    "lat": 18.495,
+    "lon": 77.30628
+   }
+  },
+  {
+   "site": "cheyava_falls",
+   "truth": 0,
+   "noise": 0.15,
+   "visKm": 3,
+   "scored": 164,
+   "errorM": 26,
+   "uncertaintyM": 50,
+   "minRms": 0.719,
+   "fix": false,
+   "estimate": {
+    "lat": 18.495,
+    "lon": 77.30628
+   }
+  },
+  {
+   "site": "cheyava_falls",
+   "truth": 0,
+   "noise": 0.15,
+   "visKm": 2,
+   "scored": 164,
+   "errorM": 26,
+   "uncertaintyM": 50,
+   "minRms": 0.733,
+   "fix": false,
+   "estimate": {
+    "lat": 18.495,
+    "lon": 77.30628
+   }
+  },
+  {
+   "site": "cheyava_falls",
+   "truth": 0,
+   "noise": 0.15,
+   "visKm": 1.5,
+   "scored": 149,
+   "errorM": 26,
+   "uncertaintyM": 50,
+   "minRms": 0.768,
+   "fix": false,
+   "estimate": {
+    "lat": 18.495,
+    "lon": 77.30628
+   }
+  },
+  {
+   "site": "cheyava_falls",
+   "truth": 0,
+   "noise": 0.15,
+   "visKm": 1,
+   "scored": 134,
+   "errorM": 26,
+   "uncertaintyM": 50,
+   "minRms": 0.773,
+   "fix": false,
+   "estimate": {
+    "lat": 18.495,
+    "lon": 77.30628
+   }
+  },
+  {
+   "site": "cheyava_falls",
+   "truth": 0,
+   "noise": 0.15,
+   "visKm": 0.6,
+   "scored": 124,
+   "errorM": 26,
+   "uncertaintyM": 50,
+   "minRms": 0.862,
+   "fix": false,
+   "estimate": {
+    "lat": 18.495,
+    "lon": 77.30628
+   }
+  },
+  {
+   "site": "cheyava_falls",
+   "truth": 0,
+   "noise": 0.15,
+   "visKm": 0.3,
+   "scored": 40,
+   "errorM": 1702,
+   "uncertaintyM": 50,
+   "minRms": 0.896,
+   "fix": false,
+   "estimate": {
+    "lat": 18.49837,
+    "lon": 77.27604
+   }
+  },
+  {
+   "site": "cheyava_falls",
+   "truth": 0,
+   "noise": 0.3,
+   "visKm": 15,
+   "scored": 180,
+   "errorM": 26,
+   "uncertaintyM": 50,
+   "minRms": 0.732,
+   "fix": true,
+   "estimate": {
+    "lat": 18.495,
+    "lon": 77.30628
+   }
+  },
+  {
+   "site": "cheyava_falls",
+   "truth": 0,
+   "noise": 0.3,
+   "visKm": 10,
+   "scored": 180,
+   "errorM": 26,
+   "uncertaintyM": 50,
+   "minRms": 0.732,
+   "fix": true,
+   "estimate": {
+    "lat": 18.495,
+    "lon": 77.30628
+   }
+  },
+  {
+   "site": "cheyava_falls",
+   "truth": 0,
+   "noise": 0.3,
+   "visKm": 6,
+   "scored": 179,
+   "errorM": 26,
+   "uncertaintyM": 50,
+   "minRms": 0.733,
+   "fix": true,
+   "estimate": {
+    "lat": 18.495,
+    "lon": 77.30628
+   }
+  },
+  {
+   "site": "cheyava_falls",
+   "truth": 0,
+   "noise": 0.3,
+   "visKm": 4,
+   "scored": 172,
+   "errorM": 26,
+   "uncertaintyM": 50,
+   "minRms": 0.749,
+   "fix": true,
+   "estimate": {
+    "lat": 18.495,
+    "lon": 77.30628
+   }
+  },
+  {
+   "site": "cheyava_falls",
+   "truth": 0,
+   "noise": 0.3,
+   "visKm": 3,
+   "scored": 164,
+   "errorM": 26,
+   "uncertaintyM": 50,
+   "minRms": 0.766,
+   "fix": true,
+   "estimate": {
+    "lat": 18.495,
+    "lon": 77.30628
+   }
+  },
+  {
+   "site": "cheyava_falls",
+   "truth": 0,
+   "noise": 0.3,
+   "visKm": 2,
+   "scored": 164,
+   "errorM": 26,
+   "uncertaintyM": 50,
+   "minRms": 0.77,
+   "fix": true,
+   "estimate": {
+    "lat": 18.495,
+    "lon": 77.30628
+   }
+  },
+  {
+   "site": "cheyava_falls",
+   "truth": 0,
+   "noise": 0.3,
+   "visKm": 1.5,
+   "scored": 149,
+   "errorM": 26,
+   "uncertaintyM": 50,
+   "minRms": 0.787,
+   "fix": true,
+   "estimate": {
+    "lat": 18.495,
+    "lon": 77.30628
+   }
+  },
+  {
+   "site": "cheyava_falls",
+   "truth": 0,
+   "noise": 0.3,
+   "visKm": 1,
+   "scored": 134,
+   "errorM": 26,
+   "uncertaintyM": 50,
+   "minRms": 0.797,
+   "fix": true,
+   "estimate": {
+    "lat": 18.495,
+    "lon": 77.30628
+   }
+  },
+  {
+   "site": "cheyava_falls",
+   "truth": 0,
+   "noise": 0.3,
+   "visKm": 0.6,
+   "scored": 124,
+   "errorM": 26,
+   "uncertaintyM": 50,
+   "minRms": 0.872,
+   "fix": true,
+   "estimate": {
+    "lat": 18.495,
+    "lon": 77.30628
+   }
+  },
+  {
+   "site": "cheyava_falls",
+   "truth": 0,
+   "noise": 0.3,
+   "visKm": 0.3,
+   "scored": 40,
+   "errorM": 26,
+   "uncertaintyM": 1712,
+   "minRms": 0.987,
+   "fix": false,
+   "estimate": {
+    "lat": 18.495,
+    "lon": 77.30628
+   }
+  },
+  {
+   "site": "cheyava_falls",
+   "truth": 1,
+   "noise": 0.15,
+   "visKm": 15,
+   "scored": 143,
+   "errorM": 33,
+   "uncertaintyM": 50,
+   "minRms": 0.399,
+   "fix": true,
+   "estimate": {
+    "lat": 18.50344,
+    "lon": 77.3045
+   }
+  },
+  {
+   "site": "cheyava_falls",
+   "truth": 1,
+   "noise": 0.15,
+   "visKm": 10,
+   "scored": 170,
+   "errorM": 33,
+   "uncertaintyM": 50,
+   "minRms": 0.404,
+   "fix": true,
+   "estimate": {
+    "lat": 18.50344,
+    "lon": 77.3045
+   }
+  },
+  {
+   "site": "cheyava_falls",
+   "truth": 1,
+   "noise": 0.15,
+   "visKm": 6,
+   "scored": 163,
+   "errorM": 33,
+   "uncertaintyM": 50,
+   "minRms": 0.415,
+   "fix": true,
+   "estimate": {
+    "lat": 18.50344,
+    "lon": 77.3045
+   }
+  },
+  {
+   "site": "cheyava_falls",
+   "truth": 1,
+   "noise": 0.15,
+   "visKm": 4,
+   "scored": 142,
+   "errorM": 33,
+   "uncertaintyM": 50,
+   "minRms": 0.443,
+   "fix": true,
+   "estimate": {
+    "lat": 18.50344,
+    "lon": 77.3045
+   }
+  },
+  {
+   "site": "cheyava_falls",
+   "truth": 1,
+   "noise": 0.15,
+   "visKm": 3,
+   "scored": 143,
+   "errorM": 33,
+   "uncertaintyM": 50,
+   "minRms": 0.443,
+   "fix": true,
+   "estimate": {
+    "lat": 18.50344,
+    "lon": 77.3045
+   }
+  },
+  {
+   "site": "cheyava_falls",
+   "truth": 1,
+   "noise": 0.15,
+   "visKm": 2,
+   "scored": 102,
+   "errorM": 33,
+   "uncertaintyM": 50,
+   "minRms": 0.531,
+   "fix": false,
+   "estimate": {
+    "lat": 18.50344,
+    "lon": 77.3045
+   }
+  },
+  {
+   "site": "cheyava_falls",
+   "truth": 1,
+   "noise": 0.15,
+   "visKm": 1.5,
+   "scored": 91,
+   "errorM": 33,
+   "uncertaintyM": 50,
+   "minRms": 0.55,
+   "fix": false,
+   "estimate": {
+    "lat": 18.50344,
+    "lon": 77.3045
+   }
+  },
+  {
+   "site": "cheyava_falls",
+   "truth": 1,
+   "noise": 0.15,
+   "visKm": 1,
+   "scored": 86,
+   "errorM": 33,
+   "uncertaintyM": 1118,
+   "minRms": 0.67,
+   "fix": false,
+   "estimate": {
+    "lat": 18.50344,
+    "lon": 77.3045
+   }
+  },
+  {
+   "site": "cheyava_falls",
+   "truth": 1,
+   "noise": 0.15,
+   "visKm": 0.6,
+   "scored": 132,
+   "errorM": 87,
+   "uncertaintyM": 2955,
+   "minRms": 0.942,
+   "fix": false,
+   "estimate": {
+    "lat": 18.50175,
+    "lon": 77.3045
+   }
+  },
+  {
+   "site": "cheyava_falls",
+   "truth": 1,
+   "noise": 0.15,
+   "visKm": 0.3,
+   "scored": 153,
+   "errorM": 3834,
+   "uncertaintyM": 5608,
+   "minRms": 0.997,
+   "fix": false,
+   "estimate": {
+    "lat": 18.53212,
+    "lon": 77.24403
+   }
+  },
+  {
+   "site": "cheyava_falls",
+   "truth": 1,
+   "noise": 0.3,
+   "visKm": 15,
+   "scored": 143,
+   "errorM": 33,
+   "uncertaintyM": 50,
+   "minRms": 0.494,
+   "fix": true,
+   "estimate": {
+    "lat": 18.50344,
+    "lon": 77.3045
+   }
+  },
+  {
+   "site": "cheyava_falls",
+   "truth": 1,
+   "noise": 0.3,
+   "visKm": 10,
+   "scored": 170,
+   "errorM": 33,
+   "uncertaintyM": 50,
+   "minRms": 0.493,
+   "fix": true,
+   "estimate": {
+    "lat": 18.50344,
+    "lon": 77.3045
+   }
+  },
+  {
+   "site": "cheyava_falls",
+   "truth": 1,
+   "noise": 0.3,
+   "visKm": 6,
+   "scored": 163,
+   "errorM": 33,
+   "uncertaintyM": 50,
+   "minRms": 0.501,
+   "fix": true,
+   "estimate": {
+    "lat": 18.50344,
+    "lon": 77.3045
+   }
+  },
+  {
+   "site": "cheyava_falls",
+   "truth": 1,
+   "noise": 0.3,
+   "visKm": 4,
+   "scored": 142,
+   "errorM": 33,
+   "uncertaintyM": 50,
+   "minRms": 0.523,
+   "fix": true,
+   "estimate": {
+    "lat": 18.50344,
+    "lon": 77.3045
+   }
+  },
+  {
+   "site": "cheyava_falls",
+   "truth": 1,
+   "noise": 0.3,
+   "visKm": 3,
+   "scored": 143,
+   "errorM": 33,
+   "uncertaintyM": 50,
+   "minRms": 0.528,
+   "fix": true,
+   "estimate": {
+    "lat": 18.50344,
+    "lon": 77.3045
+   }
+  },
+  {
+   "site": "cheyava_falls",
+   "truth": 1,
+   "noise": 0.3,
+   "visKm": 2,
+   "scored": 102,
+   "errorM": 33,
+   "uncertaintyM": 50,
+   "minRms": 0.618,
+   "fix": true,
+   "estimate": {
+    "lat": 18.50344,
+    "lon": 77.3045
+   }
+  },
+  {
+   "site": "cheyava_falls",
+   "truth": 1,
+   "noise": 0.3,
+   "visKm": 1.5,
+   "scored": 91,
+   "errorM": 33,
+   "uncertaintyM": 50,
+   "minRms": 0.628,
+   "fix": true,
+   "estimate": {
+    "lat": 18.50344,
+    "lon": 77.3045
+   }
+  },
+  {
+   "site": "cheyava_falls",
+   "truth": 1,
+   "noise": 0.3,
+   "visKm": 1,
+   "scored": 86,
+   "errorM": 1083,
+   "uncertaintyM": 1100,
+   "minRms": 0.725,
+   "fix": false,
+   "estimate": {
+    "lat": 18.48488,
+    "lon": 77.3045
+   }
+  },
+  {
+   "site": "cheyava_falls",
+   "truth": 1,
+   "noise": 0.3,
+   "visKm": 0.6,
+   "scored": 132,
+   "errorM": 2927,
+   "uncertaintyM": 2864,
+   "minRms": 1.017,
+   "fix": false,
+   "estimate": {
+    "lat": 18.45788,
+    "lon": 77.32585
+   }
+  },
+  {
+   "site": "cheyava_falls",
+   "truth": 1,
+   "noise": 0.3,
+   "visKm": 0.3,
+   "scored": 153,
+   "errorM": 3834,
+   "uncertaintyM": 50,
+   "minRms": 1.027,
+   "fix": false,
+   "estimate": {
+    "lat": 18.53212,
+    "lon": 77.24403
+   }
+  },
+  {
+   "site": "cheyava_falls",
+   "truth": 2,
+   "noise": 0.15,
+   "visKm": 15,
+   "scored": 172,
+   "errorM": 27,
+   "uncertaintyM": 50,
+   "minRms": 0.47,
+   "fix": false,
+   "estimate": {
+    "lat": 18.49163,
+    "lon": 77.31339
+   }
+  },
+  {
+   "site": "cheyava_falls",
+   "truth": 2,
+   "noise": 0.15,
+   "visKm": 10,
+   "scored": 180,
+   "errorM": 27,
+   "uncertaintyM": 50,
+   "minRms": 0.462,
+   "fix": false,
+   "estimate": {
+    "lat": 18.49163,
+    "lon": 77.31339
+   }
+  },
+  {
+   "site": "cheyava_falls",
+   "truth": 2,
+   "noise": 0.15,
+   "visKm": 6,
+   "scored": 170,
+   "errorM": 27,
+   "uncertaintyM": 50,
+   "minRms": 0.473,
+   "fix": false,
+   "estimate": {
+    "lat": 18.49163,
+    "lon": 77.31339
+   }
+  },
+  {
+   "site": "cheyava_falls",
+   "truth": 2,
+   "noise": 0.15,
+   "visKm": 4,
+   "scored": 158,
+   "errorM": 27,
+   "uncertaintyM": 50,
+   "minRms": 0.489,
+   "fix": false,
+   "estimate": {
+    "lat": 18.49163,
+    "lon": 77.31339
+   }
+  },
+  {
+   "site": "cheyava_falls",
+   "truth": 2,
+   "noise": 0.15,
+   "visKm": 3,
+   "scored": 138,
+   "errorM": 27,
+   "uncertaintyM": 50,
+   "minRms": 0.519,
+   "fix": false,
+   "estimate": {
+    "lat": 18.49163,
+    "lon": 77.31339
+   }
+  },
+  {
+   "site": "cheyava_falls",
+   "truth": 2,
+   "noise": 0.15,
+   "visKm": 2,
+   "scored": 126,
+   "errorM": 27,
+   "uncertaintyM": 50,
+   "minRms": 0.562,
+   "fix": false,
+   "estimate": {
+    "lat": 18.49163,
+    "lon": 77.31339
+   }
+  },
+  {
+   "site": "cheyava_falls",
+   "truth": 2,
+   "noise": 0.15,
+   "visKm": 1.5,
+   "scored": 128,
+   "errorM": 27,
+   "uncertaintyM": 50,
+   "minRms": 0.554,
+   "fix": false,
+   "estimate": {
+    "lat": 18.49163,
+    "lon": 77.31339
+   }
+  },
+  {
+   "site": "cheyava_falls",
+   "truth": 2,
+   "noise": 0.15,
+   "visKm": 1,
+   "scored": 147,
+   "errorM": 27,
+   "uncertaintyM": 50,
+   "minRms": 0.539,
+   "fix": false,
+   "estimate": {
+    "lat": 18.49163,
+    "lon": 77.31339
+   }
+  },
+  {
+   "site": "cheyava_falls",
+   "truth": 2,
+   "noise": 0.15,
+   "visKm": 0.6,
+   "scored": 93,
+   "errorM": 27,
+   "uncertaintyM": 50,
+   "minRms": 0.655,
+   "fix": false,
+   "estimate": {
+    "lat": 18.49163,
+    "lon": 77.31339
+   }
+  },
+  {
+   "site": "cheyava_falls",
+   "truth": 2,
+   "noise": 0.15,
+   "visKm": 0.3,
+   "scored": 107,
+   "errorM": 27,
+   "uncertaintyM": 50,
+   "minRms": 0.641,
+   "fix": false,
+   "estimate": {
+    "lat": 18.49163,
+    "lon": 77.31339
+   }
+  },
+  {
+   "site": "cheyava_falls",
+   "truth": 2,
+   "noise": 0.3,
+   "visKm": 15,
+   "scored": 172,
+   "errorM": 27,
+   "uncertaintyM": 50,
+   "minRms": 0.472,
+   "fix": true,
+   "estimate": {
+    "lat": 18.49163,
+    "lon": 77.31339
+   }
+  },
+  {
+   "site": "cheyava_falls",
+   "truth": 2,
+   "noise": 0.3,
+   "visKm": 10,
+   "scored": 180,
+   "errorM": 27,
+   "uncertaintyM": 50,
+   "minRms": 0.469,
+   "fix": true,
+   "estimate": {
+    "lat": 18.49163,
+    "lon": 77.31339
+   }
+  },
+  {
+   "site": "cheyava_falls",
+   "truth": 2,
+   "noise": 0.3,
+   "visKm": 6,
+   "scored": 170,
+   "errorM": 27,
+   "uncertaintyM": 50,
+   "minRms": 0.476,
+   "fix": true,
+   "estimate": {
+    "lat": 18.49163,
+    "lon": 77.31339
+   }
+  },
+  {
+   "site": "cheyava_falls",
+   "truth": 2,
+   "noise": 0.3,
+   "visKm": 4,
+   "scored": 158,
+   "errorM": 27,
+   "uncertaintyM": 50,
+   "minRms": 0.488,
+   "fix": true,
+   "estimate": {
+    "lat": 18.49163,
+    "lon": 77.31339
+   }
+  },
+  {
+   "site": "cheyava_falls",
+   "truth": 2,
+   "noise": 0.3,
+   "visKm": 3,
+   "scored": 138,
+   "errorM": 27,
+   "uncertaintyM": 50,
+   "minRms": 0.52,
+   "fix": true,
+   "estimate": {
+    "lat": 18.49163,
+    "lon": 77.31339
+   }
+  },
+  {
+   "site": "cheyava_falls",
+   "truth": 2,
+   "noise": 0.3,
+   "visKm": 2,
+   "scored": 126,
+   "errorM": 27,
+   "uncertaintyM": 50,
+   "minRms": 0.565,
+   "fix": true,
+   "estimate": {
+    "lat": 18.49163,
+    "lon": 77.31339
+   }
+  },
+  {
+   "site": "cheyava_falls",
+   "truth": 2,
+   "noise": 0.3,
+   "visKm": 1.5,
+   "scored": 128,
+   "errorM": 27,
+   "uncertaintyM": 50,
+   "minRms": 0.564,
+   "fix": true,
+   "estimate": {
+    "lat": 18.49163,
+    "lon": 77.31339
+   }
+  },
+  {
+   "site": "cheyava_falls",
+   "truth": 2,
+   "noise": 0.3,
+   "visKm": 1,
+   "scored": 147,
+   "errorM": 27,
+   "uncertaintyM": 50,
+   "minRms": 0.557,
+   "fix": true,
+   "estimate": {
+    "lat": 18.49163,
+    "lon": 77.31339
+   }
+  },
+  {
+   "site": "cheyava_falls",
+   "truth": 2,
+   "noise": 0.3,
+   "visKm": 0.6,
+   "scored": 93,
+   "errorM": 27,
+   "uncertaintyM": 50,
+   "minRms": 0.646,
+   "fix": true,
+   "estimate": {
+    "lat": 18.49163,
+    "lon": 77.31339
+   }
+  },
+  {
+   "site": "cheyava_falls",
+   "truth": 2,
+   "noise": 0.3,
+   "visKm": 0.3,
+   "scored": 107,
+   "errorM": 27,
+   "uncertaintyM": 50,
+   "minRms": 0.647,
+   "fix": true,
+   "estimate": {
+    "lat": 18.49163,
+    "lon": 77.31339
+   }
+  },
+  {
+   "site": "cheyava_falls",
+   "truth": 3,
+   "noise": 0.15,
+   "visKm": 15,
+   "scored": 180,
+   "errorM": 71,
+   "uncertaintyM": 100,
+   "minRms": 0.914,
+   "fix": false,
+   "estimate": {
+    "lat": 18.495,
+    "lon": 77.30272
+   }
+  },
+  {
+   "site": "cheyava_falls",
+   "truth": 3,
+   "noise": 0.15,
+   "visKm": 10,
+   "scored": 180,
+   "errorM": 71,
+   "uncertaintyM": 100,
+   "minRms": 0.914,
+   "fix": false,
+   "estimate": {
+    "lat": 18.495,
+    "lon": 77.30272
+   }
+  },
+  {
+   "site": "cheyava_falls",
+   "truth": 3,
+   "noise": 0.15,
+   "visKm": 6,
+   "scored": 180,
+   "errorM": 71,
+   "uncertaintyM": 100,
+   "minRms": 0.914,
+   "fix": false,
+   "estimate": {
+    "lat": 18.495,
+    "lon": 77.30272
+   }
+  },
+  {
+   "site": "cheyava_falls",
+   "truth": 3,
+   "noise": 0.15,
+   "visKm": 4,
+   "scored": 179,
+   "errorM": 71,
+   "uncertaintyM": 100,
+   "minRms": 0.912,
+   "fix": false,
+   "estimate": {
+    "lat": 18.495,
+    "lon": 77.30272
+   }
+  },
+  {
+   "site": "cheyava_falls",
+   "truth": 3,
+   "noise": 0.15,
+   "visKm": 3,
+   "scored": 167,
+   "errorM": 71,
+   "uncertaintyM": 100,
+   "minRms": 0.953,
+   "fix": false,
+   "estimate": {
+    "lat": 18.495,
+    "lon": 77.30272
+   }
+  },
+  {
+   "site": "cheyava_falls",
+   "truth": 3,
+   "noise": 0.15,
+   "visKm": 2,
+   "scored": 156,
+   "errorM": 41,
+   "uncertaintyM": 100,
+   "minRms": 0.96,
+   "fix": false,
+   "estimate": {
+    "lat": 18.495,
+    "lon": 77.30094
+   }
+  },
+  {
+   "site": "cheyava_falls",
+   "truth": 3,
+   "noise": 0.15,
+   "visKm": 1.5,
+   "scored": 154,
+   "errorM": 71,
+   "uncertaintyM": 100,
+   "minRms": 0.952,
+   "fix": false,
+   "estimate": {
+    "lat": 18.495,
+    "lon": 77.30272
+   }
+  },
+  {
+   "site": "cheyava_falls",
+   "truth": 3,
+   "noise": 0.15,
+   "visKm": 1,
+   "scored": 141,
+   "errorM": 71,
+   "uncertaintyM": 100,
+   "minRms": 0.973,
+   "fix": false,
+   "estimate": {
+    "lat": 18.495,
+    "lon": 77.30272
+   }
+  },
+  {
+   "site": "cheyava_falls",
+   "truth": 3,
+   "noise": 0.15,
+   "visKm": 0.6,
+   "scored": 92,
+   "errorM": 71,
+   "uncertaintyM": 1513,
+   "minRms": 0.904,
+   "fix": false,
+   "estimate": {
+    "lat": 18.495,
+    "lon": 77.30272
+   }
+  },
+  {
+   "site": "cheyava_falls",
+   "truth": 3,
+   "noise": 0.15,
+   "visKm": 0.3,
+   "scored": 18,
+   "errorM": 71,
+   "uncertaintyM": 50,
+   "minRms": 0.487,
+   "fix": false,
+   "estimate": {
+    "lat": 18.495,
+    "lon": 77.30272
+   }
+  },
+  {
+   "site": "cheyava_falls",
+   "truth": 3,
+   "noise": 0.3,
+   "visKm": 15,
+   "scored": 180,
+   "errorM": 71,
+   "uncertaintyM": 100,
+   "minRms": 0.948,
+   "fix": false,
+   "estimate": {
+    "lat": 18.495,
+    "lon": 77.30272
+   }
+  },
+  {
+   "site": "cheyava_falls",
+   "truth": 3,
+   "noise": 0.3,
+   "visKm": 10,
+   "scored": 180,
+   "errorM": 71,
+   "uncertaintyM": 100,
+   "minRms": 0.948,
+   "fix": false,
+   "estimate": {
+    "lat": 18.495,
+    "lon": 77.30272
+   }
+  },
+  {
+   "site": "cheyava_falls",
+   "truth": 3,
+   "noise": 0.3,
+   "visKm": 6,
+   "scored": 180,
+   "errorM": 71,
+   "uncertaintyM": 100,
+   "minRms": 0.948,
+   "fix": false,
+   "estimate": {
+    "lat": 18.495,
+    "lon": 77.30272
+   }
+  },
+  {
+   "site": "cheyava_falls",
+   "truth": 3,
+   "noise": 0.3,
+   "visKm": 4,
+   "scored": 179,
+   "errorM": 71,
+   "uncertaintyM": 100,
+   "minRms": 0.947,
+   "fix": false,
+   "estimate": {
+    "lat": 18.495,
+    "lon": 77.30272
+   }
+  },
+  {
+   "site": "cheyava_falls",
+   "truth": 3,
+   "noise": 0.3,
+   "visKm": 3,
+   "scored": 167,
+   "errorM": 71,
+   "uncertaintyM": 100,
+   "minRms": 0.985,
+   "fix": false,
+   "estimate": {
+    "lat": 18.495,
+    "lon": 77.30272
+   }
+  },
+  {
+   "site": "cheyava_falls",
+   "truth": 3,
+   "noise": 0.3,
+   "visKm": 2,
+   "scored": 156,
+   "errorM": 71,
+   "uncertaintyM": 100,
+   "minRms": 0.995,
+   "fix": false,
+   "estimate": {
+    "lat": 18.495,
+    "lon": 77.30272
+   }
+  },
+  {
+   "site": "cheyava_falls",
+   "truth": 3,
+   "noise": 0.3,
+   "visKm": 1.5,
+   "scored": 154,
+   "errorM": 71,
+   "uncertaintyM": 100,
+   "minRms": 0.989,
+   "fix": false,
+   "estimate": {
+    "lat": 18.495,
+    "lon": 77.30272
+   }
+  },
+  {
+   "site": "cheyava_falls",
+   "truth": 3,
+   "noise": 0.3,
+   "visKm": 1,
+   "scored": 141,
+   "errorM": 71,
+   "uncertaintyM": 100,
+   "minRms": 0.988,
+   "fix": false,
+   "estimate": {
+    "lat": 18.495,
+    "lon": 77.30272
+   }
+  },
+  {
+   "site": "cheyava_falls",
+   "truth": 3,
+   "noise": 0.3,
+   "visKm": 0.6,
+   "scored": 92,
+   "errorM": 1451,
+   "uncertaintyM": 1513,
+   "minRms": 0.896,
+   "fix": false,
+   "estimate": {
+    "lat": 18.49837,
+    "lon": 77.27604
+   }
+  },
+  {
+   "site": "cheyava_falls",
+   "truth": 3,
+   "noise": 0.3,
+   "visKm": 0.3,
+   "scored": 18,
+   "errorM": 71,
+   "uncertaintyM": 50,
+   "minRms": 0.542,
+   "fix": false,
+   "estimate": {
+    "lat": 18.495,
+    "lon": 77.30272
+   }
+  },
+  {
+   "site": "delta_top",
+   "truth": 0,
+   "noise": 0.15,
+   "visKm": 15,
+   "scored": 123,
+   "errorM": 64,
+   "uncertaintyM": 50,
+   "minRms": 0.459,
+   "fix": false,
+   "estimate": {
+    "lat": 18.46945,
+    "lon": 77.29101
+   }
+  },
+  {
+   "site": "delta_top",
+   "truth": 0,
+   "noise": 0.15,
+   "visKm": 10,
+   "scored": 127,
+   "errorM": 64,
+   "uncertaintyM": 50,
+   "minRms": 0.457,
+   "fix": false,
+   "estimate": {
+    "lat": 18.46945,
+    "lon": 77.29101
+   }
+  },
+  {
+   "site": "delta_top",
+   "truth": 0,
+   "noise": 0.15,
+   "visKm": 6,
+   "scored": 129,
+   "errorM": 64,
+   "uncertaintyM": 50,
+   "minRms": 0.466,
+   "fix": false,
+   "estimate": {
+    "lat": 18.46945,
+    "lon": 77.29101
+   }
+  },
+  {
+   "site": "delta_top",
+   "truth": 0,
+   "noise": 0.15,
+   "visKm": 4,
+   "scored": 124,
+   "errorM": 64,
+   "uncertaintyM": 50,
+   "minRms": 0.503,
+   "fix": false,
+   "estimate": {
+    "lat": 18.46945,
+    "lon": 77.29101
+   }
+  },
+  {
+   "site": "delta_top",
+   "truth": 0,
+   "noise": 0.15,
+   "visKm": 3,
+   "scored": 130,
+   "errorM": 64,
+   "uncertaintyM": 100,
+   "minRms": 0.534,
+   "fix": false,
+   "estimate": {
+    "lat": 18.46945,
+    "lon": 77.29101
+   }
+  },
+  {
+   "site": "delta_top",
+   "truth": 0,
+   "noise": 0.15,
+   "visKm": 2,
+   "scored": 161,
+   "errorM": 64,
+   "uncertaintyM": 100,
+   "minRms": 0.548,
+   "fix": false,
+   "estimate": {
+    "lat": 18.46945,
+    "lon": 77.29101
+   }
+  },
+  {
+   "site": "delta_top",
+   "truth": 0,
+   "noise": 0.15,
+   "visKm": 1.5,
+   "scored": 169,
+   "errorM": 44,
+   "uncertaintyM": 100,
+   "minRms": 0.533,
+   "fix": false,
+   "estimate": {
+    "lat": 18.46776,
+    "lon": 77.29101
+   }
+  },
+  {
+   "site": "delta_top",
+   "truth": 0,
+   "noise": 0.15,
+   "visKm": 1,
+   "scored": 180,
+   "errorM": 64,
+   "uncertaintyM": 100,
+   "minRms": 0.591,
+   "fix": false,
+   "estimate": {
+    "lat": 18.46945,
+    "lon": 77.29101
+   }
+  },
+  {
+   "site": "delta_top",
+   "truth": 0,
+   "noise": 0.15,
+   "visKm": 0.6,
+   "scored": 103,
+   "errorM": 64,
+   "uncertaintyM": 700,
+   "minRms": 0.634,
+   "fix": false,
+   "estimate": {
+    "lat": 18.46945,
+    "lon": 77.29101
+   }
+  },
+  {
+   "site": "delta_top",
+   "truth": 0,
+   "noise": 0.15,
+   "visKm": 0.3,
+   "scored": 96,
+   "errorM": 64,
+   "uncertaintyM": 2062,
+   "minRms": 0.671,
+   "fix": false,
+   "estimate": {
+    "lat": 18.46945,
+    "lon": 77.29101
+   }
+  },
+  {
+   "site": "delta_top",
+   "truth": 0,
+   "noise": 0.3,
+   "visKm": 15,
+   "scored": 123,
+   "errorM": 64,
+   "uncertaintyM": 100,
+   "minRms": 0.546,
+   "fix": true,
+   "estimate": {
+    "lat": 18.46945,
+    "lon": 77.29101
+   }
+  },
+  {
+   "site": "delta_top",
+   "truth": 0,
+   "noise": 0.3,
+   "visKm": 10,
+   "scored": 127,
+   "errorM": 64,
+   "uncertaintyM": 100,
+   "minRms": 0.542,
+   "fix": true,
+   "estimate": {
+    "lat": 18.46945,
+    "lon": 77.29101
+   }
+  },
+  {
+   "site": "delta_top",
+   "truth": 0,
+   "noise": 0.3,
+   "visKm": 6,
+   "scored": 129,
+   "errorM": 64,
+   "uncertaintyM": 100,
+   "minRms": 0.554,
+   "fix": true,
+   "estimate": {
+    "lat": 18.46945,
+    "lon": 77.29101
+   }
+  },
+  {
+   "site": "delta_top",
+   "truth": 0,
+   "noise": 0.3,
+   "visKm": 4,
+   "scored": 124,
+   "errorM": 64,
+   "uncertaintyM": 100,
+   "minRms": 0.594,
+   "fix": true,
+   "estimate": {
+    "lat": 18.46945,
+    "lon": 77.29101
+   }
+  },
+  {
+   "site": "delta_top",
+   "truth": 0,
+   "noise": 0.3,
+   "visKm": 3,
+   "scored": 130,
+   "errorM": 64,
+   "uncertaintyM": 100,
+   "minRms": 0.607,
+   "fix": true,
+   "estimate": {
+    "lat": 18.46945,
+    "lon": 77.29101
+   }
+  },
+  {
+   "site": "delta_top",
+   "truth": 0,
+   "noise": 0.3,
+   "visKm": 2,
+   "scored": 161,
+   "errorM": 64,
+   "uncertaintyM": 100,
+   "minRms": 0.621,
+   "fix": true,
+   "estimate": {
+    "lat": 18.46945,
+    "lon": 77.29101
+   }
+  },
+  {
+   "site": "delta_top",
+   "truth": 0,
+   "noise": 0.3,
+   "visKm": 1.5,
+   "scored": 169,
+   "errorM": 44,
+   "uncertaintyM": 100,
+   "minRms": 0.616,
+   "fix": true,
+   "estimate": {
+    "lat": 18.46776,
+    "lon": 77.29101
+   }
+  },
+  {
+   "site": "delta_top",
+   "truth": 0,
+   "noise": 0.3,
+   "visKm": 1,
+   "scored": 180,
+   "errorM": 44,
+   "uncertaintyM": 100,
+   "minRms": 0.654,
+   "fix": true,
+   "estimate": {
+    "lat": 18.46776,
+    "lon": 77.29101
+   }
+  },
+  {
+   "site": "delta_top",
+   "truth": 0,
+   "noise": 0.3,
+   "visKm": 0.6,
+   "scored": 103,
+   "errorM": 64,
+   "uncertaintyM": 700,
+   "minRms": 0.706,
+   "fix": false,
+   "estimate": {
+    "lat": 18.46945,
+    "lon": 77.29101
+   }
+  },
+  {
+   "site": "delta_top",
+   "truth": 0,
+   "noise": 0.3,
+   "visKm": 0.3,
+   "scored": 96,
+   "errorM": 64,
+   "uncertaintyM": 2062,
+   "minRms": 0.748,
+   "fix": false,
+   "estimate": {
+    "lat": 18.46945,
+    "lon": 77.29101
+   }
+  },
+  {
+   "site": "delta_top",
+   "truth": 1,
+   "noise": 0.15,
+   "visKm": 15,
+   "scored": 121,
+   "errorM": 30,
+   "uncertaintyM": 50,
+   "minRms": 0.417,
+   "fix": true,
+   "estimate": {
+    "lat": 18.4762,
+    "lon": 77.2999
+   }
+  },
+  {
+   "site": "delta_top",
+   "truth": 1,
+   "noise": 0.15,
+   "visKm": 10,
+   "scored": 125,
+   "errorM": 30,
+   "uncertaintyM": 50,
+   "minRms": 0.412,
+   "fix": true,
+   "estimate": {
+    "lat": 18.4762,
+    "lon": 77.2999
+   }
+  },
+  {
+   "site": "delta_top",
+   "truth": 1,
+   "noise": 0.15,
+   "visKm": 6,
+   "scored": 123,
+   "errorM": 30,
+   "uncertaintyM": 50,
+   "minRms": 0.416,
+   "fix": true,
+   "estimate": {
+    "lat": 18.4762,
+    "lon": 77.2999
+   }
+  },
+  {
+   "site": "delta_top",
+   "truth": 1,
+   "noise": 0.15,
+   "visKm": 4,
+   "scored": 114,
+   "errorM": 30,
+   "uncertaintyM": 50,
+   "minRms": 0.429,
+   "fix": true,
+   "estimate": {
+    "lat": 18.4762,
+    "lon": 77.2999
+   }
+  },
+  {
+   "site": "delta_top",
+   "truth": 1,
+   "noise": 0.15,
+   "visKm": 3,
+   "scored": 109,
+   "errorM": 30,
+   "uncertaintyM": 50,
+   "minRms": 0.438,
+   "fix": true,
+   "estimate": {
+    "lat": 18.4762,
+    "lon": 77.2999
+   }
+  },
+  {
+   "site": "delta_top",
+   "truth": 1,
+   "noise": 0.15,
+   "visKm": 2,
+   "scored": 109,
+   "errorM": 30,
+   "uncertaintyM": 50,
+   "minRms": 0.44,
+   "fix": true,
+   "estimate": {
+    "lat": 18.4762,
+    "lon": 77.2999
+   }
+  },
+  {
+   "site": "delta_top",
+   "truth": 1,
+   "noise": 0.15,
+   "visKm": 1.5,
+   "scored": 120,
+   "errorM": 30,
+   "uncertaintyM": 50,
+   "minRms": 0.466,
+   "fix": false,
+   "estimate": {
+    "lat": 18.4762,
+    "lon": 77.2999
+   }
+  },
+  {
+   "site": "delta_top",
+   "truth": 1,
+   "noise": 0.15,
+   "visKm": 1,
+   "scored": 132,
+   "errorM": 30,
+   "uncertaintyM": 50,
+   "minRms": 0.513,
+   "fix": false,
+   "estimate": {
+    "lat": 18.4762,
+    "lon": 77.2999
+   }
+  },
+  {
+   "site": "delta_top",
+   "truth": 1,
+   "noise": 0.15,
+   "visKm": 0.6,
+   "scored": 88,
+   "errorM": 30,
+   "uncertaintyM": 50,
+   "minRms": 0.589,
+   "fix": false,
+   "estimate": {
+    "lat": 18.4762,
+    "lon": 77.2999
+   }
+  },
+  {
+   "site": "delta_top",
+   "truth": 1,
+   "noise": 0.15,
+   "visKm": 0.3,
+   "scored": 78,
+   "errorM": 30,
+   "uncertaintyM": 50,
+   "minRms": 0.624,
+   "fix": false,
+   "estimate": {
+    "lat": 18.4762,
+    "lon": 77.2999
+   }
+  },
+  {
+   "site": "delta_top",
+   "truth": 1,
+   "noise": 0.3,
+   "visKm": 15,
+   "scored": 121,
+   "errorM": 30,
+   "uncertaintyM": 50,
+   "minRms": 0.507,
+   "fix": true,
+   "estimate": {
+    "lat": 18.4762,
+    "lon": 77.2999
+   }
+  },
+  {
+   "site": "delta_top",
+   "truth": 1,
+   "noise": 0.3,
+   "visKm": 10,
+   "scored": 125,
+   "errorM": 30,
+   "uncertaintyM": 50,
+   "minRms": 0.505,
+   "fix": true,
+   "estimate": {
+    "lat": 18.4762,
+    "lon": 77.2999
+   }
+  },
+  {
+   "site": "delta_top",
+   "truth": 1,
+   "noise": 0.3,
+   "visKm": 6,
+   "scored": 123,
+   "errorM": 30,
+   "uncertaintyM": 50,
+   "minRms": 0.505,
+   "fix": true,
+   "estimate": {
+    "lat": 18.4762,
+    "lon": 77.2999
+   }
+  },
+  {
+   "site": "delta_top",
+   "truth": 1,
+   "noise": 0.3,
+   "visKm": 4,
+   "scored": 114,
+   "errorM": 30,
+   "uncertaintyM": 50,
+   "minRms": 0.517,
+   "fix": true,
+   "estimate": {
+    "lat": 18.4762,
+    "lon": 77.2999
+   }
+  },
+  {
+   "site": "delta_top",
+   "truth": 1,
+   "noise": 0.3,
+   "visKm": 3,
+   "scored": 109,
+   "errorM": 30,
+   "uncertaintyM": 50,
+   "minRms": 0.529,
+   "fix": true,
+   "estimate": {
+    "lat": 18.4762,
+    "lon": 77.2999
+   }
+  },
+  {
+   "site": "delta_top",
+   "truth": 1,
+   "noise": 0.3,
+   "visKm": 2,
+   "scored": 109,
+   "errorM": 30,
+   "uncertaintyM": 50,
+   "minRms": 0.532,
+   "fix": true,
+   "estimate": {
+    "lat": 18.4762,
+    "lon": 77.2999
+   }
+  },
+  {
+   "site": "delta_top",
+   "truth": 1,
+   "noise": 0.3,
+   "visKm": 1.5,
+   "scored": 120,
+   "errorM": 30,
+   "uncertaintyM": 50,
+   "minRms": 0.563,
+   "fix": true,
+   "estimate": {
+    "lat": 18.4762,
+    "lon": 77.2999
+   }
+  },
+  {
+   "site": "delta_top",
+   "truth": 1,
+   "noise": 0.3,
+   "visKm": 1,
+   "scored": 132,
+   "errorM": 30,
+   "uncertaintyM": 50,
+   "minRms": 0.629,
+   "fix": true,
+   "estimate": {
+    "lat": 18.4762,
+    "lon": 77.2999
+   }
+  },
+  {
+   "site": "delta_top",
+   "truth": 1,
+   "noise": 0.3,
+   "visKm": 0.6,
+   "scored": 88,
+   "errorM": 30,
+   "uncertaintyM": 50,
+   "minRms": 0.702,
+   "fix": true,
+   "estimate": {
+    "lat": 18.4762,
+    "lon": 77.2999
+   }
+  },
+  {
+   "site": "delta_top",
+   "truth": 1,
+   "noise": 0.3,
+   "visKm": 0.3,
+   "scored": 78,
+   "errorM": 30,
+   "uncertaintyM": 50,
+   "minRms": 0.744,
+   "fix": true,
+   "estimate": {
+    "lat": 18.4762,
+    "lon": 77.2999
+   }
+  },
+  {
+   "site": "delta_top",
+   "truth": 2,
+   "noise": 0.15,
+   "visKm": 15,
+   "scored": 127,
+   "errorM": 50,
+   "uncertaintyM": 50,
+   "minRms": 0.489,
+   "fix": false,
+   "estimate": {
+    "lat": 18.46776,
+    "lon": 77.29101
+   }
+  },
+  {
+   "site": "delta_top",
+   "truth": 2,
+   "noise": 0.15,
+   "visKm": 10,
+   "scored": 130,
+   "errorM": 50,
+   "uncertaintyM": 50,
+   "minRms": 0.49,
+   "fix": false,
+   "estimate": {
+    "lat": 18.46776,
+    "lon": 77.29101
+   }
+  },
+  {
+   "site": "delta_top",
+   "truth": 2,
+   "noise": 0.15,
+   "visKm": 6,
+   "scored": 130,
+   "errorM": 50,
+   "uncertaintyM": 50,
+   "minRms": 0.49,
+   "fix": false,
+   "estimate": {
+    "lat": 18.46776,
+    "lon": 77.29101
+   }
+  },
+  {
+   "site": "delta_top",
+   "truth": 2,
+   "noise": 0.15,
+   "visKm": 4,
+   "scored": 126,
+   "errorM": 50,
+   "uncertaintyM": 50,
+   "minRms": 0.484,
+   "fix": false,
+   "estimate": {
+    "lat": 18.46776,
+    "lon": 77.29101
+   }
+  },
+  {
+   "site": "delta_top",
+   "truth": 2,
+   "noise": 0.15,
+   "visKm": 3,
+   "scored": 144,
+   "errorM": 50,
+   "uncertaintyM": 50,
+   "minRms": 0.587,
+   "fix": false,
+   "estimate": {
+    "lat": 18.46776,
+    "lon": 77.29101
+   }
+  },
+  {
+   "site": "delta_top",
+   "truth": 2,
+   "noise": 0.15,
+   "visKm": 2,
+   "scored": 171,
+   "errorM": 50,
+   "uncertaintyM": 700,
+   "minRms": 0.805,
+   "fix": false,
+   "estimate": {
+    "lat": 18.46776,
+    "lon": 77.29101
+   }
+  },
+  {
+   "site": "delta_top",
+   "truth": 2,
+   "noise": 0.15,
+   "visKm": 1.5,
+   "scored": 176,
+   "errorM": 707,
+   "uncertaintyM": 700,
+   "minRms": 0.827,
+   "fix": false,
+   "estimate": {
+    "lat": 18.45595,
+    "lon": 77.29101
+   }
+  },
+  {
+   "site": "delta_top",
+   "truth": 2,
+   "noise": 0.15,
+   "visKm": 1,
+   "scored": 180,
+   "errorM": 707,
+   "uncertaintyM": 50,
+   "minRms": 0.822,
+   "fix": false,
+   "estimate": {
+    "lat": 18.45595,
+    "lon": 77.29101
+   }
+  },
+  {
+   "site": "delta_top",
+   "truth": 2,
+   "noise": 0.15,
+   "visKm": 0.6,
+   "scored": 122,
+   "errorM": 707,
+   "uncertaintyM": 100,
+   "minRms": 0.888,
+   "fix": false,
+   "estimate": {
+    "lat": 18.45595,
+    "lon": 77.29101
+   }
+  },
+  {
+   "site": "delta_top",
+   "truth": 2,
+   "noise": 0.15,
+   "visKm": 0.3,
+   "scored": 156,
+   "errorM": 2737,
+   "uncertaintyM": 4429,
+   "minRms": 1.239,
+   "fix": false,
+   "estimate": {
+    "lat": 18.49644,
+    "lon": 77.25366
+   }
+  },
+  {
+   "site": "delta_top",
+   "truth": 2,
+   "noise": 0.3,
+   "visKm": 15,
+   "scored": 127,
+   "errorM": 50,
+   "uncertaintyM": 50,
+   "minRms": 0.562,
+   "fix": true,
+   "estimate": {
+    "lat": 18.46776,
+    "lon": 77.29101
+   }
+  },
+  {
+   "site": "delta_top",
+   "truth": 2,
+   "noise": 0.3,
+   "visKm": 10,
+   "scored": 130,
+   "errorM": 50,
+   "uncertaintyM": 50,
+   "minRms": 0.561,
+   "fix": true,
+   "estimate": {
+    "lat": 18.46776,
+    "lon": 77.29101
+   }
+  },
+  {
+   "site": "delta_top",
+   "truth": 2,
+   "noise": 0.3,
+   "visKm": 6,
+   "scored": 130,
+   "errorM": 50,
+   "uncertaintyM": 50,
+   "minRms": 0.559,
+   "fix": true,
+   "estimate": {
+    "lat": 18.46776,
+    "lon": 77.29101
+   }
+  },
+  {
+   "site": "delta_top",
+   "truth": 2,
+   "noise": 0.3,
+   "visKm": 4,
+   "scored": 126,
+   "errorM": 50,
+   "uncertaintyM": 50,
+   "minRms": 0.558,
+   "fix": true,
+   "estimate": {
+    "lat": 18.46776,
+    "lon": 77.29101
+   }
+  },
+  {
+   "site": "delta_top",
+   "truth": 2,
+   "noise": 0.3,
+   "visKm": 3,
+   "scored": 144,
+   "errorM": 50,
+   "uncertaintyM": 50,
+   "minRms": 0.636,
+   "fix": true,
+   "estimate": {
+    "lat": 18.46776,
+    "lon": 77.29101
+   }
+  },
+  {
+   "site": "delta_top",
+   "truth": 2,
+   "noise": 0.3,
+   "visKm": 2,
+   "scored": 171,
+   "errorM": 50,
+   "uncertaintyM": 700,
+   "minRms": 0.846,
+   "fix": false,
+   "estimate": {
+    "lat": 18.46776,
+    "lon": 77.29101
+   }
+  },
+  {
+   "site": "delta_top",
+   "truth": 2,
+   "noise": 0.3,
+   "visKm": 1.5,
+   "scored": 176,
+   "errorM": 707,
+   "uncertaintyM": 700,
+   "minRms": 0.863,
+   "fix": false,
+   "estimate": {
+    "lat": 18.45595,
+    "lon": 77.29101
+   }
+  },
+  {
+   "site": "delta_top",
+   "truth": 2,
+   "noise": 0.3,
+   "visKm": 1,
+   "scored": 180,
+   "errorM": 707,
+   "uncertaintyM": 50,
+   "minRms": 0.858,
+   "fix": true,
+   "estimate": {
+    "lat": 18.45595,
+    "lon": 77.29101
+   }
+  },
+  {
+   "site": "delta_top",
+   "truth": 2,
+   "noise": 0.3,
+   "visKm": 0.6,
+   "scored": 122,
+   "errorM": 707,
+   "uncertaintyM": 721,
+   "minRms": 0.924,
+   "fix": false,
+   "estimate": {
+    "lat": 18.45595,
+    "lon": 77.29279
+   }
+  },
+  {
+   "site": "delta_top",
+   "truth": 2,
+   "noise": 0.3,
+   "visKm": 0.3,
+   "scored": 156,
+   "errorM": 2737,
+   "uncertaintyM": 50,
+   "minRms": 1.215,
+   "fix": false,
+   "estimate": {
+    "lat": 18.49644,
+    "lon": 77.25366
+   }
+  },
+  {
+   "site": "delta_top",
+   "truth": 3,
+   "noise": 0.15,
+   "visKm": 15,
+   "scored": 122,
+   "errorM": 20,
+   "uncertaintyM": 50,
+   "minRms": 0.284,
+   "fix": true,
+   "estimate": {
+    "lat": 18.46607,
+    "lon": 77.28567
+   }
+  },
+  {
+   "site": "delta_top",
+   "truth": 3,
+   "noise": 0.15,
+   "visKm": 10,
+   "scored": 126,
+   "errorM": 20,
+   "uncertaintyM": 50,
+   "minRms": 0.282,
+   "fix": true,
+   "estimate": {
+    "lat": 18.46607,
+    "lon": 77.28567
+   }
+  },
+  {
+   "site": "delta_top",
+   "truth": 3,
+   "noise": 0.15,
+   "visKm": 6,
+   "scored": 133,
+   "errorM": 20,
+   "uncertaintyM": 50,
+   "minRms": 0.288,
+   "fix": true,
+   "estimate": {
+    "lat": 18.46607,
+    "lon": 77.28567
+   }
+  },
+  {
+   "site": "delta_top",
+   "truth": 3,
+   "noise": 0.15,
+   "visKm": 4,
+   "scored": 157,
+   "errorM": 20,
+   "uncertaintyM": 50,
+   "minRms": 0.305,
+   "fix": true,
+   "estimate": {
+    "lat": 18.46607,
+    "lon": 77.28567
+   }
+  },
+  {
+   "site": "delta_top",
+   "truth": 3,
+   "noise": 0.15,
+   "visKm": 3,
+   "scored": 176,
+   "errorM": 20,
+   "uncertaintyM": 50,
+   "minRms": 0.605,
+   "fix": false,
+   "estimate": {
+    "lat": 18.46607,
+    "lon": 77.28567
+   }
+  },
+  {
+   "site": "delta_top",
+   "truth": 3,
+   "noise": 0.15,
+   "visKm": 2,
+   "scored": 179,
+   "errorM": 20,
+   "uncertaintyM": 50,
+   "minRms": 0.775,
+   "fix": false,
+   "estimate": {
+    "lat": 18.46607,
+    "lon": 77.28567
+   }
+  },
+  {
+   "site": "delta_top",
+   "truth": 3,
+   "noise": 0.15,
+   "visKm": 1.5,
+   "scored": 171,
+   "errorM": 20,
+   "uncertaintyM": 50,
+   "minRms": 0.792,
+   "fix": false,
+   "estimate": {
+    "lat": 18.46607,
+    "lon": 77.28567
+   }
+  },
+  {
+   "site": "delta_top",
+   "truth": 3,
+   "noise": 0.15,
+   "visKm": 1,
+   "scored": 155,
+   "errorM": 20,
+   "uncertaintyM": 50,
+   "minRms": 0.835,
+   "fix": false,
+   "estimate": {
+    "lat": 18.46607,
+    "lon": 77.28567
+   }
+  },
+  {
+   "site": "delta_top",
+   "truth": 3,
+   "noise": 0.15,
+   "visKm": 0.6,
+   "scored": 130,
+   "errorM": 20,
+   "uncertaintyM": 50,
+   "minRms": 0.921,
+   "fix": false,
+   "estimate": {
+    "lat": 18.46607,
+    "lon": 77.28567
+   }
+  },
+  {
+   "site": "delta_top",
+   "truth": 3,
+   "noise": 0.15,
+   "visKm": 0.3,
+   "scored": 106,
+   "errorM": 4330,
+   "uncertaintyM": 1992,
+   "minRms": 0.976,
+   "fix": false,
+   "estimate": {
+    "lat": 18.53862,
+    "lon": 77.29101
+   }
+  },
+  {
+   "site": "delta_top",
+   "truth": 3,
+   "noise": 0.3,
+   "visKm": 15,
+   "scored": 122,
+   "errorM": 20,
+   "uncertaintyM": 50,
+   "minRms": 0.419,
+   "fix": true,
+   "estimate": {
+    "lat": 18.46607,
+    "lon": 77.28567
+   }
+  },
+  {
+   "site": "delta_top",
+   "truth": 3,
+   "noise": 0.3,
+   "visKm": 10,
+   "scored": 126,
+   "errorM": 20,
+   "uncertaintyM": 50,
+   "minRms": 0.419,
+   "fix": true,
+   "estimate": {
+    "lat": 18.46607,
+    "lon": 77.28567
+   }
+  },
+  {
+   "site": "delta_top",
+   "truth": 3,
+   "noise": 0.3,
+   "visKm": 6,
+   "scored": 133,
+   "errorM": 20,
+   "uncertaintyM": 50,
+   "minRms": 0.414,
+   "fix": true,
+   "estimate": {
+    "lat": 18.46607,
+    "lon": 77.28567
+   }
+  },
+  {
+   "site": "delta_top",
+   "truth": 3,
+   "noise": 0.3,
+   "visKm": 4,
+   "scored": 157,
+   "errorM": 20,
+   "uncertaintyM": 50,
+   "minRms": 0.417,
+   "fix": true,
+   "estimate": {
+    "lat": 18.46607,
+    "lon": 77.28567
+   }
+  },
+  {
+   "site": "delta_top",
+   "truth": 3,
+   "noise": 0.3,
+   "visKm": 3,
+   "scored": 176,
+   "errorM": 20,
+   "uncertaintyM": 50,
+   "minRms": 0.65,
+   "fix": true,
+   "estimate": {
+    "lat": 18.46607,
+    "lon": 77.28567
+   }
+  },
+  {
+   "site": "delta_top",
+   "truth": 3,
+   "noise": 0.3,
+   "visKm": 2,
+   "scored": 179,
+   "errorM": 20,
+   "uncertaintyM": 50,
+   "minRms": 0.799,
+   "fix": true,
+   "estimate": {
+    "lat": 18.46607,
+    "lon": 77.28567
+   }
+  },
+  {
+   "site": "delta_top",
+   "truth": 3,
+   "noise": 0.3,
+   "visKm": 1.5,
+   "scored": 171,
+   "errorM": 20,
+   "uncertaintyM": 50,
+   "minRms": 0.813,
+   "fix": true,
+   "estimate": {
+    "lat": 18.46607,
+    "lon": 77.28567
+   }
+  },
+  {
+   "site": "delta_top",
+   "truth": 3,
+   "noise": 0.3,
+   "visKm": 1,
+   "scored": 155,
+   "errorM": 20,
+   "uncertaintyM": 50,
+   "minRms": 0.846,
+   "fix": true,
+   "estimate": {
+    "lat": 18.46607,
+    "lon": 77.28567
+   }
+  },
+  {
+   "site": "delta_top",
+   "truth": 3,
+   "noise": 0.3,
+   "visKm": 0.6,
+   "scored": 130,
+   "errorM": 20,
+   "uncertaintyM": 50,
+   "minRms": 0.931,
+   "fix": false,
+   "estimate": {
+    "lat": 18.46607,
+    "lon": 77.28567
+   }
+  },
+  {
+   "site": "delta_top",
+   "truth": 3,
+   "noise": 0.3,
+   "visKm": 0.3,
+   "scored": 106,
+   "errorM": 3241,
+   "uncertaintyM": 3220,
+   "minRms": 1.045,
+   "fix": false,
+   "estimate": {
+    "lat": 18.515,
+    "lon": 77.31058
+   }
+  },
+  {
+   "site": "crater_rim",
+   "truth": 0,
+   "noise": 0.15,
+   "visKm": 15,
+   "scored": 177,
+   "errorM": 25,
+   "uncertaintyM": 50,
+   "minRms": 0.439,
+   "fix": true,
+   "estimate": {
+    "lat": 18.4356,
+    "lon": 77.23313
+   }
+  },
+  {
+   "site": "crater_rim",
+   "truth": 0,
+   "noise": 0.15,
+   "visKm": 10,
+   "scored": 168,
+   "errorM": 25,
+   "uncertaintyM": 50,
+   "minRms": 0.45,
+   "fix": true,
+   "estimate": {
+    "lat": 18.4356,
+    "lon": 77.23313
+   }
+  },
+  {
+   "site": "crater_rim",
+   "truth": 0,
+   "noise": 0.15,
+   "visKm": 6,
+   "scored": 172,
+   "errorM": 25,
+   "uncertaintyM": 50,
+   "minRms": 0.444,
+   "fix": true,
+   "estimate": {
+    "lat": 18.4356,
+    "lon": 77.23313
+   }
+  },
+  {
+   "site": "crater_rim",
+   "truth": 0,
+   "noise": 0.15,
+   "visKm": 4,
+   "scored": 161,
+   "errorM": 25,
+   "uncertaintyM": 50,
+   "minRms": 0.458,
+   "fix": false,
+   "estimate": {
+    "lat": 18.4356,
+    "lon": 77.23313
+   }
+  },
+  {
+   "site": "crater_rim",
+   "truth": 0,
+   "noise": 0.15,
+   "visKm": 3,
+   "scored": 157,
+   "errorM": 25,
+   "uncertaintyM": 50,
+   "minRms": 0.464,
+   "fix": false,
+   "estimate": {
+    "lat": 18.4356,
+    "lon": 77.23313
+   }
+  },
+  {
+   "site": "crater_rim",
+   "truth": 0,
+   "noise": 0.15,
+   "visKm": 2,
+   "scored": 120,
+   "errorM": 25,
+   "uncertaintyM": 50,
+   "minRms": 0.531,
+   "fix": false,
+   "estimate": {
+    "lat": 18.4356,
+    "lon": 77.23313
+   }
+  },
+  {
+   "site": "crater_rim",
+   "truth": 0,
+   "noise": 0.15,
+   "visKm": 1.5,
+   "scored": 126,
+   "errorM": 25,
+   "uncertaintyM": 50,
+   "minRms": 0.549,
+   "fix": false,
+   "estimate": {
+    "lat": 18.4356,
+    "lon": 77.23313
+   }
+  },
+  {
+   "site": "crater_rim",
+   "truth": 0,
+   "noise": 0.15,
+   "visKm": 1,
+   "scored": 135,
+   "errorM": 25,
+   "uncertaintyM": 50,
+   "minRms": 0.534,
+   "fix": false,
+   "estimate": {
+    "lat": 18.4356,
+    "lon": 77.23313
+   }
+  },
+  {
+   "site": "crater_rim",
+   "truth": 0,
+   "noise": 0.15,
+   "visKm": 0.6,
+   "scored": 161,
+   "errorM": 25,
+   "uncertaintyM": 50,
+   "minRms": 0.565,
+   "fix": false,
+   "estimate": {
+    "lat": 18.4356,
+    "lon": 77.23313
+   }
+  },
+  {
+   "site": "crater_rim",
+   "truth": 0,
+   "noise": 0.15,
+   "visKm": 0.3,
+   "scored": 83,
+   "errorM": 3284,
+   "uncertaintyM": 1315,
+   "minRms": 0.491,
+   "fix": false,
+   "estimate": {
+    "lat": 18.39005,
+    "lon": 77.26692
+   }
+  },
+  {
+   "site": "crater_rim",
+   "truth": 0,
+   "noise": 0.3,
+   "visKm": 15,
+   "scored": 177,
+   "errorM": 25,
+   "uncertaintyM": 50,
+   "minRms": 0.531,
+   "fix": true,
+   "estimate": {
+    "lat": 18.4356,
+    "lon": 77.23313
+   }
+  },
+  {
+   "site": "crater_rim",
+   "truth": 0,
+   "noise": 0.3,
+   "visKm": 10,
+   "scored": 168,
+   "errorM": 25,
+   "uncertaintyM": 50,
+   "minRms": 0.545,
+   "fix": true,
+   "estimate": {
+    "lat": 18.4356,
+    "lon": 77.23313
+   }
+  },
+  {
+   "site": "crater_rim",
+   "truth": 0,
+   "noise": 0.3,
+   "visKm": 6,
+   "scored": 172,
+   "errorM": 25,
+   "uncertaintyM": 50,
+   "minRms": 0.539,
+   "fix": true,
+   "estimate": {
+    "lat": 18.4356,
+    "lon": 77.23313
+   }
+  },
+  {
+   "site": "crater_rim",
+   "truth": 0,
+   "noise": 0.3,
+   "visKm": 4,
+   "scored": 161,
+   "errorM": 25,
+   "uncertaintyM": 50,
+   "minRms": 0.552,
+   "fix": true,
+   "estimate": {
+    "lat": 18.4356,
+    "lon": 77.23313
+   }
+  },
+  {
+   "site": "crater_rim",
+   "truth": 0,
+   "noise": 0.3,
+   "visKm": 3,
+   "scored": 157,
+   "errorM": 25,
+   "uncertaintyM": 50,
+   "minRms": 0.557,
+   "fix": true,
+   "estimate": {
+    "lat": 18.4356,
+    "lon": 77.23313
+   }
+  },
+  {
+   "site": "crater_rim",
+   "truth": 0,
+   "noise": 0.3,
+   "visKm": 2,
+   "scored": 120,
+   "errorM": 25,
+   "uncertaintyM": 50,
+   "minRms": 0.622,
+   "fix": true,
+   "estimate": {
+    "lat": 18.4356,
+    "lon": 77.23313
+   }
+  },
+  {
+   "site": "crater_rim",
+   "truth": 0,
+   "noise": 0.3,
+   "visKm": 1.5,
+   "scored": 126,
+   "errorM": 25,
+   "uncertaintyM": 50,
+   "minRms": 0.637,
+   "fix": true,
+   "estimate": {
+    "lat": 18.4356,
+    "lon": 77.23313
+   }
+  },
+  {
+   "site": "crater_rim",
+   "truth": 0,
+   "noise": 0.3,
+   "visKm": 1,
+   "scored": 135,
+   "errorM": 25,
+   "uncertaintyM": 50,
+   "minRms": 0.619,
+   "fix": true,
+   "estimate": {
+    "lat": 18.4356,
+    "lon": 77.23313
+   }
+  },
+  {
+   "site": "crater_rim",
+   "truth": 0,
+   "noise": 0.3,
+   "visKm": 0.6,
+   "scored": 161,
+   "errorM": 25,
+   "uncertaintyM": 50,
+   "minRms": 0.608,
+   "fix": true,
+   "estimate": {
+    "lat": 18.4356,
+    "lon": 77.23313
+   }
+  },
+  {
+   "site": "crater_rim",
+   "truth": 0,
+   "noise": 0.3,
+   "visKm": 0.3,
+   "scored": 83,
+   "errorM": 3284,
+   "uncertaintyM": 3590,
+   "minRms": 0.54,
+   "fix": false,
+   "estimate": {
+    "lat": 18.39005,
+    "lon": 77.26692
+   }
+  },
+  {
+   "site": "crater_rim",
+   "truth": 1,
+   "noise": 0.15,
+   "visKm": 15,
+   "scored": 179,
+   "errorM": 67,
+   "uncertaintyM": 50,
+   "minRms": 0.8,
+   "fix": false,
+   "estimate": {
+    "lat": 18.43729,
+    "lon": 77.24024
+   }
+  },
+  {
+   "site": "crater_rim",
+   "truth": 1,
+   "noise": 0.15,
+   "visKm": 10,
+   "scored": 168,
+   "errorM": 67,
+   "uncertaintyM": 50,
+   "minRms": 0.825,
+   "fix": false,
+   "estimate": {
+    "lat": 18.43729,
+    "lon": 77.24024
+   }
+  },
+  {
+   "site": "crater_rim",
+   "truth": 1,
+   "noise": 0.15,
+   "visKm": 6,
+   "scored": 168,
+   "errorM": 67,
+   "uncertaintyM": 50,
+   "minRms": 0.825,
+   "fix": false,
+   "estimate": {
+    "lat": 18.43729,
+    "lon": 77.24024
+   }
+  },
+  {
+   "site": "crater_rim",
+   "truth": 1,
+   "noise": 0.15,
+   "visKm": 4,
+   "scored": 158,
+   "errorM": 67,
+   "uncertaintyM": 50,
+   "minRms": 0.848,
+   "fix": false,
+   "estimate": {
+    "lat": 18.43729,
+    "lon": 77.24024
+   }
+  },
+  {
+   "site": "crater_rim",
+   "truth": 1,
+   "noise": 0.15,
+   "visKm": 3,
+   "scored": 162,
+   "errorM": 67,
+   "uncertaintyM": 50,
+   "minRms": 0.843,
+   "fix": false,
+   "estimate": {
+    "lat": 18.43729,
+    "lon": 77.24024
+   }
+  },
+  {
+   "site": "crater_rim",
+   "truth": 1,
+   "noise": 0.15,
+   "visKm": 2,
+   "scored": 126,
+   "errorM": 67,
+   "uncertaintyM": 50,
+   "minRms": 0.898,
+   "fix": false,
+   "estimate": {
+    "lat": 18.43729,
+    "lon": 77.24024
+   }
+  },
+  {
+   "site": "crater_rim",
+   "truth": 1,
+   "noise": 0.15,
+   "visKm": 1.5,
+   "scored": 92,
+   "errorM": 2807,
+   "uncertaintyM": 3338,
+   "minRms": 0.958,
+   "fix": false,
+   "estimate": {
+    "lat": 18.4221,
+    "lon": 77.28649
+   }
+  },
+  {
+   "site": "crater_rim",
+   "truth": 1,
+   "noise": 0.15,
+   "visKm": 1,
+   "scored": 110,
+   "errorM": 67,
+   "uncertaintyM": 4518,
+   "minRms": 0.906,
+   "fix": false,
+   "estimate": {
+    "lat": 18.43729,
+    "lon": 77.24024
+   }
+  },
+  {
+   "site": "crater_rim",
+   "truth": 1,
+   "noise": 0.15,
+   "visKm": 0.6,
+   "scored": 99,
+   "errorM": 1506,
+   "uncertaintyM": 50,
+   "minRms": 0.5,
+   "fix": false,
+   "estimate": {
+    "lat": 18.41198,
+    "lon": 77.2438
+   }
+  },
+  {
+   "site": "crater_rim",
+   "truth": 1,
+   "noise": 0.15,
+   "visKm": 0.3,
+   "scored": 119,
+   "errorM": 1018,
+   "uncertaintyM": 4841,
+   "minRms": 0.664,
+   "fix": false,
+   "estimate": {
+    "lat": 18.42042,
+    "lon": 77.2438
+   }
+  },
+  {
+   "site": "crater_rim",
+   "truth": 1,
+   "noise": 0.3,
+   "visKm": 15,
+   "scored": 179,
+   "errorM": 67,
+   "uncertaintyM": 50,
+   "minRms": 0.808,
+   "fix": true,
+   "estimate": {
+    "lat": 18.43729,
+    "lon": 77.24024
+   }
+  },
+  {
+   "site": "crater_rim",
+   "truth": 1,
+   "noise": 0.3,
+   "visKm": 10,
+   "scored": 168,
+   "errorM": 67,
+   "uncertaintyM": 50,
+   "minRms": 0.833,
+   "fix": true,
+   "estimate": {
+    "lat": 18.43729,
+    "lon": 77.24024
+   }
+  },
+  {
+   "site": "crater_rim",
+   "truth": 1,
+   "noise": 0.3,
+   "visKm": 6,
+   "scored": 168,
+   "errorM": 67,
+   "uncertaintyM": 50,
+   "minRms": 0.829,
+   "fix": true,
+   "estimate": {
+    "lat": 18.43729,
+    "lon": 77.24024
+   }
+  },
+  {
+   "site": "crater_rim",
+   "truth": 1,
+   "noise": 0.3,
+   "visKm": 4,
+   "scored": 158,
+   "errorM": 67,
+   "uncertaintyM": 50,
+   "minRms": 0.85,
+   "fix": true,
+   "estimate": {
+    "lat": 18.43729,
+    "lon": 77.24024
+   }
+  },
+  {
+   "site": "crater_rim",
+   "truth": 1,
+   "noise": 0.3,
+   "visKm": 3,
+   "scored": 162,
+   "errorM": 67,
+   "uncertaintyM": 50,
+   "minRms": 0.843,
+   "fix": true,
+   "estimate": {
+    "lat": 18.43729,
+    "lon": 77.24024
+   }
+  },
+  {
+   "site": "crater_rim",
+   "truth": 1,
+   "noise": 0.3,
+   "visKm": 2,
+   "scored": 126,
+   "errorM": 67,
+   "uncertaintyM": 50,
+   "minRms": 0.888,
+   "fix": true,
+   "estimate": {
+    "lat": 18.43729,
+    "lon": 77.24024
+   }
+  },
+  {
+   "site": "crater_rim",
+   "truth": 1,
+   "noise": 0.3,
+   "visKm": 1.5,
+   "scored": 92,
+   "errorM": 67,
+   "uncertaintyM": 50,
+   "minRms": 0.954,
+   "fix": false,
+   "estimate": {
+    "lat": 18.43729,
+    "lon": 77.24024
+   }
+  },
+  {
+   "site": "crater_rim",
+   "truth": 1,
+   "noise": 0.3,
+   "visKm": 1,
+   "scored": 110,
+   "errorM": 67,
+   "uncertaintyM": 50,
+   "minRms": 0.872,
+   "fix": true,
+   "estimate": {
+    "lat": 18.43729,
+    "lon": 77.24024
+   }
+  },
+  {
+   "site": "crater_rim",
+   "truth": 1,
+   "noise": 0.3,
+   "visKm": 0.6,
+   "scored": 99,
+   "errorM": 1506,
+   "uncertaintyM": 50,
+   "minRms": 0.565,
+   "fix": true,
+   "estimate": {
+    "lat": 18.41198,
+    "lon": 77.2438
+   }
+  },
+  {
+   "site": "crater_rim",
+   "truth": 1,
+   "noise": 0.3,
+   "visKm": 0.3,
+   "scored": 119,
+   "errorM": 1018,
+   "uncertaintyM": 4841,
+   "minRms": 0.694,
+   "fix": false,
+   "estimate": {
+    "lat": 18.42042,
+    "lon": 77.2438
+   }
+  },
+  {
+   "site": "crater_rim",
+   "truth": 2,
+   "noise": 0.15,
+   "visKm": 15,
+   "scored": 175,
+   "errorM": 71,
+   "uncertaintyM": 50,
+   "minRms": 0.944,
+   "fix": false,
+   "estimate": {
+    "lat": 18.44572,
+    "lon": 77.22246
+   }
+  },
+  {
+   "site": "crater_rim",
+   "truth": 2,
+   "noise": 0.15,
+   "visKm": 10,
+   "scored": 167,
+   "errorM": 71,
+   "uncertaintyM": 50,
+   "minRms": 0.967,
+   "fix": false,
+   "estimate": {
+    "lat": 18.44572,
+    "lon": 77.22246
+   }
+  },
+  {
+   "site": "crater_rim",
+   "truth": 2,
+   "noise": 0.15,
+   "visKm": 6,
+   "scored": 159,
+   "errorM": 71,
+   "uncertaintyM": 100,
+   "minRms": 1.03,
+   "fix": false,
+   "estimate": {
+    "lat": 18.44572,
+    "lon": 77.22246
+   }
+  },
+  {
+   "site": "crater_rim",
+   "truth": 2,
+   "noise": 0.15,
+   "visKm": 4,
+   "scored": 158,
+   "errorM": 71,
+   "uncertaintyM": 50,
+   "minRms": 1.027,
+   "fix": false,
+   "estimate": {
+    "lat": 18.44572,
+    "lon": 77.22246
+   }
+  },
+  {
+   "site": "crater_rim",
+   "truth": 2,
+   "noise": 0.15,
+   "visKm": 3,
+   "scored": 142,
+   "errorM": 1133,
+   "uncertaintyM": 100,
+   "minRms": 0.954,
+   "fix": false,
+   "estimate": {
+    "lat": 18.43391,
+    "lon": 77.20823
+   }
+  },
+  {
+   "site": "crater_rim",
+   "truth": 2,
+   "noise": 0.15,
+   "visKm": 2,
+   "scored": 153,
+   "errorM": 1071,
+   "uncertaintyM": 100,
+   "minRms": 0.967,
+   "fix": false,
+   "estimate": {
+    "lat": 18.4356,
+    "lon": 77.20823
+   }
+  },
+  {
+   "site": "crater_rim",
+   "truth": 2,
+   "noise": 0.15,
+   "visKm": 1.5,
+   "scored": 157,
+   "errorM": 1133,
+   "uncertaintyM": 200,
+   "minRms": 1.014,
+   "fix": false,
+   "estimate": {
+    "lat": 18.43391,
+    "lon": 77.20823
+   }
+  },
+  {
+   "site": "crater_rim",
+   "truth": 2,
+   "noise": 0.15,
+   "visKm": 1,
+   "scored": 170,
+   "errorM": 1014,
+   "uncertaintyM": 200,
+   "minRms": 0.94,
+   "fix": false,
+   "estimate": {
+    "lat": 18.43729,
+    "lon": 77.20823
+   }
+  },
+  {
+   "site": "crater_rim",
+   "truth": 2,
+   "noise": 0.15,
+   "visKm": 0.6,
+   "scored": 152,
+   "errorM": 2010,
+   "uncertaintyM": 2062,
+   "minRms": 0.976,
+   "fix": false,
+   "estimate": {
+    "lat": 18.41367,
+    "lon": 77.23313
+   }
+  },
+  {
+   "site": "crater_rim",
+   "truth": 2,
+   "noise": 0.15,
+   "visKm": 0.3,
+   "scored": 103,
+   "errorM": 1585,
+   "uncertaintyM": 1581,
+   "minRms": 0.816,
+   "fix": false,
+   "estimate": {
+    "lat": 18.45753,
+    "lon": 77.24914
+   }
+  },
+  {
+   "site": "crater_rim",
+   "truth": 2,
+   "noise": 0.3,
+   "visKm": 15,
+   "scored": 175,
+   "errorM": 71,
+   "uncertaintyM": 100,
+   "minRms": 1.029,
+   "fix": false,
+   "estimate": {
+    "lat": 18.44572,
+    "lon": 77.22246
+   }
+  },
+  {
+   "site": "crater_rim",
+   "truth": 2,
+   "noise": 0.3,
+   "visKm": 10,
+   "scored": 167,
+   "errorM": 71,
+   "uncertaintyM": 100,
+   "minRms": 1.057,
+   "fix": false,
+   "estimate": {
+    "lat": 18.44572,
+    "lon": 77.22246
+   }
+  },
+  {
+   "site": "crater_rim",
+   "truth": 2,
+   "noise": 0.3,
+   "visKm": 6,
+   "scored": 159,
+   "errorM": 54,
+   "uncertaintyM": 100,
+   "minRms": 1.106,
+   "fix": false,
+   "estimate": {
+    "lat": 18.44572,
+    "lon": 77.22424
+   }
+  },
+  {
+   "site": "crater_rim",
+   "truth": 2,
+   "noise": 0.3,
+   "visKm": 4,
+   "scored": 158,
+   "errorM": 71,
+   "uncertaintyM": 100,
+   "minRms": 1.107,
+   "fix": false,
+   "estimate": {
+    "lat": 18.44572,
+    "lon": 77.22246
+   }
+  },
+  {
+   "site": "crater_rim",
+   "truth": 2,
+   "noise": 0.3,
+   "visKm": 3,
+   "scored": 142,
+   "errorM": 1133,
+   "uncertaintyM": 100,
+   "minRms": 0.963,
+   "fix": false,
+   "estimate": {
+    "lat": 18.43391,
+    "lon": 77.20823
+   }
+  },
+  {
+   "site": "crater_rim",
+   "truth": 2,
+   "noise": 0.3,
+   "visKm": 2,
+   "scored": 153,
+   "errorM": 1133,
+   "uncertaintyM": 100,
+   "minRms": 0.971,
+   "fix": false,
+   "estimate": {
+    "lat": 18.43391,
+    "lon": 77.20823
+   }
+  },
+  {
+   "site": "crater_rim",
+   "truth": 2,
+   "noise": 0.3,
+   "visKm": 1.5,
+   "scored": 157,
+   "errorM": 1133,
+   "uncertaintyM": 50,
+   "minRms": 0.998,
+   "fix": false,
+   "estimate": {
+    "lat": 18.43391,
+    "lon": 77.20823
+   }
+  },
+  {
+   "site": "crater_rim",
+   "truth": 2,
+   "noise": 0.3,
+   "visKm": 1,
+   "scored": 170,
+   "errorM": 1014,
+   "uncertaintyM": 200,
+   "minRms": 0.932,
+   "fix": false,
+   "estimate": {
+    "lat": 18.43729,
+    "lon": 77.20823
+   }
+  },
+  {
+   "site": "crater_rim",
+   "truth": 2,
+   "noise": 0.3,
+   "visKm": 0.6,
+   "scored": 152,
+   "errorM": 832,
+   "uncertaintyM": 2062,
+   "minRms": 1.001,
+   "fix": false,
+   "estimate": {
+    "lat": 18.44066,
+    "lon": 77.21001
+   }
+  },
+  {
+   "site": "crater_rim",
+   "truth": 2,
+   "noise": 0.3,
+   "visKm": 0.3,
+   "scored": 103,
+   "errorM": 1585,
+   "uncertaintyM": 50,
+   "minRms": 0.783,
+   "fix": true,
+   "estimate": {
+    "lat": 18.45753,
+    "lon": 77.24914
+   }
+  },
+  {
+   "site": "crater_rim",
+   "truth": 3,
+   "noise": 0.15,
+   "visKm": 15,
+   "scored": 177,
+   "errorM": 84,
+   "uncertaintyM": 141,
+   "minRms": 1.586,
+   "fix": false,
+   "estimate": {
+    "lat": 18.44235,
+    "lon": 77.24202
+   }
+  },
+  {
+   "site": "crater_rim",
+   "truth": 3,
+   "noise": 0.15,
+   "visKm": 10,
+   "scored": 166,
+   "errorM": 84,
+   "uncertaintyM": 50,
+   "minRms": 1.618,
+   "fix": false,
+   "estimate": {
+    "lat": 18.44235,
+    "lon": 77.24202
+   }
+  },
+  {
+   "site": "crater_rim",
+   "truth": 3,
+   "noise": 0.15,
+   "visKm": 6,
+   "scored": 160,
+   "errorM": 1312,
+   "uncertaintyM": 50,
+   "minRms": 1.651,
+   "fix": false,
+   "estimate": {
+    "lat": 18.42042,
+    "lon": 77.23491
+   }
+  },
+  {
+   "site": "crater_rim",
+   "truth": 3,
+   "noise": 0.15,
+   "visKm": 4,
+   "scored": 165,
+   "errorM": 1312,
+   "uncertaintyM": 50,
+   "minRms": 1.583,
+   "fix": false,
+   "estimate": {
+    "lat": 18.42042,
+    "lon": 77.23491
+   }
+  },
+  {
+   "site": "crater_rim",
+   "truth": 3,
+   "noise": 0.15,
+   "visKm": 3,
+   "scored": 168,
+   "errorM": 84,
+   "uncertaintyM": 50,
+   "minRms": 1.769,
+   "fix": false,
+   "estimate": {
+    "lat": 18.44235,
+    "lon": 77.24202
+   }
+  },
+  {
+   "site": "crater_rim",
+   "truth": 3,
+   "noise": 0.15,
+   "visKm": 2,
+   "scored": 132,
+   "errorM": 84,
+   "uncertaintyM": 50,
+   "minRms": 1.607,
+   "fix": false,
+   "estimate": {
+    "lat": 18.44235,
+    "lon": 77.24202
+   }
+  },
+  {
+   "site": "crater_rim",
+   "truth": 3,
+   "noise": 0.15,
+   "visKm": 1.5,
+   "scored": 93,
+   "errorM": 2880,
+   "uncertaintyM": 1421,
+   "minRms": 1.296,
+   "fix": false,
+   "estimate": {
+    "lat": 18.44235,
+    "lon": 77.29183
+   }
+  },
+  {
+   "site": "crater_rim",
+   "truth": 3,
+   "noise": 0.15,
+   "visKm": 1,
+   "scored": 91,
+   "errorM": 2173,
+   "uncertaintyM": 100,
+   "minRms": 1.152,
+   "fix": false,
+   "estimate": {
+    "lat": 18.40523,
+    "lon": 77.24024
+   }
+  },
+  {
+   "site": "crater_rim",
+   "truth": 3,
+   "noise": 0.15,
+   "visKm": 0.6,
+   "scored": 111,
+   "errorM": 4195,
+   "uncertaintyM": 4176,
+   "minRms": 1.336,
+   "fix": false,
+   "estimate": {
+    "lat": 18.46428,
+    "lon": 77.31139
+   }
+  },
+  {
+   "site": "crater_rim",
+   "truth": 3,
+   "noise": 0.15,
+   "visKm": 0.3,
+   "scored": 127,
+   "errorM": 129,
+   "uncertaintyM": 3992,
+   "minRms": 1.288,
+   "fix": false,
+   "estimate": {
+    "lat": 18.44404,
+    "lon": 77.24024
+   }
+  },
+  {
+   "site": "crater_rim",
+   "truth": 3,
+   "noise": 0.3,
+   "visKm": 15,
+   "scored": 177,
+   "errorM": 75,
+   "uncertaintyM": 141,
+   "minRms": 1.647,
+   "fix": false,
+   "estimate": {
+    "lat": 18.44066,
+    "lon": 77.24024
+   }
+  },
+  {
+   "site": "crater_rim",
+   "truth": 3,
+   "noise": 0.3,
+   "visKm": 10,
+   "scored": 166,
+   "errorM": 84,
+   "uncertaintyM": 141,
+   "minRms": 1.686,
+   "fix": false,
+   "estimate": {
+    "lat": 18.44235,
+    "lon": 77.24202
+   }
+  },
+  {
+   "site": "crater_rim",
+   "truth": 3,
+   "noise": 0.3,
+   "visKm": 6,
+   "scored": 160,
+   "errorM": 1312,
+   "uncertaintyM": 50,
+   "minRms": 1.704,
+   "fix": false,
+   "estimate": {
+    "lat": 18.42042,
+    "lon": 77.23491
+   }
+  },
+  {
+   "site": "crater_rim",
+   "truth": 3,
+   "noise": 0.3,
+   "visKm": 4,
+   "scored": 165,
+   "errorM": 1312,
+   "uncertaintyM": 50,
+   "minRms": 1.642,
+   "fix": false,
+   "estimate": {
+    "lat": 18.42042,
+    "lon": 77.23491
+   }
+  },
+  {
+   "site": "crater_rim",
+   "truth": 3,
+   "noise": 0.3,
+   "visKm": 3,
+   "scored": 168,
+   "errorM": 84,
+   "uncertaintyM": 141,
+   "minRms": 1.842,
+   "fix": false,
+   "estimate": {
+    "lat": 18.44235,
+    "lon": 77.24202
+   }
+  },
+  {
+   "site": "crater_rim",
+   "truth": 3,
+   "noise": 0.3,
+   "visKm": 2,
+   "scored": 132,
+   "errorM": 84,
+   "uncertaintyM": 50,
+   "minRms": 1.69,
+   "fix": false,
+   "estimate": {
+    "lat": 18.44235,
+    "lon": 77.24202
+   }
+  },
+  {
+   "site": "crater_rim",
+   "truth": 3,
+   "noise": 0.3,
+   "visKm": 1.5,
+   "scored": 93,
+   "errorM": 129,
+   "uncertaintyM": 2902,
+   "minRms": 1.352,
+   "fix": false,
+   "estimate": {
+    "lat": 18.44404,
+    "lon": 77.24024
+   }
+  },
+  {
+   "site": "crater_rim",
+   "truth": 3,
+   "noise": 0.3,
+   "visKm": 1,
+   "scored": 91,
+   "errorM": 2073,
+   "uncertaintyM": 2200,
+   "minRms": 1.236,
+   "fix": false,
+   "estimate": {
+    "lat": 18.40692,
+    "lon": 77.24024
+   }
+  },
+  {
+   "site": "crater_rim",
+   "truth": 3,
+   "noise": 0.3,
+   "visKm": 0.6,
+   "scored": 111,
+   "errorM": 4195,
+   "uncertaintyM": 4176,
+   "minRms": 1.355,
+   "fix": false,
+   "estimate": {
+    "lat": 18.46428,
+    "lon": 77.31139
+   }
+  },
+  {
+   "site": "crater_rim",
+   "truth": 3,
+   "noise": 0.3,
+   "visKm": 0.3,
+   "scored": 127,
+   "errorM": 129,
+   "uncertaintyM": 894,
+   "minRms": 1.302,
+   "fix": false,
+   "estimate": {
+    "lat": 18.44404,
+    "lon": 77.24024
+   }
+  }
+ ]
+}

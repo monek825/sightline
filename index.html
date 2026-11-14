@@ -43,6 +43,15 @@
       <div id="view3d" class="view3d" hidden>
         <p id="v3-note" class="v3-note"></p>
         <p id="v3-msg" class="v3-msg" role="status" hidden></p>
+        <label class="v3-gfx frost">Graphics
+          <select id="v3-gfx">
+            <option value="auto">Auto</option>
+            <option value="low">Low</option>
+            <option value="medium">Medium</option>
+            <option value="high">High</option>
+          </select>
+          <span id="v3-gfx-info" class="v3-gfx-info"></span>
+        </label>
       </div>
 
       <header class="brandbar frost">
@@ -135,6 +144,7 @@
             </dl>
             <span id="p-acc" hidden></span>
             <button type="button" id="btn-skyline" class="btn btn-accent wide" data-magnetic>Find position with Horizon Match</button>
+            <button type="button" id="btn-lostdust" class="btn wide">Can't see the hills (dust)</button>
             <label class="field">Route
               <select id="c-mode">
                 <option value="safest">Safest (landmarks in sight)</option>

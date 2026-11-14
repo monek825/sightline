@@ -1,6 +1,7 @@
 // Written with AI assistance (Claude / GitHub Copilot)
 // Map renderer: Leaflet 2D view plus a lazily loaded A-Frame 3D view. Reads the store; the only writes are
 // user clicks → onPickTarget (an action, not a subscriber). The 2D/3D toggle is local view state.
+import { LOW_END, gfxChoice, setGfxChoice, autoStartLevel, stepDown } from '../lib/gfx.js';
 
 const TREK = 'https://trek.nasa.gov/tiles/Mars/EQ/';
 const TILE_PATH = '/1.0.0/default/default028mm/{z}/{y}/{x}.png';
@@ -17,6 +18,16 @@ const MAP_ROCK_LAYERS = [
   { count: 2000, radius: 110, cell: 5, min: 0.1, max: 0.6, rescatter: 25, detail: 1, color: 0x6f5444, clumpM: 25, maxCamH: 450, clearHome: 11 },
   { count: 400, radius: 450, cell: 30, min: 0.5, max: 2.8, rescatter: 90, detail: 1, color: 0x6a4f40, clumpM: 90, maxCamH: 2500, clearHome: 14 }
 ];
+// Graphics levels for the 3D view (shared choice with the helmet view, lib/gfx.js). Visual only.
+//   dpr: render resolution cap (phones are 2-3x; this is the biggest cost). rocks: which MAP_ROCK_LAYERS are drawn.
+//   texture/step/patches are chosen when the 3D view first loads (rebuilding the terrain live would stutter):
+//   Low = half-size CTX image (fits a 4096 px phone GPU), every 2nd grid point, no HiRISE close-up images.
+const MAP_GFX = {
+  low:    { dpr: 1,    rocks: [false, false, true], texture: 'data/terrain_texture_3k.jpg', step: 2, patches: false },
+  medium: { dpr: 1.5,  rocks: [false, true, true],  texture: 'data/terrain_texture.jpg',    step: LOW_END ? 2 : 1, patches: true },
+  high:   { dpr: 2,    rocks: [true, true, true],   texture: 'data/terrain_texture.jpg',    step: 1, patches: true }
+};
+const GFX_WARMUP_MS = 2500, GFX_PROBE_MS = 3000, GFX_SLOW_MS = 30;   // Auto: average frame > 30 ms (< ~33 fps) -> one level down
 const ROVER_PARK_M = [12, 6]; // support rover parked beside the habitat [east, south], real metres
 const EXAGGERATE = 1;  // true vertical scale
 // Astronaut sphere, home beacon, uncertainty ring and route tubes are markers, not to scale.
@@ -273,10 +284,13 @@ function mk(tag, attrs, parent) {
 }
 
 // tint warms the greyscale CTX/HiRISE images to Mars colour (HiRISE patches inherit it, lib/terrain.js)
-// Phones / low-core machines get every 2nd grid point (4x fewer triangles); desktops keep the full 40 m grid.
-// patches: HiRISE close-up images (~0.7 m/px) near home and Three Forks, blended into the CTX ground (lib/terrain.js)
-const LOW_END = matchMedia('(pointer: coarse)').matches || (navigator.hardwareConcurrency ?? 8) <= 4 || (navigator.deviceMemory ?? 8) <= 4;
-const terrainAttr = src => `src: ${src}; exaggerate: ${EXAGGERATE}; tint: #f0b483; step: ${LOW_END ? 2 : 1}; patches: data/hirise_patches.json`;
+// Terrain detail by graphics level (MAP_GFX): Low / phones get every 2nd grid point (4x fewer triangles) and the
+// half-size image; patches = HiRISE close-up images (~0.7 m/px) near home and Three Forks (lib/terrain.js).
+const loadLevel = () => (gfxChoice() === 'auto' ? autoStartLevel() : gfxChoice());
+const terrainAttr = src => {
+  const g = MAP_GFX[loadLevel()];
+  return `src: ${src}; exaggerate: ${EXAGGERATE}; tint: #f0b483; step: ${g.step}; texture: ${g.texture}; patches: ${g.patches ? 'data/hirise_patches.json' : ''}`;
+};
 
 function buildScene() {
   const scene = document.createElement('a-scene');
@@ -483,8 +497,51 @@ function createView3D(data, onPickTarget, devils) {
     }
   }
 
+  // ---------- graphics level (MAP_GFX) ----------
+  const loadedLevel = loadLevel();           // decided the texture / grid / HiRISE when the terrain was built
+  let gfxLevel = loadedLevel, gfxT0 = -1, gfxLast = 0, gfxSum = 0, gfxN = 0;
+  const gfxSel = $('v3-gfx'), gfxInfo = $('v3-gfx-info');
+  function applyGfx() {
+    const choice = gfxChoice();
+    if (choice !== 'auto') gfxLevel = choice;
+    const g = MAP_GFX[gfxLevel];
+    const r = s?.scene.renderer;
+    if (r) {
+      const p = Math.min(g.dpr, window.devicePixelRatio || 1);
+      if (Math.abs(r.getPixelRatio() - p) > 0.01) { r.setPixelRatio(p); s.scene.resize?.(); }
+    }
+    if (rocks) rocks.layers.forEach((l, i) => { l.off = !g.rocks[i]; });
+    if (gfxSel) gfxSel.value = choice;
+    if (gfxInfo) {
+      const L0 = MAP_GFX[loadedLevel];
+      const later = g.texture !== L0.texture || g.step !== L0.step || g.patches !== L0.patches;
+      gfxInfo.textContent = (choice === 'auto' ? gfxLevel[0].toUpperCase() + gfxLevel.slice(1) : '') +
+        (later ? `${choice === 'auto' ? ' · ' : ''}terrain detail updates on next load` : '');
+    }
+  }
+  gfxSel?.addEventListener('change', () => {
+    setGfxChoice(gfxSel.value);
+    if (gfxSel.value === 'auto') gfxLevel = autoStartLevel();
+    gfxT0 = -1;
+  });
+  window.addEventListener('sightline-gfx', applyGfx);
+  window.addEventListener('storage', e => { if (e.key === 'sightline-gfx') { gfxT0 = -1; applyGfx(); } }); // changed in the helmet view
+  // Auto: after a warm-up, average the frame time; if this device is slow, step down one level (and probe again).
+  function gfxAutoTick() {
+    if (gfxChoice() !== 'auto' || gfxLevel === 'low') return;
+    const now = performance.now();
+    if (gfxT0 < 0) { gfxT0 = now; gfxLast = now; gfxSum = 0; gfxN = 0; return; }
+    const dt = now - gfxLast; gfxLast = now;
+    if (now - gfxT0 > GFX_WARMUP_MS && dt < 500) { gfxSum += dt; gfxN++; }   // > 500 ms = paused / tab hidden, not slow
+    if (now - gfxT0 > GFX_WARMUP_MS + GFX_PROBE_MS) {
+      if (gfxN > 20 && gfxSum / gfxN > GFX_SLOW_MS) { gfxLevel = stepDown(gfxLevel); applyGfx(); gfxT0 = -1; }
+      else gfxT0 = Infinity;   // fast enough: decided
+    }
+  }
+
   // Per frame from orbit-camera: marker size, route thickness, near plane and close-up ground follow the zoom.
   function onZoom(dist, cx, cy, cz, camH) {
+    gfxAutoTick();
     const a = Math.min(1, Math.max(0.016, dist / 5200));      // astronaut cone 25 m tall from afar, ~0.4 m up close
     s.astro.object3D.scale.setScalar(a);
     s.home.object3D.scale.set(a, 1, a);
@@ -646,6 +703,7 @@ function createView3D(data, onPickTarget, devils) {
       lastTau = null;   // re-run the sky pass so the columns pick up the current colour
       const orbit = s.cam.components['orbit-camera'];
       if (orbit) orbit.onTick = onZoom;
+      applyGfx();
       const addLabel = (name, q, h, kind) => {
         const el = document.createElement('span');
         el.className = `v3-label ${kind}`; el.textContent = name;
@@ -710,15 +768,17 @@ function createView3D(data, onPickTarget, devils) {
       say(`3D terrain failed: ${e.detail?.message ?? 'unknown error'}`);
     });
     s.scene.addEventListener('loaded', () => {
+      applyGfx();   // resolution cap before the first frames (A-Frame starts at the full device pixel ratio)
       if (host.hidden) s.scene.pause();
       update();
       // GPU ran out of memory or the driver reset: fall back to the 2D map instead of a dead white screen
       s.scene.canvas?.addEventListener('webglcontextlost', e => {
         e.preventDefault();
+        if (gfxChoice() !== 'low') setGfxChoice('low');   // next load uses the small texture and no HiRISE images
         $('v-2d').click();
-        say('3D view stopped (out of graphics memory). Showing the 2D map. Reload to try 3D again.');
+        say('3D view stopped (out of graphics memory). Showing the 2D map. Graphics are now set to Low. Reload to try 3D again.');
         const b = $('banner');
-        b.textContent = '3D view stopped on this device, so the 2D map is shown. Reload to try 3D again.';
+        b.textContent = '3D view stopped on this device, so the 2D map is shown. Graphics are now set to Low: reload to try 3D again.';
         b.hidden = false;
         setTimeout(() => { b.hidden = true; }, 6000);
       }, { once: true });
