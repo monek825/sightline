@@ -282,6 +282,12 @@ h1, h2 { margin: 0; font-weight: 600; }
 .dlg-full { width: 96vw; height: 92vh; max-height: 92vh; }
 .dlg-full[open] { display: grid; grid-template-rows: auto 1fr; }
 .dlg-full iframe { width: 100%; height: 100%; border: 0; background: #000; }
+/* phone held sideways: give the helmet view the height (slim header, nearly full screen) */
+@media (max-height: 520px) and (orientation: landscape) {
+  .dlg-full { width: 98vw; height: 96vh; max-height: 96vh; }
+  .dlg-full .dlg-head { padding: var(--s1) var(--s4); }
+  .dlg-full .dlg-head h2 { font-size: 17px; margin: 0; }
+}
 .fatal { padding: var(--s4); background: var(--red); color: var(--accent-ink); font-weight: 600; }
 
 /* video mode: clean screen recording */
@@ -316,6 +322,12 @@ body.video :is(.bar-left, .view-toggle, .leaflet-control-container) { display: n
   .cp-label, .cp:nth-child(even) .cp-label { display: none; }
   .cp.current .cp-label { display: block; top: 16px; }
   .more { grid-template-columns: 1fr; padding: var(--s4); }
+}
+/* narrow phones: the brand bar wraps to two lines (~73 px), so everything below it moves down to clear it */
+@media (max-width: 440px) {
+  .view-toggle, .leaflet-top.leaflet-right { top: 96px; }
+  .banner { top: 148px; }
+  .leaflet-top.leaflet-left { top: 152px; }
 }
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; animation: none !important; }
@@ -550,6 +562,8 @@ h1, h2, .brand, .tab-title, .skyfix-head h2, .more h2 { font-family: var(--displ
   .stage { padding: var(--s3); }
   .map-wrap { display: flex; flex-direction: column; border-radius: 0; overflow: visible; }
   #map, .view3d { border-radius: var(--r-lg); overflow: hidden; }
+  /* 3D mode hides #map, so the 3D view must hold the map's slot itself (else the panels slide up over it) */
+  .map-wrap:has(#map[hidden]) .view3d { position: relative; }
   .bar { position: relative; height: auto; min-height: 60px; width: auto; clip-path: none; padding: var(--s2) var(--s3); border-radius: var(--r-lg); margin-top: var(--s3); }
   .bar::before { left: 0; right: 0; transform: none; border-radius: var(--r-lg); }
   .bar-left { order: 2; }
