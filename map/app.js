@@ -112,8 +112,9 @@ function setupScenario(data, M, sky) {
   document.getElementById('t-reset').addEventListener('click', () => { stop(); t = 0; apply(); });
   scrub.addEventListener('input', () => { stop(); t = Number(scrub.value); apply(); });
   document.addEventListener('visibilitychange', () => { if (document.hidden) stop(); });
-  return target => { // re-plan the walk to a picked target; an unreachable one keeps the old walk
-    const next = prepareScenario(data.scenario, data, M, target);
+  // re-plan the walk for a target + mode; an unreachable one keeps the old walk
+  const replan = (target, mode) => {
+    const next = prepareScenario(data.scenario, data, M, target, mode);
     if (!next.outOk) return;
     const wasPlaying = playing;
     stop();
@@ -121,6 +122,9 @@ function setupScenario(data, M, sky) {
     scrub.max = prep.endT; t = 0; apply();
     if (wasPlaying) start();
   };
+  // changing the route mode after picking a target re-plans the walk too (value from the event, not listener order)
+  document.getElementById('c-mode').addEventListener('change', e => { if (prep.custom) replan(prep.target, e.target.value); });
+  return target => replan(target, getStore().inputs.routeMode);
 }
 
 function setupHelmet(data) {
