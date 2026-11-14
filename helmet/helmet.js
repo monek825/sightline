@@ -113,7 +113,9 @@ function renderCard() {
   $('state-title').textContent = title;
   $('state-detail').textContent = detail;
 }
-function fail(msg) { fatal = msg; renderCard(); }
+// tell the app the first frame with terrain is on screen (or loading failed), so it can lift its loader
+function readyToParent() { if (inIframe) window.parent.postMessage({ type: 'sightline:helmet-ready', v: STATE_V }, location.origin); }
+function fail(msg) { fatal = msg; renderCard(); readyToParent(); }
 function note(text) {
   const d = document.createElement('div');
   d.textContent = text;
@@ -1089,6 +1091,7 @@ function onTerrain(t) {
   setupShadows();
   if (pending) { try { apply(pending); } catch (e) { console.error('helmet apply failed', e); note('Display error: ' + e.message); } }
   renderCard();
+  let n = 3; const f = () => (--n <= 0 ? readyToParent() : requestAnimationFrame(f)); requestAnimationFrame(f);
 }
 
 function receive(m) {

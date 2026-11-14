@@ -515,12 +515,17 @@ function createView3D(data, onPickTarget, devils) {
     labelBox.hidden = !on;
     if (!on) return;
     tmpL ??= new AFRAME.THREE.Vector3();
-    const w = host.clientWidth, h = host.clientHeight;
+    const w = host.clientWidth, h = host.clientHeight, cp = cam.getWorldPosition(tmpL).clone();
+    for (const L of labels) { L.d = cp.distanceToSquared(L.p); if (!L.w && !L.el.hidden) { L.w = L.el.offsetWidth; L.h = L.el.offsetHeight; } }
+    labels.sort((a, b) => a.d - b.d);              // nearest wins a collision
+    const placed = [];
     for (const L of labels) {
       tmpL.copy(L.p).project(cam);
-      const show = vis(L.kind) && tmpL.z < 1 && Math.abs(tmpL.x) < 1.05 && Math.abs(tmpL.y) < 1.05;
+      const x = (tmpL.x + 1) / 2 * w, y = (1 - tmpL.y) / 2 * h, lw = L.w || 120, lh = L.h || 22;
+      let show = vis(L.kind) && tmpL.z < 1 && Math.abs(tmpL.x) < 1.05 && Math.abs(tmpL.y) < 1.05;
+      if (show) show = !placed.some(b => Math.abs(b.x - x) < (b.w + lw) / 2 + 4 && Math.abs(b.y - y) < (b.h + lh) / 2 + 2);
       if (L.el.hidden !== !show) L.el.hidden = !show;
-      if (show) L.el.style.transform = `translate(${((tmpL.x + 1) / 2 * w).toFixed(0)}px, ${((1 - tmpL.y) / 2 * h).toFixed(0)}px) translate(-50%, -100%)`;
+      if (show) { placed.push({ x, y, w: lw, h: lh }); L.el.style.transform = `translate(${x.toFixed(0)}px, ${y.toFixed(0)}px) translate(-50%, -100%)`; }
     }
   }
 
@@ -717,6 +722,7 @@ function createView3D(data, onPickTarget, devils) {
         b.hidden = false;
         setTimeout(() => { b.hidden = true; }, 6000);
       }, { once: true });
+      s.scene.canvas?.addEventListener('webglcontextrestored', () => say(''));
     });
     host.prepend(s.scene);
   }
@@ -763,6 +769,7 @@ function setupToggle(map, view3d) {
     b2.setAttribute('aria-pressed', String(!is3d));
     b3.setAttribute('aria-pressed', String(is3d));
     $('view-name').textContent = is3d ? '3D terrain' : '2D map';
+    document.body.classList.toggle('is-3d', is3d);   // legend shows what this view draws
     $('map').hidden = is3d;
     if (is3d) view3d.show(); else { view3d.hide(); map.invalidateSize(); }
   };

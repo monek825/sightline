@@ -258,17 +258,25 @@ function setupHelmet(data) {
     if (!dlg.open || !frame.contentWindow) return;
     try { frame.contentWindow.postMessage(msg(), location.origin); } catch { /* helmet not ready */ }
   };
+  const loading = document.getElementById('helmet-loading');
+  let helmetReady = false, loadT = 0;
+  const lift = () => { helmetReady = true; clearTimeout(loadT); loading.classList.add('done'); setTimeout(() => { loading.hidden = true; }, 500); };
   window.addEventListener('message', e => {
     if (e.origin !== location.origin || e.source !== frame.contentWindow) return;
     if (e.data?.type === 'sightline:hello') send();
+    if (e.data?.type === 'sightline:helmet-ready') lift();
   });
   subscribe(() => send());
   document.getElementById('btn-helmet').addEventListener('click', async () => {
     const ok = await fetch('helmet/index.html', { method: 'HEAD' }).then(r => r.ok).catch(() => false);
     if (!ok) { frame.removeAttribute('src'); frame.srcdoc = '<p style="font:16px sans-serif;color:#ccc;padding:24px">Helmet view is not built yet (helmet/index.html).</p>'; }
-    else if (!frame.getAttribute('src') || frame.getAttribute('src') === 'about:blank') { frame.removeAttribute('srcdoc'); frame.src = 'helmet/index.html'; }
+    pauseMain3D(true);            // free the GPU first, then open
+    if (!helmetReady) { loading.hidden = false; loading.classList.remove('done'); loadT = setTimeout(lift, 25000); }
     dlg.showModal();
-    pauseMain3D(true);
+    // start loading after the dialog has painted, so its open animation is not starved
+    if (ok && (!frame.getAttribute('src') || frame.getAttribute('src') === 'about:blank')) {
+      requestAnimationFrame(() => requestAnimationFrame(() => { frame.removeAttribute('srcdoc'); frame.src = 'helmet/index.html'; }));
+    } else if (!ok) lift();
   });
 }
 

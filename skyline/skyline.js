@@ -54,8 +54,12 @@ function buildDialog() {
   const head = el('div', 'skyfix-head');
   const h = el('h2', null, 'Horizon Match');
   h.id = 'sky-h';
-  const close = el('button', 'btn', 'Close');
+  const close = el('button', 'icon-btn');
   close.type = 'button';
+  close.setAttribute('aria-label', 'Close'); close.title = 'Close';
+  const xs = document.createElementNS('http://www.w3.org/2000/svg', 'svg'), xp = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  xs.setAttribute('viewBox', '0 0 24 24'); xs.setAttribute('aria-hidden', 'true'); xp.setAttribute('d', 'M6 6l12 12M18 6 6 18');
+  xs.append(xp); close.append(xs);
   head.append(h, close);
 
   const lead = el('p', 'skyfix-lead', "Each spot in the crater has a different outline of hills on the horizon. The astronaut turns once, the outline is compared with NASA's 3D map, and the best match is the position.");

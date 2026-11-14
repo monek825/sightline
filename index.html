@@ -91,7 +91,8 @@
       <div class="legend frost" id="legend">
         <span><i class="sw sw-red"></i>No landmark in sight</span>
         <span><i class="sw sw-amber"></i>Habitat hidden</span>
-        <span><i class="sw sw-ring"></i>Visibility range</span>
+        <span class="only-2d"><i class="sw sw-ring"></i>Visibility range</span>
+        <span class="only-3d"><i class="sw sw-pos"></i>Position uncertainty</span>
       </div>
 
       <aside class="panel frost" id="panel" aria-label="Walk status">
@@ -233,13 +234,19 @@
   </main>
 
   <dialog id="dlg-sources" class="dlg">
-    <form method="dialog" class="dlg-head"><h2>Sources for every number</h2><button class="btn">Close</button></form>
+    <form method="dialog" class="dlg-head"><h2>Sources for every number</h2><button class="icon-btn" aria-label="Close" title="Close"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button></form>
     <div class="dlg-body"><table class="src-table"><thead><tr><th>What</th><th>Value</th><th>Type</th><th>Source</th></tr></thead><tbody id="src-rows"></tbody></table></div>
   </dialog>
 
   <dialog id="dlg-helmet" class="dlg dlg-full">
-    <form method="dialog" class="dlg-head"><h2>Helmet view</h2><button class="btn">Close</button></form>
-    <iframe id="helmet-frame" title="Helmet view" src="about:blank"></iframe>
+    <form method="dialog" class="dlg-head"><h2>Helmet view</h2><button class="icon-btn" aria-label="Close" title="Close"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button></form>
+    <div class="helmet-stage">
+      <iframe id="helmet-frame" title="Helmet view" src="about:blank"></iframe>
+      <div id="helmet-loading" class="helmet-loading" role="status" hidden>
+        <img src="assets/logo.svg" alt="" width="96" height="96">
+        <p>Putting on the helmet<i>.</i><i>.</i><i>.</i></p>
+      </div>
+    </div>
   </dialog>
 </body>
 </html>
