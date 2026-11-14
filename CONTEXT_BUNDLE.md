@@ -1232,6 +1232,21 @@ Mars has no GPS. If the astronaut is lost, they **turn slowly 360°**. A helmet 
 - **Real photos** (`scripts/skyline_real.py`, `data/skyline_real/`, details in `scripts/README.md` §8b): 5 Perseverance Navcam panoramas matched against CTX + MOLA: 4 of 5 positions within 51–143 m, one 2.8 km off; single 96° frames unreliable. Consistent with JPL's "~100 m typical". Five positions are not a failure-rate statistic.
 - **So the app never claims better than ±100 m** (`horizon_fix_min_uncertainty_m`) and **only applies a fix that agrees with dead reckoning** (match within the step-count circle + the fix circle); otherwise it warns and keeps the old position.
 
+### Live match (`skyline/livematch.js`): the button works wherever the astronaut is
+The precomputed `data/skyline/<site>.json` files are only for the 5 test sites (the scripted demo still replays them). The **"Find position with Horizon Match"** button runs the match live, in the browser:
+- **Truth:** the app's simulated position of the astronaut.
+- **Step-count position:** the truth plus a seeded dead-reckoning error inside the current uncertainty circle.
+- **Observed skyline:** the horizon at the truth from `data/heightgrid40.json` (CTX resampled to 40 m), plus 0.15° camera noise (0.30° in dust), with the visibility and fade rule below.
+- **Search:** a 61 × 61 / 100 m grid around the step-count position, then a 20 m refine.
+- **Heading:** known to ±10°, from a gyro re-set against the Sun (the same assumption as the real-photo study).
+- **Self-check:** the same rule as the dust study. "No clear match" means the app doesn't guess.
+- **Speed:** about 1 s in clear air, run in small steps while the turn animation plays.
+- **Accuracy at 40 random crater positions** (`node scripts/test_livematch.mjs`, 0.45–1.5 km step-count error):
+  - claims a fix at 50–65% of positions;
+  - median error of claimed fixes 9–12 m, worst 183 m;
+  - no wrong fix at any visibility down to 1.5 km; one at 1 km.
+- **Regression tests:** in `scripts/test_demo.mjs`.
+
 ### Dust and "Lost in dust" (`scripts/skyline_dust.py` → `data/skyline_dust.json`, `skyline/lostdust.js`)
 - Dust-aware matching: terrain farther than the visibility is hidden for both the observed skyline and every candidate; a direction whose highest visible point is in the outer 15% of the visibility is not scored (that "edge" is dust fading out, not a hill). 5 sites × 4 true positions × 10 visibilities × 2 edge-noise levels, simulated on the CTX DTM.
 - Result: median error stays 38–50 m down to 600 m visibility, but single cases can be 1–4 km off from 6 km down. A self-check fixed before the run (≥ 30 scored directions, uncertainty ≤ 500 m, RMS ≤ 3 × edge noise) **never claimed a wrong fix down to 1.5 km**; at 1 km and below it did. It is conservative (claims a fix in only 55–80% of clear-air cases).

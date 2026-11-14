@@ -400,6 +400,7 @@ body.video :is(.bar-left, .view-toggle, .leaflet-control-container) { display: n
 .skyfix-how summary { cursor: pointer; font-size: 13px; color: var(--accent); }
 .skyfix-how p { margin: var(--s2) 0 0; font-size: 13px; color: var(--muted); }
 .skyfix-warn { color: #ff9b8f !important; font-weight: 600; }
+.skyfix-big.rejected strong { color: #f3c66c; }
 /* Lost in dust (skyline/lostdust.js) */
 .skyfix [hidden] { display: none !important; }
 .lost-box { display: grid; gap: var(--s3); }

@@ -7,6 +7,7 @@ import { setInputs, getStore } from '../lib/store.js';
 import { topoScan, SCAN_MS } from './topo.js';
 import { lostInDustPlan, compass8 } from './lostdust.js';
 import { visibilityArrays } from '../map/visibility.js';
+import { liveMatchSteps, deadReckoningPrior, seedOf } from './livematch.js';
 
 const SWEEP_MS = 4000;
 const SEARCH_MS = SCAN_MS; // the topographic scan (skyline/topo.js)
@@ -162,7 +163,8 @@ function setCompareView(map, to, reduced) {
   ui.raf = requestAnimationFrame(tick);
 }
 
-function showResult(box, s, map, reduced) {
+// opt.applied: false = the fix disagreed with dead reckoning and was not used; opt.note: what this result is
+function showResult(box, s, map, reduced, opt = {}) {
   box.replaceChildren();
   const full = { est: s.estimate, err: s.errorM, unc: s.uncertaintyM };
   const hasEst96 = isLL(s.fov96?.estimate);
@@ -177,15 +179,17 @@ function showResult(box, s, map, reduced) {
   big.append(strong, what);
   const explain = el('p', 'skyfix-explain');
   explain.setAttribute('role', 'status');
-  const note = el('p', 'skyfix-note', 'Simulated test on NASA terrain, not a real photo yet.');
+  const note = el('p', 'skyfix-note', opt.note ?? 'Simulated test on NASA terrain. Real-photo tests are under More detail.');
+  if (opt.applied === false) big.classList.add('rejected');
   box.append(big, note);
 
   let btns = [];
   const show = mode => {
     const is96 = mode === 96;
     const v = is96 ? v96 : full;
-    strong.textContent = is96 ? 'One way only: ' : 'You are here ';
-    what.textContent = is96 ? `${Math.round(v.err)} m off` : `(within ${Math.round(v.unc)} m)`;
+    strong.textContent = is96 ? 'One way only: ' : opt.applied === false ? 'Not applied ' : 'You are here ';
+    what.textContent = is96 ? `${Math.round(v.err)} m off`
+      : opt.applied === false ? '(the match disagrees with your step count)' : `(within ${Math.round(v.unc)} m)`;
     btns.forEach(([b, m]) => b.setAttribute('aria-pressed', String(m === mode)));
     if (!is96) explain.textContent = 'Looking all the way round sees the most hills, so the match is reliable.';
     else if (same) explain.textContent = 'Here one direction is enough, but at other spots it is far off, so astronauts always turn all the way round.';
@@ -234,11 +238,13 @@ function showLost(map, reason, visKm, minVisKm, siteName) {
   const st = getStore(), d = st.data, der = st.derived, inp = st.inputs;
   const { dlg, result, chart, how } = ui;
   dlg.classList.add('lost');
-  dlg.querySelector('.skyfix-head h2').textContent = 'Lost in dust';
+  dlg.querySelector('.skyfix-head h2').textContent = reason === 'no-match' ? 'No clear match' : 'Lost in dust';
   dlg.querySelector('.skyfix-lead').textContent =
     reason === 'visibility' ? `Visibility is about ${fmtM(visKm * 1000)}: too few hills show to match the horizon safely. ` +
       `In the NASA-terrain test, Horizon Match gave a wrong answer below ${minVisKm} km, so the app does not guess.`
     : reason === 'no-fix' ? 'Dust hides too many hills near ' + siteName + ': no position matched clearly enough, so the app does not guess.'
+    : reason === 'no-match' ? 'The hills around here look alike from several spots, so no position matched clearly enough. The app does not guess. ' +
+      'Keep to your step count and try again from a spot with more distinctive hills in view.'
     : 'You cannot see the hills. Without a horizon there is no fix: here is what to do instead.';
   dlg.querySelector('.skyfix-top').hidden = true;
   chart.toggleAttribute('hidden', true);   // SVG: the .hidden property does not exist
@@ -335,45 +341,90 @@ function resetDialog() {
   dlg.querySelector('.skyfix-lead').textContent = LEAD;
 }
 
+// Live match needs the 40 m terrain grid (the 3D view loads the same file, so it is usually cached); falls back to 80 m.
+let grid40P = null;
+const loadGrid40 = () => (grid40P ??= fetch('data/heightgrid40.json')
+  .then(r => (r.ok ? r.json() : null))
+  .then(g => (g && Number.isInteger(g.w) && Number.isInteger(g.h) && g.data?.length === g.w * g.h ? g : null))
+  .catch(() => null));
+
+/** Runs the live match in small steps (one grid row each) so the page keeps drawing. */
+async function runLive(o, isCurrent, onProgress) {
+  const it = liveMatchSteps(o);
+  for (;;) {
+    const st = it.next();
+    if (st.done) return st.value;
+    if (!isCurrent()) return null;
+    onProgress?.(st.value);
+    await new Promise(r => setTimeout(r, 0));
+  }
+}
+
 /**
- * @param {string} siteId  file in data/skyline/
+ * @param {string|null} siteId  file in data/skyline/ (scripted demo replay); null with opts.live / opts.lost
  * @param {L.Map} map
- * @param {{ applyFix?: boolean, onClose?: () => void, lost?: boolean, visKm?: number }} opts
+ * @param {{ applyFix?: boolean, onClose?: () => void, lost?: boolean, live?: boolean, visKm?: number }} opts
+ *   live=true: match the horizon at the astronaut's own (simulated true) position, searching around where dead
+ *   reckoning puts them (skyline/livematch.js). Without it, the precomputed result for siteId is replayed (demo).
  *   applyFix=false when the demo player owns the position; lost=true opens "Lost in dust" directly (manual);
  *   visKm overrides the app's dust visibility (default: derived.limits.visibilityKm).
  */
 export async function openSkylineFix(siteId, map, opts = {}) {
-  const [s, dust] = await Promise.all([loadSite(siteId), loadDust()]);
+  const live = !!opts.live, lost = !!opts.lost;
+  const [s0, dust] = await Promise.all([live || lost ? null : loadSite(siteId), loadDust()]);
   if (!ui) ui = { ...buildDialog(), timers: [], overlay: null, onClose: null, cmp: null, raf: 0, lostLayers: null };
   closeFix();
   resetDialog();
   ui.onClose = opts.onClose ?? null;
+  const token = ui.token = {};
+  const current = () => ui.token === token && ui.dlg.open;
   const { dlg, step, status, compass, chart, result } = ui;
-  const visKm = Number.isFinite(opts.visKm) ? opts.visKm : (getStore().derived?.limits?.visibilityKm ?? Infinity);
+  const store = getStore();
+  const visKm = Number.isFinite(opts.visKm) ? opts.visKm : (store.derived?.limits?.visibilityKm ?? Infinity);
   const minVis = Number.isFinite(dust?.noFalseFixMinVisKm) ? dust.noFalseFixMinVisKm : 0;
-  if (opts.lost) { showLost(map, 'manual', SEE_CHOICES_KM[1], minVis, s.name); return; }
-  if (visKm < minVis) { showLost(map, 'visibility', visKm, minVis, s.name); return; }
-  const dc = dustCase(dust, siteId, visKm);   // null in clear air
+  const placeName = s0?.name ?? 'your position';
+  if (lost) { showLost(map, 'manual', SEE_CHOICES_KM[1], minVis, placeName); return; }
+  if (visKm < minVis) { showLost(map, 'visibility', visKm, minVis, placeName); return; }
   const setStep = (i, text) => {
     [...step.children].forEach((li, k) => { li.className = k < i ? 'done' : k === i ? 'now' : ''; });
     status.textContent = text;
   };
-  const sc = chartScale(s);
   const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  chart.replaceChildren();
+  result.replaceChildren();
+  dlg.querySelector('.skyfix-head h2').textContent = 'Horizon Match';
+  if (!dlg.open) dlg.show();
 
+  // live: simulate the turn at the true position, search around the dead-reckoning position
+  let s = s0, dc = null, ref = store.inputs.astronaut;
+  const drM = store.derived?.posUncertaintyM ?? 0;
+  if (live) {
+    setStep(0, 'Reading the horizon…');
+    const grid = (await loadGrid40()) ?? store.data.grid;
+    if (!current()) return;
+    const truth = store.inputs.astronaut;
+    const seed = seedOf(truth.lat, truth.lon) ^ Math.round((store.inputs.evaMin ?? 0) * 7);
+    ref = deadReckoningPrior(truth, drM, seed);   // where the step count says you are
+    s = await runLive({ grid, bounds: store.data.meta.bounds, truth, prior: ref, eyeM: store.data.C?.eye_height_m ?? 1.7, visKm, seed },
+      current, f => { status.textContent = `Reading the horizon… ${Math.round(f * 100)}%`; });
+    if (!s || !current()) return;
+  } else {
+    dc = dustCase(dust, siteId, visKm);   // null in clear air
+  }
+  const noFix = live ? !s.fix : !!(dc && !dc.fix);
+  const dusty = live ? s.visKm != null : !!dc;
+  const sc = chartScale(s);
   chart.replaceChildren(
     svg('line', { x1: 0, x2: CHART.w, y1: sc.y(0), y2: sc.y(0), class: 'zero' }),
     svg('polyline', { points: '', class: 'obs' }),
     svg('polyline', { points: '', class: 'best' })
   );
   const [, obs, best] = chart.children;
-  result.replaceChildren();
-  dlg.querySelector('.skyfix-head h2').textContent = 'Horizon Match';
-  if (!dlg.open) dlg.show();
 
   // 1. Turn 360°
-  setStep(0, `Near ${s.name}. The astronaut turns slowly and the helmet camera traces the hills.` +
-    (dc ? ` In this dust, only hills within about ${dc.visKm} km show.` : ''));
+  const dustTxt = dusty ? ` In this dust, only hills within about ${live ? s.visKm.toFixed(1) : dc.visKm} km show.` : '';
+  setStep(0, (live ? `Where your step count puts you (±${Math.round(drM)} m).` : `Near ${s.name}.`) +
+    ' The astronaut turns slowly and the helmet camera traces the hills.' + dustTxt);
   const sweep = compass.querySelector('.sweep');
   const n = s.observed.length;
   if (reduced) {
@@ -381,7 +432,7 @@ export async function openSkylineFix(siteId, map, opts = {}) {
   } else {
     const t0 = performance.now();
     const tick = now => {
-      if (!dlg.open) return;
+      if (!current()) return;
       const f = Math.min(1, (now - t0) / SWEEP_MS);
       sweep.setAttribute('transform', `rotate(${f * 360} 50 50)`);
       obs.setAttribute('points', points(s.observed, sc, Math.max(2, Math.round(f * n))));
@@ -390,7 +441,7 @@ export async function openSkylineFix(siteId, map, opts = {}) {
     requestAnimationFrame(tick);
   }
 
-  // 2. Search the map
+  // 2. Search the map (the grid is centred on where the astronaut thinks they are)
   const later = (ms, fn) => ui.timers.push(setTimeout(fn, reduced ? 0 : ms));
   later(SWEEP_MS, () => {
     setStep(1, 'Scanning the NASA terrain map: every dot is a spot whose horizon is being compared.');
@@ -398,13 +449,13 @@ export async function openSkylineFix(siteId, map, opts = {}) {
     map.flyToBounds(gridBounds(s.grid), { duration: reduced ? 0 : 0.8, padding: [40, 40] });
   });
 
-  // 3. Fix, or no fix (dust): the self-check decides (scripts/skyline_dust.py rule)
+  // 3. Fix, or no fix: the self-check decides (rule from scripts/skyline_dust.py)
   later(SWEEP_MS + SEARCH_MS, () => {
-    if (dc && !dc.fix) {
+    if (noFix) {
       setStep(2, 'No reliable match.');
       ui.scan?.then(c => c?.remove());
       ui.scan = null;
-      showLost(map, 'no-fix', visKm, minVis, s.name);
+      showLost(map, dusty ? 'no-fix' : 'no-match', visKm, minVis, placeName);
       return;
     }
     setStep(2, 'Best match found.');
@@ -415,18 +466,20 @@ export async function openSkylineFix(siteId, map, opts = {}) {
     const st = getStore(), floorM = st.data?.C?.horizon_fix_min_uncertainty_m ?? 100;
     const raw = dc ? { ...s, estimate: dc.estimate, errorM: dc.errorM, uncertaintyM: dc.uncertaintyM, fov96: null } : s;
     const res = { ...raw, uncertaintyM: Math.max(raw.uncertaintyM, floorM) };
-    showResult(result, res, map, reduced);
+    // a bad fix accepted blindly is worse than none: only use it if it agrees with dead reckoning
+    const gapM = distM(ref.lat, ref.lon, res.estimate.lat, res.estimate.lon);
+    const applied = opts.applyFix === false ? undefined : gapM <= drM + res.uncertaintyM;
+    const note = live
+      ? `Simulated: the horizon at your true position is computed from NASA terrain with camera noise, then matched around where your step count puts you. The match is ${Math.round(gapM)} m from your step-count position.`
+      : undefined;
+    showResult(result, res, map, reduced, { applied, note });
     if (dc) result.append(el('p', 'skyfix-note', `Dust: matched with only the hills within ${dc.visKm} km (simulated dust test on NASA terrain). The chart shows the clear-day horizon.`));
-    if (opts.applyFix !== false) {
-      // a bad fix accepted blindly is worse than none: only move the astronaut if the match agrees with dead reckoning
-      const cur = st.inputs.astronaut, drM = st.derived?.posUncertaintyM ?? Infinity;
-      const gapM = distM(cur.lat, cur.lon, res.estimate.lat, res.estimate.lon);
-      if (gapM <= drM + res.uncertaintyM) {
-        setInputs({ astronaut: { ...cur, lat: res.estimate.lat, lon: res.estimate.lon }, distSinceFixM: 0, fixUncertaintyM: res.uncertaintyM });
-      } else {
-        result.append(el('p', 'skyfix-warn', `Not applied: the match is ${Math.round(gapM)} m from where your step count puts you (±${Math.round(drM)} m). ` +
-          'One of them is wrong: stop, turn around once more, and compare with a landmark before moving.'));
-      }
+    if (applied === true) {
+      const cur = st.inputs.astronaut;
+      setInputs({ astronaut: { ...cur, lat: res.estimate.lat, lon: res.estimate.lon }, distSinceFixM: 0, fixUncertaintyM: res.uncertaintyM });
+    } else if (applied === false) {
+      result.append(el('p', 'skyfix-warn', `The match is ${Math.round(gapM)} m from where your step count puts you (±${Math.round(drM)} m). ` +
+        'One of them is wrong: stop, turn around once more, and compare with a landmark before moving.'));
     }
     map.flyTo([res.estimate.lat, res.estimate.lon], Math.max(map.getZoom(), 14), { duration: reduced ? 0 : 0.8 });
   });

@@ -280,26 +280,17 @@ function show2D() {
   return () => document.getElementById('v-3d').click();
 }
 
-function nearestSite(results, at) {
-  let best = null, bestD = Infinity;
-  for (const [id, s] of Object.entries(results)) {
-    const d = (s.truth.lat - at.lat) ** 2 + ((s.truth.lon - at.lon) * Math.cos(at.lat * Math.PI / 180)) ** 2;
-    if (d < bestD) { bestD = d; best = id; }
-  }
-  return best;
-}
-
 function setupSkyline(map, mod, results) {
   // Lost in dust: the astronaut cannot see the hills (local dust the app's τ model does not know about)
   document.getElementById('btn-lostdust')?.addEventListener('click', () => {
-    const site = mod && nearestSite(results, getStore().inputs.astronaut);
-    if (!site) return;
+    if (!mod) return;
     const restore = show2D();
-    mod.openSkylineFix(site, map, { onClose: restore, lost: true }).catch(err => console.error(err));
+    mod.openSkylineFix(null, map, { onClose: restore, lost: true }).catch(err => console.error(err));
   });
+  // the button matches the horizon where the astronaut actually is (live, skyline/livematch.js); the scripted demo
+  // event still replays its precomputed site result
   document.getElementById('btn-skyline').addEventListener('click', () => {
-    const site = mod && nearestSite(results, getStore().inputs.astronaut);
-    if (site) { const restore = show2D(); mod.openSkylineFix(site, map, { onClose: restore }).catch(err => console.error(err)); return; }
+    if (mod) { const restore = show2D(); mod.openSkylineFix(null, map, { onClose: restore, live: true }).catch(err => console.error(err)); return; }
     const banner = document.getElementById('banner');
     banner.textContent = 'Horizon Match panel is not built yet (skyline/skyline.js).';
     banner.hidden = false;

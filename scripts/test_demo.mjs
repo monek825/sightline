@@ -12,6 +12,7 @@ import { createPipeline } from '../lib/pipeline.js';
 import { initStore, setInputs, getStore } from '../lib/store.js';
 import { prepareScenario, stateAt } from '../map/scenario.js';
 import { lostInDustPlan, nearestClear, compass8 } from '../skyline/lostdust.js';
+import { liveMatch, deadReckoningPrior } from '../skyline/livematch.js';
 
 const MAX_DERIVE_MS = 50;
 const STATUSES = ['GREEN', 'AMBER', 'RED'];
@@ -253,6 +254,19 @@ section('crew extremes');
   const q = lostInDustPlan({ astronaut: at, visKm: 5, vis: null, grid, bounds, posUncertaintyM: 50, driftPct: 3, routeHomeKm: null,
     budget: { suitMinLeft: 30, returnMin: 60 }, reason: 'visibility' });
   check('lost in dust: no route / no grid / no spare time are handled', q.endUncertaintyM === null && q.mayMissHabitat === false && q.spareMin === 0 && q.sightAny === null);
+}
+
+// ---------- Live Horizon Match (skyline/livematch.js) ----------
+{
+  const g40 = JSON.parse(fs.readFileSync(new URL('../data/heightgrid40.json', import.meta.url)));
+  const bnd = JSON.parse(fs.readFileSync(new URL('../data/meta.json', import.meta.url))).bounds;
+  const run = (truth, seed) => liveMatch({ grid: g40, bounds: bnd, truth, prior: deadReckoningPrior(truth, 500, seed), eyeM: 1.7, visKm: 100, seed });
+  const land = { lat: 18.44463, lon: 77.45089 };
+  const a = run(land, 7), a2 = run(land, 7);
+  check('live match: landing site, 500 m step-count error -> fix within 100 m', a.fix && a.errorM <= 100, `error ${a.errorM} m, unc ${a.uncertaintyM} m, fix ${a.fix}`);
+  check('live match: deterministic for the same situation', a.estimate.lat === a2.estimate.lat && a.estimate.lon === a2.estimate.lon);
+  const o = run({ lat: 18.47, lon: 77.40 }, 7);
+  check('live match: a different place gives a different position (not a replayed site)', Math.abs(o.estimate.lat - a.estimate.lat) > 0.01 && o.errorM <= 300, `error ${o.errorM} m`);
 }
 
 console.log(`\ntest_demo: ${passed} passed, ${failures.length} failed`);
