@@ -382,6 +382,40 @@ function makeDevilColumns(T, parent) {
   return { U, meshes };
 }
 
+// Blowing dust over the 3D view (visual only): two layers of soft noise drifting with the wind, opacity from tau.
+// CSS transform animation (compositor), so it costs no frame time; one 256 px noise texture, generated once.
+const VEIL_PER_TAU = 0.075, VEIL_MAX = 0.75;
+function dustNoise() {
+  const N = 256, c = document.createElement('canvas');
+  c.width = c.height = N;
+  const g = c.getContext('2d'), img = g.createImageData(N, N);
+  const rnd = (x, y, s) => { const k = ((x % s + s) % s) * 7919 + ((y % s + s) % s) * 104729; const v = Math.sin(k) * 43758.5453; return v - Math.floor(v); };
+  const smooth = (x, y, s) => {
+    const x0 = Math.floor(x), y0 = Math.floor(y), fx = x - x0, fy = y - y0, u = fx * fx * (3 - 2 * fx), v = fy * fy * (3 - 2 * fy);
+    return (rnd(x0, y0, s) * (1 - u) + rnd(x0 + 1, y0, s) * u) * (1 - v) + (rnd(x0, y0 + 1, s) * (1 - u) + rnd(x0 + 1, y0 + 1, s) * u) * v;
+  };
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+    let n = 0, amp = 0.6;
+    for (const s of [4, 8, 16]) { n += amp * smooth(x * s / N, (y * s / N) * 0.5, s); amp *= 0.5; } // stretched sideways: wind streaks
+    img.data.set([214, 160, 112, Math.round(Math.min(1, Math.max(0, n - 0.3) * 2.2) * 255)], (y * N + x) * 4); // dust colour baked in
+  }
+  g.putImageData(img, 0, 0);
+  return c.toDataURL();
+}
+function addDustVeil(host) {
+  const veil = document.createElement('div');
+  veil.className = 'dust-veil';
+  veil.setAttribute('aria-hidden', 'true');
+  const url = `url(${dustNoise()})`;
+  for (const cls of ['veil-a', 'veil-b']) {
+    const layer = document.createElement('div');
+    layer.className = `veil-layer ${cls}`;
+    layer.style.setProperty('--noise', url);
+    veil.append(layer);
+  }
+  host.append(veil);
+}
+
 function createView3D(data, onPickTarget, devils) {
   const host = $('view3d'), msg = $('v3-msg');
   let s = null, starting = null, terrain = null, last = null, lastHome, lastOut, lastRadius = -1, lastTau = null, lastSun = null, lastVis = null, blind3d = null;
@@ -482,12 +516,15 @@ function createView3D(data, onPickTarget, devils) {
       s.sky.setAttribute('material', `shader: flat; fog: false; src: url(${skyGradient(sky, f)})`);
       s.sun.setAttribute('light', 'intensity', (1.6 * Math.exp(-tau / 5) + 0.25).toFixed(2));
       s.hemi.setAttribute('light', 'intensity', (0.7 + 0.25 * f).toFixed(2));
-      s.scene.setAttribute('fog', `type: linear; color: ${color}; near: ${Math.round(far * 0.15)}; far: ${Math.round(far)}`);
+      // storms: haze starts right in front of the camera; clear days: only far away
+      s.scene.setAttribute('fog', `type: linear; color: ${color}; near: ${Math.round(far * (0.15 - 0.15 * f))}; far: ${Math.round(far)}`);
       host.style.background = color;
+      host.style.setProperty('--veil', String(Math.min(VEIL_MAX, tau * VEIL_PER_TAU).toFixed(2)));
     }
   }
 
   async function init() {
+    addDustVeil(host);
     say('Loading 3D terrain…');
     try {
       if (!window.AFRAME) await loadScript(AFRAME_SRC);

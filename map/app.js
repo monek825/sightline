@@ -194,6 +194,27 @@ function setupScenario(data, M, sky) {
   };
   // changing the route mode after picking a target re-plans the walk too (value from the event, not listener order)
   document.getElementById('c-mode').addEventListener('change', e => { if (prep.custom) replan(prep.target, e.target.value); });
+  // Events you control: trigger one now, or start a scripted / random / calm run.
+  const mode0 = () => (prep.custom ? getStore().inputs.routeMode : 'safest');
+  const fixed = evs => evs.filter(e => e.type === 'eva_start' || e.type === 'eva_end' || e.type === 'skyline_fix');
+  const randomEvents = () => {
+    const r = (a, b) => Math.round(a + Math.random() * (b - a));
+    const end = data.scenario.events.find(e => e.type === 'eva_end')?.tMin ?? 200;
+    const evs = [...fixed(data.scenario.events), { tMin: r(10, 45), type: 'tau', value: +(0.4 + Math.random()).toFixed(1) }];
+    if (Math.random() < 0.7) evs.push({ tMin: r(50, end - 60), type: 'tau', value: +(3 + Math.random() * 6).toFixed(1) });
+    if (Math.random() < 0.6) evs.push({ ...data.scenario.events.find(e => e.type === 'sep_onset'), tMin: r(35, end - 50) });
+    return evs;
+  };
+  const triggerEvent = kind => {
+    if (kind === 'dust') return setCondition('tau', 6);
+    if (kind === 'clear') return setCondition('tau', 0.4);
+    if (kind === 'solar') { swap(editScenario(scenario, Math.max(t, 1), 'sepAt', true, prep.hourMin, data.scenario), prep.target, mode0(), 'keep'); return apply(); }
+    if (kind === 'lost') { stop(); document.getElementById('btn-skyline').click(); return; }
+    const list = kind === 'random' ? randomEvents() : kind === 'calm' ? fixed(data.scenario.events) : data.scenario.events;
+    swap(editScenario(scenario, 0, 'events', list), prep.target, mode0(), 'zero');
+    apply();
+  };
+  for (const b of document.querySelectorAll('[data-event]')) b.addEventListener('click', () => triggerEvent(b.dataset.event));
   const setSpeed = k => { speed = Math.min(10, Math.max(1, Math.round(Number(k)) || 1)); }; // takes effect on the next frame; the clock does not jump
   return { retarget: target => replan(target, getStore().inputs.routeMode), setCondition, runHasSep, runEvents: () => scenario.events, setSpeed, getSpeed: () => speed };
 }

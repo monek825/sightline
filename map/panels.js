@@ -121,6 +121,52 @@ function factorItem(f, byKey, keyNum) {
   return li;
 }
 
+// Icons for the factor tiles (24x24 stroke paths, drawn with createElementNS, no innerHTML).
+const ICONS = {
+  mobility: 'M13 4a1.5 1.5 0 1 0 0 .01M10 21l2-6 3 3v3M8 12l3-4 3 2 3 1M11 8l-1 5',
+  suit_time: 'M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18M12 7v5l3 2',
+  radiation: 'M12 12m-1.5 0a1.5 1.5 0 1 0 3 0a1.5 1.5 0 1 0-3 0M12 3a9 9 0 0 1 7.8 4.5L14 11M4.2 7.5A9 9 0 0 1 12 3M12 21a9 9 0 0 1-7.8-4.5L10 13M19.8 16.5A9 9 0 0 1 12 21',
+  dust: 'M3 8h11a3 3 0 1 0-3-3M3 12h16a3 3 0 1 1-3 3M3 16h8',
+  dust_devil: 'M4 5h16M6 9h12M8 13h8M10 17h4M11 21h2',
+  cooling: 'M10 14V5a2 2 0 1 1 4 0v9a4 4 0 1 1-4 0M12 10v7',
+  cold: 'M12 2v20M4 6l16 12M20 6 4 18',
+  vision: 'M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12M12 9a3 3 0 1 0 0 6a3 3 0 1 0 0-6',
+  body_clock: 'M20 14A8 8 0 1 1 10 4a6.5 6.5 0 0 0 10 10',
+  bone: 'M7 17l10-10M5.5 15.5a2 2 0 1 0 3 3M15.5 5.5a2 2 0 1 1 3 3M5.5 15.5a2 2 0 1 1 2-2.5M18.5 8.5a2 2 0 1 1-2.5 2',
+  post_eva: 'M3 18V8M3 14h18v4M7 11h4M21 14v-2a3 3 0 0 0-3-3h-6v5',
+  warning: 'M12 3 2 20h20zM12 10v4M12 17v.01'
+};
+function icon(id) {
+  const NS = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(NS, 'svg');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('aria-hidden', 'true');
+  const path = document.createElementNS(NS, 'path');
+  path.setAttribute('d', ICONS[id] ?? 'M12 12m-4 0a4 4 0 1 0 8 0a4 4 0 1 0-8 0');
+  svg.append(path);
+  return svg;
+}
+const LEVEL_WORD = { GREEN: 'OK', AMBER: 'Watch', RED: 'Act now' };
+function factorTile(f, keyNum, wide) {
+  const li = el('li', `tile ${f.level}${wide ? ' wide' : ''}`);
+  li.dataset.key = f.keys?.[0] || '';
+  li.tabIndex = 0;
+  if (!wide) li.title = f.message;
+  const ic = el('span', 'tile-icon');
+  ic.append(icon(f.id));
+  const head = el('div', 'tile-head');
+  head.append(el('strong', '', f.label), el('span', 'tile-level', LEVEL_WORD[f.level] ?? ''));
+  li.append(ic, head);
+  if (keyNum) li.append(el('span', 'tile-num', keyNum));
+  if (wide) {
+    li.append(el('p', 'tile-msg', f.message));
+    const tag = tagFor(f.keys || [], data_byKey);
+    if (tag) li.append(el('span', tag[1], tag[0]));
+  }
+  return li;
+}
+let data_byKey = {};
+
 // The key number of a limiting factor, from the budget (or the first number in its message).
 function keyNumber(f, bdg, inputs) {
   if (f.id === 'suit_time') return bdg.marginMin <= 0 ? `home ${fmtMin(bdg.returnMin)}` : `turn back in ${fmtMin(bdg.turnBackInMin)}`;
@@ -168,7 +214,19 @@ function wireFactorLists() {
 }
 
 // WAI-ARIA tabs: click or arrow keys switch the category.
+// The status card can be hidden to see the map; any tab brings it back.
+function wirePanelHide() {
+  const btn = $('panel-hide');
+  const set = hidden => {
+    document.body.classList.toggle('panel-hidden', hidden);
+    btn.setAttribute('aria-expanded', String(!hidden));
+  };
+  btn.addEventListener('click', () => set(true));
+  for (const t of document.querySelectorAll('[role="tab"]')) t.addEventListener('click', () => set(false));
+}
+
 function wireTabs() {
+  wirePanelHide();
   const tabs = [...document.querySelectorAll('[role="tab"]')];
   const select = tab => {
     for (const t of tabs) {
@@ -205,6 +263,7 @@ function wireDrawer() {
 }
 
 export function createPanels(data, { setInputs, usingStubs, onCondition, runHasSep, runEvents, onSpeed, getSpeed, speedBase }) {
+  data_byKey = data.constantsByKey;
   buildSources(data);
   dataBadge(data, usingStubs);
   const eventsNow = () => runEvents?.() ?? data.scenario?.events ?? []; // the run's current events (condition edits replace them)
@@ -252,25 +311,11 @@ export function createPanels(data, { setInputs, usingStubs, onCondition, runHasS
       // ponytail: tabs show only AMBER/RED (what needs attention); all factors stay in the Details drawer
       list.replaceChildren(...sorted.filter(f => groupOf(f) === list.dataset.group && f.level !== 'GREEN').map(f => factorItem(f, data.constantsByKey)));
     }
-    // Details sheet: what limits the walk, worst first; green factors collapse under "Also checked"
-    const item = f => factorItem(f, data.constantsByKey, f.level === 'GREEN' ? '' : keyNumber(f, bdg, inputs));
-    const limiting = sorted.filter(f => f.level !== 'GREEN').map(item);
-    for (const w of derived.warnings) {
-      const li = el('li', 'AMBER');
-      li.append(el('span', 'dot'), el('div', '', w));
-      limiting.push(li);
-    }
-    if (!limiting.length) limiting.push(el('li', 'none', 'Nothing is limiting the walk right now.'));
-    const fine = sorted.filter(f => f.level === 'GREEN');
-    if (fine.length) {
-      const also = el('li', 'also'), det = el('details'), list = el('ul', 'alerts');
-      det.append(el('summary', '', `Also checked (all fine): ${fine.length}`));
-      list.append(...fine.map(item));
-      det.append(list);
-      also.append(det);
-      limiting.push(also);
-    }
-    $('alerts').replaceChildren(...limiting);
+    // Details sheet: every factor as an icon tile in a bento grid, worst first.
+    // Amber/red tiles are wide and carry the full explanation; green tiles are compact (full text on hover/focus).
+    const tiles = sorted.map(f => factorTile(f, keyNumber(f, bdg, inputs), f.level !== 'GREEN'));
+    for (const w of derived.warnings) tiles.unshift(factorTile({ id: 'warning', level: 'AMBER', label: 'Data note', message: w }, '', true));
+    $('alerts').replaceChildren(...tiles);
     // a coloured dot on each tab shows its worst factor, so trouble is visible without opening it
     for (const t of document.querySelectorAll('[role="tab"]')) {
       const g = t.getAttribute('aria-controls').replace('tab-', '');

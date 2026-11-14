@@ -74,7 +74,10 @@
         <span><i class="sw sw-ring"></i>How far you can see</span>
       </div>
 
-      <aside class="panel frost" aria-label="Walk status">
+      <aside class="panel frost" id="panel" aria-label="Walk status">
+        <button type="button" class="panel-hide" id="panel-hide" aria-expanded="true" aria-controls="panel" aria-label="Hide status card">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>
+        </button>
         <div class="tab-body">
           <section id="tab-home" class="tab" role="tabpanel" aria-labelledby="t-home">
             <h2 id="b-headline" class="headline">–</h2>
@@ -180,6 +183,21 @@
           <label>Days on Mars <output id="o-sol"></output>
             <input type="range" id="c-sol" min="0" max="60" step="1">
             <span class="sub" data-hint="c-sol"></span></label>
+          <div class="events" role="group" aria-labelledby="ev-h">
+            <h3 id="ev-h">Make something happen now</h3>
+            <div class="event-btns">
+              <button type="button" class="btn ev" data-event="dust">Dust storm</button>
+              <button type="button" class="btn ev" data-event="clear">Dust clears</button>
+              <button type="button" class="btn ev" data-event="solar">Solar storm</button>
+              <button type="button" class="btn ev" data-event="lost">Astronaut is lost</button>
+            </div>
+            <h3>Start a new run</h3>
+            <div class="event-btns">
+              <button type="button" class="btn ev" data-event="random">Random events</button>
+              <button type="button" class="btn ev" data-event="calm">Calm day</button>
+              <button type="button" class="btn ev" data-event="scripted">The story</button>
+            </div>
+          </div>
           <label class="check"><input type="checkbox" id="c-sep"> Solar storm during the run</label>
           <label class="check"><input type="checkbox" id="c-sans"> Vision changes (SANS)</label>
           <label>Simulation speed <output id="o-speed"></output>

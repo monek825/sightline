@@ -619,3 +619,63 @@ body.intro-on { overflow: hidden; }
 .intro-fill-in { transform: translateX(calc((1 - var(--p)) * 100%)); transition: transform var(--dur, 600ms) cubic-bezier(.5, 1, .89, 1); }
 @media (max-width: 600px) { .intro-mark { --w: 200px; } }
 @media (prefers-reduced-motion: reduce) { .intro { display: none; } }
+
+/* ---------- Details sheet: a narrow left column, so the centre of the map stays visible ---------- */
+.more {
+  display: flex; flex-direction: column; gap: var(--s4);
+  top: 92px; bottom: calc(var(--notch-d) + var(--s3)); left: var(--s4);
+  width: min(430px, calc(100% - var(--panel-w) - 64px)); max-height: none; padding: var(--s5);
+}
+.more .verdict { font-size: 18px; }
+.more .controls { gap: var(--s3); }
+/* factor bento: icon tiles, problems wide with their explanation, fine ones compact */
+.alerts.bento, #alerts { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s2); }
+#alerts .tile {
+  display: grid; grid-template-columns: 34px 1fr; grid-template-rows: auto auto; gap: 2px var(--s2); align-items: center;
+  padding: var(--s3); border-radius: 14px; background: rgba(0, 0, 0, .24); cursor: default; font-size: 13px;
+}
+#alerts .tile:hover { transform: none; background: rgba(0, 0, 0, .34); }
+#alerts .tile.wide { grid-column: 1 / -1; }
+.tile-icon { grid-row: 1 / 3; width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; background: rgba(76, 200, 106, .16); color: #8fe0a3; }
+.tile.AMBER .tile-icon { background: rgba(226, 167, 58, .2); color: #f3c66c; }
+.tile.RED .tile-icon { background: rgba(255, 95, 86, .22); color: #ff8f88; }
+.tile-icon svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.tile-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s2); min-width: 0; }
+.tile-head strong { font-weight: 600; font-size: 13px; line-height: 1.2; }
+.tile-level { font-size: 11px; color: var(--muted); white-space: nowrap; }
+.tile.RED .tile-level { color: #ff8f88; } .tile.AMBER .tile-level { color: #f3c66c; }
+.tile-num { grid-column: 2; font: 12px var(--mono); color: var(--cream); }
+.tile-msg { grid-column: 1 / -1; margin: var(--s2) 0 0; color: var(--muted); font-size: 13px; line-height: 1.45; }
+.tile .tag { grid-column: 1 / -1; justify-self: start; margin: 4px 0 0; }
+/* event buttons */
+.events { display: grid; gap: var(--s2); }
+.events h3 { margin: var(--s2) 0 0; font: 600 13px var(--display); color: var(--text); }
+.event-btns { display: flex; flex-wrap: wrap; gap: 6px; }
+.btn.ev { min-height: 34px; padding: 0 var(--s3); font-size: 13px; border-radius: 999px; }
+
+/* ---------- status card can be hidden ---------- */
+.panel { transition: transform .5s var(--ease-out), opacity .3s; }
+.panel-hide {
+  position: absolute; top: var(--s3); right: var(--s3); z-index: 2; width: 32px; height: 32px; padding: 0; border: 0; border-radius: 50%;
+  display: grid; place-items: center; background: rgba(255, 255, 255, .08); color: var(--text); cursor: pointer; transition: background-color .2s;
+}
+.panel-hide:hover { background: rgba(255, 138, 61, .25); }
+.panel-hide svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+body.panel-hidden .panel { transform: translateX(calc(100% + var(--s5))); opacity: 0; pointer-events: none; }
+body.panel-hidden .tabbar [role="tab"][aria-selected="true"] { transform: none; background: rgba(255, 255, 255, .12); color: var(--text); box-shadow: none; }
+
+@media (max-width: 1023px) {
+  .more { top: auto; bottom: auto; width: auto; padding: var(--s4); }
+  .panel-hide { display: none; }
+  body.panel-hidden .panel { transform: none; opacity: 1; pointer-events: auto; }
+}
+
+/* blowing dust over the 3D view: noise layers drift with the wind; strength from tau (--veil) */
+.dust-veil { position: absolute; inset: 0; z-index: 1; pointer-events: none; overflow: hidden; opacity: var(--veil, 0); transition: opacity 1.2s ease; }
+.veil-layer { position: absolute; top: -10%; bottom: -10%; left: 0; width: calc(100% + var(--tile-w)); background-image: var(--noise);
+  background-repeat: repeat; background-size: var(--tile-w) var(--tile-h); will-change: transform; animation: veil-drift var(--dur) linear infinite; }
+.veil-a { --tile-w: 900px; --tile-h: 520px; --dur: 38s; opacity: .85; }
+.veil-b { --tile-w: 520px; --tile-h: 300px; --dur: 21s; opacity: .6; }
+/* move exactly one tile, so the loop is seamless */
+@keyframes veil-drift { from { transform: translateX(calc(-1 * var(--tile-w))); } to { transform: translateX(0); } }
+@media (prefers-reduced-motion: reduce) { .veil-layer { animation: none; } }

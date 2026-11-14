@@ -59,6 +59,11 @@ export function editScenario(scenario, t, key, value, hourMin, original = scenar
   const sorted = list => list.map((e, i) => [e, i]).sort((a, b) => a[0].tMin - b[0].tMin || a[1] - b[1]).map(x => x[0]);
   const withEvents = list => ({ ...scenario, events: sorted(list) });
   if (key === 'tau') return withEvents([...evs.filter(e => e.type !== 'tau' || e.tMin < t), { tMin: t, type: 'tau', value }]);
+  if (key === 'sepAt') { // a solar particle event starting at t (replaces any other), keeping the scripted event's citation
+    const cite = (original.events ?? []).find(e => e.type === 'sep_onset') ?? { type: 'sep_onset' };
+    return withEvents([...evs.filter(e => e.type !== 'sep_onset' && e.type !== 'sep_end'), { ...cite, tMin: t }]);
+  }
+  if (key === 'events') return withEvents(value); // a whole new event list (random / calm / scripted runs)
   if (key === 'ltst') return { ...scenario, startLtst: value - t / hourMin };
   if (key === 'sol') return { ...scenario, sol: value };
   if (key === 'returnHome') { // turn back at t; one event at most, false removes it
