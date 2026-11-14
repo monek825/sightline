@@ -563,6 +563,11 @@ function createView3D(data, onPickTarget, devils) {
       update();
     }
     const cam = s.scene.camera;
+    // centre the view on the visible map, not the full canvas (the status card covers the right edge on desktop)
+    const cw = s.scene.canvas?.clientWidth || 0, ch = s.scene.canvas?.clientHeight || 0;
+    const card = window.innerWidth >= 1024 && !document.body.classList.contains('panel-hidden') ? $('panel')?.offsetWidth ?? 0 : 0;
+    const ox = Math.round(card / 2);
+    if (cam && cw && ((cam.view?.offsetX ?? 0) !== ox || (ox && cam.view.fullWidth !== cw) || (ox && cam.view.fullHeight !== ch))) { if (ox) cam.setViewOffset(cw, ch, ox, 0, cw, ch); else cam.clearViewOffset(); }
     const near = Math.min(10, Math.max(0.1, dist * 0.004));
     if (cam && Math.abs(cam.near - near) > near * 0.1) { cam.near = near; cam.updateProjectionMatrix(); }
     if (groundU) groundU.uGCam.value.set(cx, cy, cz);

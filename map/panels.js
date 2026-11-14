@@ -254,7 +254,10 @@ function wireDrawer() {
     notch.setAttribute('aria-expanded', String(open));
     $('drawer').classList.toggle('open', open);
   };
-  notch.addEventListener('click', () => setOpen(more.hidden));
+  notch.addEventListener('click', () => {
+    if (more.hidden) document.querySelector('dialog.skyfix[open] .skyfix-head button')?.click();   // one panel at a time
+    setOpen(more.hidden);
+  });
   document.addEventListener('keydown', e => { // Esc closes the sheet and hands focus back to its button
     if (e.key !== 'Escape' || more.hidden || document.querySelector('dialog[open]')) return;
     setOpen(false);

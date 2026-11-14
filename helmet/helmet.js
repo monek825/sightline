@@ -660,7 +660,7 @@ function rockLevels(cp, dt) {
 
 function fpsTick(timeMs, dt) {
   autoTick(timeMs, dt);
-  const gfxFps = $('gfx-fps');
+  const gfxFps = fpsEl ? $('gfx-fps') : null;   // fps only with ?fps=1 (it leaked as "0 fps")
   if (!fpsEl && !gfxFps) return;
   fpsT[fpsI] = timeMs; fpsD[fpsI] = dt; fpsI = (fpsI + 1) & 511;
   if (timeMs < fpsNext) return;
@@ -884,7 +884,7 @@ function hud(inputs, derived) {
   const storm = !!inputs.sepActive;
   const banner = $('storm');
   banner.hidden = !storm;
-  if (storm) banner.textContent = 'SOLAR PARTICLE EVENT — follow the red route to the habitat';
+  if (storm) banner.textContent = b.headline === 'AT SHELTER' ? 'Solar particle event: stay inside the habitat' : 'Solar particle event: follow the red route to the habitat';
 
   $('env-tau').textContent = fin(inputs.tau) ? inputs.tau.toFixed(1) : '—';
   $('env-vis').textContent = Math.round(lim.visibilityKm) + ' km';
