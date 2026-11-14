@@ -9,24 +9,32 @@
 
 const MAX_WAIT_MS = 15000;      // never hold the app longer than this
 const FILL_MS = 600, OPEN_MS = 150 + 650, FADE_MS = 200;
-const CREEP = { to: 0.65, ms: 6000 };
 
 const intro = document.getElementById('intro');
 const later = ms => new Promise(r => setTimeout(r, ms));
 const frames = n => new Promise(r => { const f = () => (--n <= 0 ? r() : requestAnimationFrame(f)); requestAnimationFrame(f); });
 let shown = 0;
-const set = (p, ms) => {
+const QUAD_OUT = 'cubic-bezier(.5, 1, .89, 1)';
+const set = (p, ms, ease = QUAD_OUT) => {
   intro.style.setProperty('--dur', `${ms}ms`);
+  intro.style.setProperty('--ease', ease);
   intro.style.setProperty('--p', String(p));
 };
-// jump to a milestone, then keep creeping slowly toward the next cap, so the bar never sits still
-let creepTimer = 0;
-const progress = (p, ms = FILL_MS, creepTo = Math.min(0.97, p + 0.12), creepMs = 7000) => {
+// Milestone: a quick quadratic-ease-out jump. Between milestones: linear creep segments, each covering a third of the
+// remaining gap to 99 % over 2.5 s, so the bar keeps moving, slower and slower, and never fully stops.
+let creepTimer = 0, at = 0;
+const SEG_MS = 2500, CAP = 0.99;
+function creep() {
+  at += (CAP - at) / 3 * (at < 0.9 ? 1 : 0.5);
+  set(at, SEG_MS, 'linear');
+  creepTimer = setTimeout(creep, SEG_MS);
+}
+const progress = (p, ms = FILL_MS) => {
   if (p <= shown) return;
-  shown = p;
+  shown = p; at = Math.max(at, p); // never move backwards if the creep already passed this milestone
   clearTimeout(creepTimer);
-  set(p, ms);
-  if (p < 1) creepTimer = setTimeout(() => { if (shown === p) set(creepTo, creepMs); }, ms);
+  set(at, ms);
+  if (p < 1) creepTimer = setTimeout(creep, ms);
 };
 
 function done() {
@@ -45,7 +53,7 @@ async function run() {
   const drawn = built.then(() => frames(3));
   const failed = new Promise(r => document.addEventListener('terrain-error', r, { once: true })); // 2D fallback: don't wait
   await frames(2); // commit the empty state before the first transition
-  progress(0.12, 400, CREEP.to, CREEP.ms);
+  progress(0.12, 400);
   await Promise.race([Promise.all([booted, Promise.race([drawn, failed])]), later(MAX_WAIT_MS)]);
   progress(1);
   await later(FILL_MS);

@@ -101,7 +101,7 @@ export function computeBudget(inputs, limits, routeHomeKm, C) {
   const dustLevel = tau > C.tau_red ? 'RED' : tau > C.tau_amber ? 'AMBER' : 'GREEN';
   factors.push({ id: 'dust', level: dustLevel, label: 'Dust visibility',
     message: `Dust τ = ${tau.toFixed(1)}: landmarks beyond ~${r(limits.visibilityKm)} km lost.` +
-      (dustLevel === 'GREEN' ? '' : ' Blind zones growing.') +
+      (dustLevel === 'GREEN' ? '' : ' Blind zones growing. Mars dust storms are thin but tall, so you still see kilometres, but the hills you navigate by fade out.') +
       ` For context, the Jan 2022 Jezero storm reached τ ~${C.tau_jan2022_storm}.`,
     keys: ['vis_dust_scale_height_km', 'tau_amber', 'tau_red', 'tau_jan2022_storm', ...(sansAffected ? ['sans_range_factor'] : [])] });
 

@@ -705,3 +705,12 @@ body.panel-hidden .tabbar [role="tab"][aria-selected="true"] { transform: none; 
 .intro-lines span:nth-child(5) { animation-delay: 8s; }
 @keyframes intro-line { 0% { opacity: 0; transform: translateY(6px); } 4%, 18% { opacity: 1; transform: none; } 22%, 100% { opacity: 0; transform: translateY(-6px); } }
 @media (max-width: 600px) { .intro-lines { top: calc(50% + 80px); } }
+
+/* loader dots: each dot fades in turn (opacity only, compositor) */
+.intro-lines i { font-style: normal; opacity: 0; animation: intro-dot 1.2s steps(1, end) infinite; }
+.intro-lines i:nth-child(2) { animation-name: intro-dot2; }
+.intro-lines i:nth-child(3) { animation-name: intro-dot3; }
+@keyframes intro-dot { 0% { opacity: 0; } 25%, 100% { opacity: 1; } }
+@keyframes intro-dot2 { 0% { opacity: 0; } 50%, 100% { opacity: 1; } }
+@keyframes intro-dot3 { 0% { opacity: 0; } 75%, 100% { opacity: 1; } }
+.intro-fill, .intro-fill-in { transition-timing-function: var(--ease, cubic-bezier(.5, 1, .89, 1)); }
