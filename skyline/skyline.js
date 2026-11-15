@@ -97,6 +97,9 @@ function buildDialog() {
   xs.append(xp); close.append(xs);
   head.append(h, close);
 
+  const real = el('button', 'btn skyfix-real', 'Compare with Perseverance photo');   // the real-photo test (skyline/realphoto.js)
+  real.type = 'button';
+  real.addEventListener('click', () => import('./realphoto.js').then(m => m.openRealPhoto(real)));
   const lead = el('p', 'skyfix-lead', LEAD);
   const step = el('ol', 'skyfix-steps');
   step.setAttribute('aria-label', 'Progress');
@@ -129,7 +132,7 @@ function buildDialog() {
     'In dust (simulated on NASA terrain), the self-check never claimed a wrong position down to 1.5 km visibility. Below that, or when it finds no clear match, the app switches to "Lost in dust".'
   ]) how.append(el('p', null, line));
 
-  dlg.append(head, lead, el('div', 'skyfix-top', null), chart, axis, legend, result, how);
+  dlg.append(head, real, lead, el('div', 'skyfix-top', null), chart, axis, legend, result, how);
   dlg.querySelector('.skyfix-top').append(compass, el('div', 'skyfix-prog', null));
   dlg.querySelector('.skyfix-prog').append(step, status);
   document.querySelector('.map-wrap').append(dlg);
@@ -210,7 +213,7 @@ function showResult(box, s, map, reduced, opt = {}) {
   big.append(strong, what);
   const explain = el('p', 'skyfix-explain');
   explain.setAttribute('role', 'status');
-  const note = el('p', 'skyfix-note', opt.note ?? 'Simulated test on NASA terrain. Real-photo tests are under More detail.');
+  const note = el('p', 'skyfix-note', opt.note ?? 'Simulated test on NASA terrain. The test on real photos is under "Compare with Perseverance photo".');
   if (opt.applied === false) big.classList.add('rejected');
   box.append(big, note);
 

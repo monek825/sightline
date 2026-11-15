@@ -433,6 +433,11 @@ let viewRef = null, helmetLook = null;
 async function show2D() { return () => {}; }
 
 function setupSkyline(map, mod, results) {
+  // the real-photo test: our skyline vs Perseverance's photos (skyline/realphoto.js), also at the top of the Horizon Match panel
+  document.getElementById('btn-realphoto')?.addEventListener('click', e => {
+    const opener = e.currentTarget;
+    import('../skyline/realphoto.js').then(m => m.openRealPhoto(opener)).catch(err => console.error(err));
+  });
   // Lost in dust: the astronaut cannot see the hills (local dust the app's τ model does not know about)
   document.getElementById('btn-lostdust')?.addEventListener('click', e => {
     if (!mod) return;

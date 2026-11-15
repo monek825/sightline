@@ -385,6 +385,37 @@ body.video :is(.bar-left, .layers, .leaflet-control-container) { display: none; 
 .skyfix-legend span::before { content: ""; display: inline-block; width: 14px; height: 3px; margin-right: 6px; vertical-align: middle; border-radius: 2px; }
 .k-obs::before { background: #fff; }
 .k-best::before { background: var(--amber); }
+.skyfix-real { justify-self: start; }
+/* "Compare with Perseverance photo" (skyline/realphoto.js) */
+.realcmp { width: min(820px, 94vw); }
+.realcmp .dlg-body { display: grid; gap: var(--s3); }
+.realcmp .dlg-head h2 { font-size: 20px; margin: 0; }
+.realcmp p { margin: 0; }
+.rp-lead, .rp-note, .rp-scale, .rp-explain { font-size: 13px; color: var(--muted); }
+.rp-picks { display: flex; flex-wrap: wrap; gap: var(--s2); }
+.rp-picks .btn { display: inline-flex; flex-direction: column; align-items: flex-start; line-height: 1.2; }
+.rp-picks .btn .sub { font: 500 11px var(--mono); color: var(--muted); }
+.rp-picks .btn[aria-pressed="true"] { outline: 2px solid var(--amber); outline-offset: 1px; }
+.rp-view { display: grid; gap: var(--s2); }
+.rp-result { font-size: 14px; }
+.rp-result strong { font: 600 1.4rem var(--mono); margin-right: 4px; }
+.rp-result .good { color: var(--green); }
+.rp-result .bad { color: var(--amber); }
+.rp-photo { margin: 0; display: grid; gap: var(--s1); }
+.rp-frame { position: relative; border-radius: var(--r-md); overflow: hidden; }
+.rp-frame img { display: block; width: 100%; height: auto; }
+.rp-frame svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.rp-photo figcaption { font-size: 12px; color: var(--muted); }
+.rp-chart { width: 100%; height: auto; aspect-ratio: 720 / 190; display: block; background: rgba(0, 0, 0, .28); border-radius: var(--r-md); }
+.rp-chart .grid { stroke: rgba(255, 244, 224, .1); }
+.rp-chart .band { fill: rgba(111, 195, 255, .12); }
+.rp-chart .model { fill: none; stroke: var(--amber); stroke-width: 2.5; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+.rp-chart .obs, .rp-frame .trace { fill: #6fc3ff; }
+.rp-frame .trace { fill: none; stroke: #6fc3ff; stroke-width: 3; vector-effect: non-scaling-stroke; }
+.rp-legend { display: flex; flex-wrap: wrap; gap: var(--s1) var(--s4); font-size: 12px; color: var(--muted); }
+.rp-legend span::before { content: ""; display: inline-block; width: 14px; height: 3px; margin-right: 6px; vertical-align: middle; border-radius: 2px; }
+.k-photo::before { background: #6fc3ff; height: 8px !important; width: 8px !important; border-radius: 50% !important; }
+.k-model::before { background: var(--amber); }
 .skyfix-result p { margin: 0 0 var(--s2); font-size: 13px; color: var(--muted); }
 .skyfix-big { color: var(--text) !important; }
 .skyfix-big strong { font: 600 1.8rem var(--mono); color: var(--green); }
