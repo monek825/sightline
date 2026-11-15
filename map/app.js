@@ -12,6 +12,7 @@ import * as stubs from './stubs.js';
 import { initMotion } from './motion.js';
 import { setupPlanner } from './planner.js';
 
+const FIX_AUTO_CLOSE_MS = 9000;   // demo: the scripted Horizon Match panel closes itself after the match plays (~5.5 s) plus time to read
 const SPEED_MIN_PER_SEC = 2; // demo clock: 1 real second = 2 EVA minutes
 // Story captions for the demo, one per scenario event type (plain-language narration for judges).
 const CAPTIONS = {
@@ -214,9 +215,12 @@ function setupScenario(data, M, sky) {
     const fix = fixEvents.find(e => prevT < e.tMin && e.tMin <= t);
     if (fix) { // pause, play the Horizon Match, resume when the panel closes
       stop();
-      caption.textContent = 'Close the Horizon Match panel to continue the demo.'; caption.hidden = false;
+      caption.textContent = 'Horizon Match: matching the hill outline. The demo goes on by itself.'; caption.hidden = false;
       const id = pauseId;
-      show2D().then(restore => sky.skyline.openSkylineFix(fix.site, sky.map, { applyFix: false, onClose: () => { restore(); if (id === pauseId) start(); } }));
+      show2D().then(restore => {
+        sky.skyline.openSkylineFix(fix.site, sky.map, { applyFix: false, onClose: () => { restore(); if (id === pauseId) start(); } });
+        setTimeout(() => { if (id === pauseId) sky.skyline.closeFix(); }, FIX_AUTO_CLOSE_MS);   // the demo never waits on a click
+      });
       return;
     }
     if (t >= prep.endT) { stop(); return; }
