@@ -88,6 +88,14 @@
     <div id="hm-status"></div>
   </div>
   <div id="hm-card" role="status" aria-live="polite" hidden><div id="hm-title"></div><div id="hm-sub"></div></div>
+  <!-- mini-map: where you are, home and the route home, as a small 2D map that pops up from its button -->
+  <button type="button" id="map-btn" class="hud-btn map-btn" aria-expanded="false" aria-controls="map-card" title="Map">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2z"/><path d="M9 4v14M15 6v14"/></svg><span>Map</span>
+  </button>
+  <div id="map-card" role="dialog" aria-label="Map" hidden>
+    <canvas id="map-cv" width="300" height="300"></canvas>
+    <button type="button" class="map-x" aria-label="Close map"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+  </div>
   <!-- one settings button (bottom right) holds graphics + what is shown, so the HUD edges stay clean -->
   <button type="button" id="hud-settings" class="hud-btn" aria-expanded="false" aria-controls="view-menu" aria-label="View settings" title="View settings">
     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg>
@@ -119,5 +127,6 @@
   </div>
 
   <script type="module" src="helmet.js"></script>
+  <script type="module" src="minimap.js"></script>
 </body>
 </html>
