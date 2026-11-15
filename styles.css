@@ -839,3 +839,6 @@ body.is-3d .legend { bottom: calc(var(--notch-d) + 84px); } /* the 3D note below
 @media (prefers-reduced-motion: reduce) { .banner:not([hidden]) { animation: none; } }
 @media (max-width: 1023px) { .banner:not([hidden]) { animation-name: warn-in-m, warn-pulse; } }
 @keyframes warn-in-m { 0%, 30% { max-width: 50px; max-height: 44px; color: transparent; transform: translateX(-50%); } 100% { max-width: calc(100vw - 32px); max-height: 160px; transform: translateX(-50%); } }
+
+/* drift label on the position ring */
+.leaflet-tooltip.unc-tip, .v3-label.unc { color: #ffd3b0; }

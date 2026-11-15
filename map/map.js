@@ -489,7 +489,7 @@ function addDustVeil(host) {
 function createView3D(data, onPickTarget, devils) {
   const host = $('view3d'), msg = $('v3-msg');
   let s = null, starting = null, terrain = null, last = null, lastHome, lastOut, lastRadius = -1, lastTau = null, lastSun = null, lastVis = null, blind3d = null;
-  let releasing = false, savedOrbit = null, pinK = -1, routeK = 1, retried = false, groundU = null, rocks = null, wasPlaying = false;
+  let uncLabel = null, releasing = false, savedOrbit = null, pinK = -1, routeK = 1, retried = false, groundU = null, rocks = null, wasPlaying = false;
   const say = text => { msg.textContent = text; msg.hidden = !text; };
   const noteBase = `Vertical scale ×${EXAGGERATE} (true). Rover and habitat are true size. The habitat is a concept, not a NASA design. The far rover is Perseverance at its latest traverse position.`;
   let noteDevils = null, dv3 = null, dvAff = null, dvT0 = performance.now();
@@ -655,6 +655,17 @@ function createView3D(data, onPickTarget, devils) {
     s.astro.object3D.position.set(p.x, p.y, p.z);
     trimRoute(s, 'home', p); trimRoute(s, 'out', p);
     s.ring.object3D.position.set(p.x, p.y + Math.max(0.1, LIFT_M * routeK), p.z);
+    if (!uncLabel) {
+      const el = document.createElement('span');
+      el.className = 'v3-label unc';
+      labelBox.append(el);
+      uncLabel = { el, kind: 'ring', y0: p.y, h: 0, p: new AFRAME.THREE.Vector3() };
+      labels.push(uncLabel);
+    }
+    const ur = Math.round(d.posUncertaintyM);
+    uncLabel.p.set(p.x, p.y, p.z + ur);   // at the ring's south edge
+    uncLabel.y0 = p.y;
+    if (uncLabel.el.textContent !== `Position guess ±${ur} m`) uncLabel.el.textContent = `Position guess ±${ur} m`;
     const r = Math.max(5, Math.round(d.posUncertaintyM));
     if (r + routeK * 1e6 !== lastRadius) {      // line width follows the zoom (thin when close)
       lastRadius = r + routeK * 1e6;
@@ -843,7 +854,7 @@ function createView3D(data, onPickTarget, devils) {
       s.scene.pause(); r?.setAnimationLoop(null);
       s.scene.remove();
       try { r?.dispose(); r?.forceContextLoss(); } catch { /* already gone */ }
-      labelBox.replaceChildren(); labels.length = 0;
+      labelBox.replaceChildren(); labels.length = 0; uncLabel = null;
       s = null; starting = null; terrain = null; blind3d = null; groundU = null; rocks = null; dv3 = null;
       lastHome = lastOut = undefined; lastRadius = -1; lastTau = lastSun = lastVis = null; pinK = -1; routeK = 1; retried = false;
     }
@@ -917,6 +928,9 @@ export function createMapView(data, { onPickTarget }) {
   const seeRing = L.circle([0, 0], { radius: 1000, color: DUST, weight: 2, dashArray: '6 6', fill: false, interactive: false }).addTo(map);
   const devils = createDevils(map, data.C);
   const uncertainty = L.circle([0, 0], { radius: 30, color: CREAM, weight: 1.5, fillColor: CREAM, fillOpacity: 0.12 }).addTo(map);
+  // the drift made visible: no GPS, so this ring is how far off the suit's step-count position may be
+  uncertainty.bindTooltip('', { permanent: true, direction: 'bottom', offset: [0, 8], className: 'lm-name unc-tip' });
+  let lastUnc = -1;
   const astro = L.marker([0, 0], { icon: astronautIcon(0), keyboard: false, zIndexOffset: 1000 }).addTo(map);
   map.on('click', e => onPickTarget({ lat: e.latlng.lat, lon: e.latlng.lng }));
 
@@ -955,6 +969,8 @@ export function createMapView(data, { onPickTarget }) {
     const h = Math.round(a.headingDeg / 5) * 5;
     if (h !== lastHeading) { astro.setIcon(astronautIcon(h)); lastHeading = h; }
     uncertainty.setLatLng([a.lat, a.lon]).setRadius(derived.posUncertaintyM);
+    const ur = Math.round(derived.posUncertaintyM);
+    if (ur !== lastUnc) { lastUnc = ur; uncertainty.setTooltipContent(`Position guess ±${ur} m (no GPS)`); }
     renderWeather(store);
     setRouteHome(derived.routeHome?.ok ? fromHere(derived.routeHome.points, a) : []);
     setRouteAlt(derived.routeAlt?.ok ? fromHere(derived.routeAlt.points, a) : []);

@@ -352,7 +352,29 @@ const loadGrid40 = () => (grid40P ??= fetch('data/heightgrid40.json')
   .then(g => (g && Number.isInteger(g.w) && Number.isInteger(g.h) && g.data?.length === g.w * g.h ? g : null))
   .catch(() => null));
 
-/** Runs the live match in small steps (one grid row each) so the page keeps drawing. */
+// Live match runs in a Web Worker (skyline/livematch.worker.js) so the page never stalls; if workers are unavailable it
+// falls back to small main-thread steps. fallbackGrid: the 80 m grid, used only if the 40 m file can't load.
+let worker = null, workerFailed = false, jobId = 0;
+function runInWorker(o, fallbackGrid, isCurrent, onProgress) {
+  if (workerFailed || typeof Worker === 'undefined') return null;
+  try { worker ??= new Worker(new URL('./livematch.worker.js', import.meta.url), { type: 'module' }); }
+  catch { workerFailed = true; return null; }
+  const id = ++jobId;
+  return new Promise(resolve => {
+    const onMsg = e => {
+      if (e.data.id !== id) return;
+      if (e.data.progress != null) { if (isCurrent()) onProgress?.(e.data.progress); return; }
+      worker.removeEventListener('message', onMsg);
+      if (e.data.error) { console.warn('Horizon Match worker:', e.data.error); resolve(undefined); return; }
+      resolve(isCurrent() ? e.data.result : null);
+    };
+    worker.addEventListener('message', onMsg);
+    worker.addEventListener('error', () => { workerFailed = true; resolve(undefined); }, { once: true });
+    worker.postMessage({ id, o, fallbackGrid });
+  });
+}
+
+/** Main-thread fallback: small steps (one grid row each) so the page keeps drawing. */
 async function runLive(o, isCurrent, onProgress) {
   const it = liveMatchSteps(o);
   for (;;) {
@@ -404,13 +426,17 @@ export async function openSkylineFix(siteId, map, opts = {}) {
   const drM = store.derived?.posUncertaintyM ?? 0;
   if (live) {
     setStep(0, 'Reading the horizon…');
-    const grid = (await loadGrid40()) ?? store.data.grid;
-    if (!current()) return;
     const truth = store.inputs.astronaut;
     const seed = seedOf(truth.lat, truth.lon) ^ Math.round((store.inputs.evaMin ?? 0) * 7);
     ref = deadReckoningPrior(truth, drM, seed);   // where the step count says you are
-    s = await runLive({ grid, bounds: store.data.meta.bounds, truth, prior: ref, eyeM: store.data.C?.eye_height_m ?? 1.7, visKm, seed },
-      current, f => { status.textContent = `Reading the horizon… ${Math.round(f * 100)}%`; });
+    const o = { bounds: store.data.meta.bounds, truth, prior: ref, eyeM: store.data.C?.eye_height_m ?? 1.7, visKm, seed };
+    const progress = f => { status.textContent = `Reading the horizon… ${Math.round(f * 100)}%`; };
+    s = await runInWorker(o, null, current, progress);   // worker loads the 40 m grid itself; fails over to the main thread
+    if (s === undefined) {   // no worker: same match on the main thread
+      const grid = (await loadGrid40()) ?? store.data.grid;
+      if (!current()) return;
+      s = await runLive({ ...o, grid }, current, progress);
+    }
     if (!s || !current()) return;
   } else {
     dc = dustCase(dust, siteId, visKm);   // null in clear air

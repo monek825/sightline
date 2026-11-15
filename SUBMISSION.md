@@ -19,10 +19,13 @@
 
 Turn the page **Lock** on while one person edits. Save often. Test every link in an incognito window.
 
-## High-level summary (~170 words)
-> Mars has no GPS. An astronaut walking in Jezero Crater finds the way home by sight, and on the real terrain the habitat is hidden behind ridges from most of the ground nearby. Dust makes it worse: when the air fills, the hills you steer by fade out.
-> Sightline is the Mars map with no blue dot. It answers one question at every step: can this astronaut still get home?
-> It shows where no landmark is in sight, computed from NASA's Jezero elevation model, and those red zones grow live as dust rises. When the astronaut is unsure of their position, Horizon Match compares the outline of the hills they see with outlines computed from NASA terrain and gives a position with an uncertainty circle. A crew model built on NASA measurements (Curiosity radiation, the May 2024 solar storm, post-flight balance and vision changes, suit time and cooling limits) turns all of it into one walk budget: minutes left, when to turn back, and which route keeps home in sight. A helmet view shows the same answer from the astronaut's eyes.
+## High-level summary (~185 words)
+> In 1971, Apollo 14's crew walked toward Cone Crater, came within about 20 metres of the rim and turned back: every ridge looked like the last one. On Mars it is harder. There is no GPS, and dust hides the hills astronauts steer by.
+> Sightline is a navigation and safety map for walking in Jezero Crater without GPS. It does three things we have not found together anywhere else:
+> 1. **It shows where you lose sight of home.** Red zones, computed from NASA's Jezero elevation model, mark ground where no landmark is visible, and they grow live as dust rises.
+> 2. **It fixes your position from the hills.** With no GPS the suit's step-count position drifts. Horizon Match compares the outline of the hills the astronaut sees with outlines computed from NASA terrain and shrinks that drift back.
+> 3. **It knows the astronaut's body.** Balance and vision changes after landing, suit time and cooling limits, and solar-storm radiation (NASA measurements) set when to turn back.
+> Today it is a planning tool for walks at Jezero. Next, the same answer belongs inside the helmet, and the same sight-line maps can choose where to put the habitat and radio beacons so no route has blind spots.
 
 ## 30-second video
 Script, beat sheet and checks: `docs/video-script.md` ("bad news" structure, one continuous screen recording, no AI-generated pictures). Indonesian voice is OK **with English subtitles**. No NASA logos. No one under 18.
