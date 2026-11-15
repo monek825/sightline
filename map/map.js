@@ -669,7 +669,7 @@ function createView3D(data, onPickTarget, devils) {
     const riding = last.inputs.vehicle === 'rover';
     s.astro.object3D.visible = !riding;
     s.astroRover.object3D.visible = riding;
-    if (riding) { s.astroRover.object3D.position.set(p.x, p.y, p.z); s.astroRover.object3D.rotation.y = -a.headingDeg * Math.PI / 180; }
+    if (riding) { s.astroRover.object3D.position.set(p.x, p.y, p.z); s.astroRover.object3D.rotation.y = Math.PI / 2 - a.headingDeg * Math.PI / 180; }   // model's front (arm, mast) is +X; north is -Z
     trimRoute(s, 'home', p); trimRoute(s, 'out', p);
     s.ring.object3D.position.set(p.x, p.y + Math.max(0.1, LIFT_M * routeK), p.z);
     if (!uncLabel) {

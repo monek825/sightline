@@ -11,6 +11,7 @@ const KNOB = { cx: 500, cy: 1060, r: 1000 };
 const RANK = { GREEN: 0, AMBER: 1, RED: 2 };
 const MAX_STOPS = 4, STAY_STEP = 15, STAY_MAX = 180;   // stays in Earth minutes, like the EVA clock
 const BAND = 130;   // knob: radius inset of the plan band
+const fmtH = m => (m >= 60 ? `${Math.floor(m / 60)} h ${String(Math.round(m % 60)).padStart(2, '0')} min` : `${Math.round(m)} min`);
 const hh = v => { const m = Math.round(v * 60), H = Math.floor(m / 60) % 24; return `${String(H).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`; };
 const el = (tag, props = {}) => Object.assign(document.createElement(tag), props);
 const NS = 'http://www.w3.org/2000/svg';
@@ -239,7 +240,7 @@ export function setupPlanner(ctx) {
   // Best time: try every leave hour with the same stops and weather (pinned to the clock) and keep the safest, earliest
   $('pl-best').addEventListener('click', () => {
     if (!st.stops.length) return;
-    const btn = $('pl-best'), score = r => (!r.pr.outOk ? 99 : r.late ? 50 : r.turned ? 30 : RANK[r.v.level] * 10) + r.home / 1000;
+    const btn = $('pl-best'), score = r => (!r.pr.outOk ? 99 : r.strand ? 60 : r.late ? 50 : r.turned ? 30 : RANK[r.v.level] * 10) + r.home / 1000;
     btn.classList.add('busy'); btn.disabled = true;
     const hours = []; for (let h = 6; h <= 15; h++) hours.push(h);
     let best = null;
@@ -284,8 +285,16 @@ export function setupPlanner(ctx) {
     if (!pr.outOk) return { pr };
     const tArr = pr.outLen / pr.mPerMin + pr.waits.reduce((a, w) => a + w.min, 0), home = pr.sepT + pr.backLen / pr.mPerMin;
     const turned = pr.sepT < tArr - 1, late = home > pr.endT + 1;
-    const v = late ? { level: 'RED', word: 'TOO FAR' } : verdict(pr, Math.min(tArr, pr.endT));
-    return { pr, tArr, home, turned, late, v };
+    // rover: if it breaks at the far end, can the crew still walk home on what is left in the suit? (Apollo walk-back rule)
+    const walkMPerMin = C.walk_speed_kmh * 1000 / 60, suitMin = C.eva_design_hours * 60 - C.eva_reserve_min;
+    const walkBackMin = pr.backLen / walkMPerMin * C.walkback_pad, suitLeftThere = suitMin - Math.min(tArr, pr.sepT);
+    const strand = pr.vehicle === 'rover' && walkBackMin > suitLeftThere;
+    const base = verdict(pr, Math.min(tArr, pr.endT));
+    // warnings, never blocks: the crew can still choose to go (the crater rim may be worth it)
+    const v = strand ? { level: 'RED', word: 'RISK', why: `if the rover breaks out there, the walk home takes ${fmtH(walkBackMin)}, more than the ${fmtH(Math.max(0, suitLeftThere))} of suit time left` }
+      : late ? { level: 'AMBER', word: 'OVER TIME', why: `home ${fmtH(home - pr.endT)} after your back-by time` }
+      : base;
+    return { pr, tArr, home, turned, late, strand, v };
   };
   const renderStops = () => {   // the stop chips: order, name, stay with - / +, remove
     const list = $('pl-stops');
@@ -350,8 +359,8 @@ export function setupPlanner(ctx) {
       grp.forEach(s => storm(s.h, '', s.e));
       text((grp[0].h + grp.at(-1).h) / 2, KNOB.r - 88, 'pl-stormlab', kinds.length > 1 ? 'Solar + dust storm' : `${kinds[0]} storm`);
     }
-    chip.textContent = v.word; chip.dataset.level = v.level; go.disabled = late;
-    $('pl-msg').textContent = `${hh(st.start)} leave · ${turned ? `${hh(H(pr.sepT))} turn back` : `${st.stops.length} stop${st.stops.length > 1 ? 's' : ''}`} · ${hh(H(home))} home${late ? `, after ${hh(H(pr.endT))}` : ''}${v.why ? ` · ${st.vehicle === 'rover' && v.why === 'Suit time' ? 'walk back if the rover breaks' : v.why}` : ''}`;
+    chip.textContent = v.word; chip.dataset.level = v.level; go.disabled = false;
+    $('pl-msg').textContent = `${hh(st.start)} leave · ${turned ? `${hh(H(pr.sepT))} turn back` : `${st.stops.length} stop${st.stops.length > 1 ? 's' : ''}`} · ${hh(H(home))} home${v.why ? ` · ${st.vehicle === 'rover' && v.why === 'Suit time' ? 'walk back if the rover breaks' : v.why}` : ''}`;
     if (flash) { $('pl-msg').textContent = `${flash} ${$('pl-msg').textContent}`; flash = ''; }
     $('pl-msg').classList.remove('pop'); void $('pl-msg').offsetWidth; $('pl-msg').classList.add('pop');
     st.center = Math.round((st.start + (home / hm) / 2) * 4) / 4; turn();
