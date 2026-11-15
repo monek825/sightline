@@ -17,6 +17,7 @@ const FIX_AUTO_CLOSE_MS = 9000;   // demo: the scripted Horizon Match panel clos
 const SPEED_MIN_PER_SEC = 2; // demo clock: 1 real second = 2 EVA minutes
 // Story captions for the demo, one per scenario event type (plain-language narration for judges).
 const CAPTIONS = {
+  stop: e => `Arrived at ${e.name}: ${e.stayMin} min of work here, then on to the next stop.`,
   eva_start: (e, C, custom) => `The astronaut walks out ${custom ? 'on the planned walk' : 'to the Three Forks sample depot'}. Green means there is plenty of time to get home.`,
   tau: (e, C) => e.value <= (C?.tau_typical ?? 0.4) * 1.25 ? `Clear sky (τ ${e.value}): the hills are easy to see.` : e.value > (C?.tau_amber ?? 1)
     ? `Dust storm (τ ${e.value}, sped up: real storms build over days). Visibility drops and the red no-landmark zones grow.`
@@ -155,8 +156,17 @@ function setupScenario(data, M, sky) {
       if (!name || (out.length && out[out.length - 1].name === name)) continue;
       out.push({ name, t: e.tMin, ev: e });
     }
+    // planned walks: one chapter per stop reached (before any turn-back)
+    let waited = 0;
+    (prep.waits ?? []).forEach(w => {
+      const at = w.atM / prep.mPerMin + waited;
+      waited += w.min;
+      if (prep.sepT !== null && at > prep.sepT) return;
+      const name = (data.targets.find(x => x.id === w.id)?.name ?? w.id).replace(/ \(approx\.\)| sample (depot|area)/g, '');
+      out.push({ name, t: at, ev: { type: 'stop', name, stayMin: w.min } });
+    });
     const home = prep.sepT !== null && prep.backLen ? prep.sepT + prep.backLen / prep.mPerMin : null;
-    if (home !== null && home < prep.endT) out.push({ name: 'Home', t: home, ev: { type: 'eva_end' } });
+    if (home !== null) out.push({ name: 'Home', t: Math.min(home, prep.endT - 0.01), ev: { type: 'eva_end' } });   // a late walk still shows Home, at the back-by time
     return out.sort((a, b) => a.t - b.t);
   };
   let chs = [], chKey = '', lastCh = -1;
