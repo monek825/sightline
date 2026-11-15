@@ -374,7 +374,11 @@ export function setupPlanner(ctx) {
   $('pl-go').addEventListener('click', () => {
     if (!st.stops.length) return;
     const { sc, target } = sceneFor(st.stops);
-    if (ctx.run(sc, target)) dlg.close();
+    // a walk that runs past the back-by time still plays until the crew is home (the planner already warned OVER TIME)
+    const ev = evaluate(st.start, st.end);
+    const homeMin = ev.pr?.outOk && ev.late ? Math.ceil(ev.home) + 2 : null;
+    const run = homeMin ? { ...sc, events: sc.events.map(e => (e.type === 'eva_end' ? { ...e, tMin: homeMin } : e)) } : sc;
+    if (ctx.run(run, target)) dlg.close();
   });
 
   return () => {   // open: start from what the demo shows now
