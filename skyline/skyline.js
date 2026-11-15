@@ -543,8 +543,10 @@ export async function openSkylineFix(siteId, map, opts = {}) {
       : undefined;
     showResult(result, res, map, reduced, { applied, note });
     if (dc) result.append(el('p', 'skyfix-note', `Dust: matched with only the hills within ${dc.visKm} km (simulated dust test on NASA terrain). The chart shows the clear-day horizon.`));
-    if (applied === true) {
+    if (applied === true && res.uncertaintyM < drM) {
       applyEstimate(res.estimate, res.uncertaintyM);
+    } else if (applied === true) {   // early in a walk the step count is still tighter than any horizon fix: keep it
+      result.append(el('p', 'skyfix-note', `The match agrees with your step count, which is still more precise here (±${Math.round(drM)} m against ±${Math.round(res.uncertaintyM)} m), so your position is kept.`));
     } else if (applied === false) {
       result.append(el('p', 'skyfix-warn', `The match is ${Math.round(gapM)} m from where your step count puts you (±${Math.round(drM)} m). ` +
         'One of them is wrong: stop, turn around once more, and compare with a landmark before moving.'));
@@ -578,12 +580,12 @@ export async function lookAroundFix() {
   const applied = gapM <= drM + unc;
   // the astronaut stands still while the helmet turns: move them to the estimate only when the turn has ended,
   // and only if nothing else moved them meanwhile
-  if (applied) {
+  if (applied && unc < drM) {   // a fix that is looser than the step count would make the position worse: keep the step count
     const at = getStore().inputs.astronaut, wait = Math.max(0, t0 + LOOK_TURN_MS - performance.now());
     setTimeout(() => {
       const now = getStore().inputs.astronaut;
       if (now.lat === at.lat && now.lon === at.lon) applyEstimate(s.estimate, unc);
     }, wait);
   }
-  return { observed, fix: true, applied, uncertaintyM: Math.round(unc), gapM: Math.round(gapM), drM: Math.round(drM) };
+  return { observed, fix: true, applied, kept: applied && !(unc < drM), uncertaintyM: Math.round(unc), gapM: Math.round(gapM), drM: Math.round(drM) };
 }

@@ -1145,7 +1145,8 @@ function lookTick(now) {
   $('hm-status').textContent = '';
   $('hm-title').textContent = r.fix ? (r.applied ? 'You are here' : 'Not applied') : r.reason === 'dust' ? 'Too dusty to see the hills' : 'No clear match';
   $('hm-sub').textContent = r.fix
-    ? (r.applied ? `Position reset to ±${r.uncertaintyM} m (it had drifted to ±${r.drM} m without GPS).`
+    ? (r.kept ? `The hills agree with your step count, which is still more precise here (±${r.drM} m), so your position is kept.`
+      : r.applied ? `Position reset to ±${r.uncertaintyM} m (it had drifted to ±${r.drM} m without GPS).`
       : `The hills say ${r.gapM} m from where your step count puts you. Check a landmark before moving.`)
     : r.reason === 'dust' ? 'Use the Lost in dust steps on the map: stay put or follow your own tracks.' : 'The hills here look alike from several spots. Walk a little and try again.';
   card.dataset.ok = String(!!(r.fix && r.applied));
