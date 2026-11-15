@@ -517,3 +517,29 @@ export async function openSkylineFix(siteId, map, opts = {}) {
     map.flyTo([res.estimate.lat, res.estimate.lon], Math.max(map.getZoom(), 14), { duration: reduced ? 0 : 0.8 });
   });
 }
+
+/**
+ * Horizon Match from inside the helmet (the astronaut turns once, the helmet draws the outline): no panel.
+ * Same match as the panel's live mode, same agreement check with dead reckoning, same position update.
+ * @returns {Promise<{observed:number[], fix:boolean, applied?:boolean, uncertaintyM?:number, gapM?:number, drM:number, reason?:string}>}
+ */
+export async function lookAroundFix() {
+  const store = getStore(), C = store.data?.C ?? {};
+  const truth = store.inputs.astronaut, drM = store.derived?.posUncertaintyM ?? 0;
+  const visKm = store.derived?.limits?.visibilityKm ?? Infinity;
+  const dust = await loadDust();
+  if (Number.isFinite(dust?.noFalseFixMinVisKm) && visKm < dust.noFalseFixMinVisKm) return { observed: [], fix: false, drM, reason: 'dust' };
+  const seed = seedOf(truth.lat, truth.lon) ^ Math.round((store.inputs.evaMin ?? 0) * 7);
+  const ref = deadReckoningPrior(truth, drM, seed);
+  const o = { bounds: store.data.meta.bounds, truth, prior: ref, eyeM: C.eye_height_m ?? 1.7, visKm, seed };
+  let s = await runInWorker(o, null, () => true, null);
+  if (s === undefined) s = await runLive({ ...o, grid: (await loadGrid40()) ?? store.data.grid }, () => true, null);
+  if (!s) return { observed: [], fix: false, drM, reason: 'error' };
+  const observed = Array.from(s.observed ?? []);
+  if (!s.fix) return { observed, fix: false, drM, reason: 'no-match' };
+  const unc = Math.max(s.uncertaintyM, C.horizon_fix_min_uncertainty_m ?? 100);
+  const gapM = distM(ref.lat, ref.lon, s.estimate.lat, s.estimate.lon);
+  const applied = gapM <= drM + unc;
+  if (applied) setInputs({ astronaut: { ...getStore().inputs.astronaut, lat: s.estimate.lat, lon: s.estimate.lon }, distSinceFixM: 0, fixUncertaintyM: unc });
+  return { observed, fix: true, applied, uncertaintyM: Math.round(unc), gapM: Math.round(gapM), drM: Math.round(drM) };
+}

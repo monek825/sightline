@@ -79,7 +79,7 @@ async function boot() {
   initMotion();
   ({ retarget = null, setCondition = null, runHasSep = null, runEvents = null, setSpeed = null, getSpeed = null } = setupScenario(data, M, { skyline, skyResults, map: view.map }) ?? {});
   renderPanels(getStore()); // the run setting is known now: show it (a re-render, no state written)
-  setupHelmet(data, view);
+  helmetLook = setupHelmet(data, view, skyline);
   viewRef = view;
   setupSkyline(view.map, skyline, skyResults);
   setupWelcome();
@@ -447,7 +447,8 @@ function setupWelcome() {
   document.getElementById('w-play').focus({ preventScroll: true });
 }
 
-function setupHelmet(data, view) {
+function setupHelmet(data, view, skyline) {
+  let wantLook = false;
   const dlg = document.getElementById('dlg-helmet');
   // the main 3D map is hidden behind the helmet window: free it completely (rebuilt on close)
   const pauseMain3D = paused => (paused ? view.release3D() : view.show3D());
@@ -469,7 +470,12 @@ function setupHelmet(data, view) {
   window.addEventListener('message', e => {
     if (e.origin !== location.origin || e.source !== frame.contentWindow) return;
     if (e.data?.type === 'sightline:hello') send();
-    if (e.data?.type === 'sightline:helmet-ready') lift();
+    if (e.data?.type === 'sightline:helmet-ready') { lift(); if (wantLook) { wantLook = false; frame.contentWindow.postMessage({ type: 'sightline:hm-auto' }, location.origin); } }
+    // Horizon Match from inside the helmet: the helmet turns, the map page matches (worker) and applies the fix
+    if (e.data?.type === 'sightline:hm-request' && skyline?.lookAroundFix) {
+      skyline.lookAroundFix().then(res => frame.contentWindow?.postMessage({ type: 'sightline:hm-result', ...res }, location.origin))
+        .catch(err => { console.error(err); frame.contentWindow?.postMessage({ type: 'sightline:hm-result', fix: false, observed: [], reason: 'error' }, location.origin); });
+    }
   });
   subscribe(() => send());
   document.getElementById('btn-helmet').addEventListener('click', async () => {
@@ -483,12 +489,18 @@ function setupHelmet(data, view) {
       setTimeout(() => { frame.removeAttribute('srcdoc'); frame.src = 'helmet/index.html'; }, 60);   // timer, not rAF: still loads in a background tab
     } else if (!ok) lift();
   });
+  // open the helmet and start the look-around (Position tab button); waits for the helmet to load the first time
+  return () => {
+    document.getElementById('btn-helmet').click();
+    if (helmetReady) frame.contentWindow?.postMessage({ type: 'sightline:hm-auto' }, location.origin);
+    else wantLook = true;
+  };
 }
 
 // Skyline Fix draws its search heat map on the 2D map: switch to 2D for it, and back afterwards.
 // Horizon Match stays in the view you are in (switching views mid-demo was confusing and slow).
 // ponytail: kept as a hook so callers don't change; returns the "restore" callback.
-let viewRef = null;
+let viewRef = null, helmetLook = null;
 async function show2D() { return () => {}; }
 
 function setupSkyline(map, mod, results) {
@@ -500,6 +512,7 @@ function setupSkyline(map, mod, results) {
   // the button matches the horizon where the astronaut actually is (live, skyline/livematch.js); the scripted demo
   // event still replays its precomputed site result
   document.getElementById('btn-skyline').addEventListener('click', () => {
+    if (mod && helmetLook) { helmetLook(); return; }   // the astronaut looks around in the helmet view
     if (mod) { show2D().then(restore => mod.openSkylineFix(null, map, { onClose: restore, live: true })).catch(err => console.error(err)); return; }
     const banner = document.getElementById('banner');
     banner.textContent = 'Horizon Match panel is not built yet (skyline/skyline.js).';

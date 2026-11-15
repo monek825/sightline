@@ -74,7 +74,7 @@ let homeInfo = { distM: 0, bearing: 0, hidden: false, beyondVis: false };
 const lmEls = [];                 // { lm, label, pole, ... }
 let lmOrder = [];                 // visible landmarks, nearest first (for label de-cluttering)
 // HUD panels landmark labels must not cover (rects re-read twice a second; cheap, and they only move on resize / text change)
-const HUD_BOX_IDS = ['strip', 'panel-time', 'panel-status', 'storm', 'panel-env', 'panel-factors', 'home-card', 'hud-settings', 'view-menu'];
+const HUD_BOX_IDS = ['strip', 'panel-time', 'panel-status', 'storm', 'panel-env', 'panel-factors', 'home-card', 'hud-settings', 'view-menu', 'hm-btn', 'hm-strip'];
 const HUD_BOX_PAD = 4, HUD_BOX_EVERY_MS = 500;
 const hudBox = new Float32Array(HUD_BOX_IDS.length * 4);
 let hudBoxN = 0, hudBoxNext = 0;
@@ -950,6 +950,7 @@ function frame(timeMs, deltaMs) {
   if (!current || !terrain || !sceneEl.camera) return;
   const dt = Math.min(MAX_DT_S, (deltaMs || 16) / 1000);
   smoothCamera(dt);
+  lookTick(timeMs);
   updateZoom(dt);
   const cp = rig.object3D.position;
   const cam = sceneEl.camera;
@@ -1111,6 +1112,50 @@ function onTerrain(t) {
   let n = 3; const f = () => (--n <= 0 ? readyToParent() : requestAnimationFrame(f)); requestAnimationFrame(f);
 }
 
+// ---------- Horizon Match in the helmet: turn once, draw the hill outline, show the fix ----------
+const LOOK_MS = 4500;
+let look = null;   // { t0, y0, obs: number[] | null, res }
+function startLook() {
+  if (!inIframe || look || !terrain) return;
+  look = { t0: performance.now(), y0: rig.object3D.rotation.y, obs: null, res: null };
+  const card = $('hm-card'); card.hidden = true;
+  $('hm-strip').hidden = false; $('hm-line').setAttribute('points', '');
+  $('hm-btn').disabled = true;
+  $('hm-status').textContent = 'Turning once to read the hills…';
+  window.parent.postMessage({ type: 'sightline:hm-request' }, location.origin);
+}
+function lookResult(m) {
+  if (!look) return;
+  look.obs = Array.isArray(m.observed) && m.observed.length > 2 ? m.observed : null;
+  look.res = m;
+}
+function lookTick(now) {
+  if (!look) return;
+  const f = reduceMotionQ.matches ? 1 : Math.min(1, (now - look.t0) / LOOK_MS);
+  rig.object3D.rotation.y = look.y0 - f * Math.PI * 2;   // clockwise, like turning on the spot
+  if (look.obs) {
+    const n = look.obs.length, lo = Math.min(...look.obs), hi = Math.max(...look.obs), span = Math.max(0.5, hi - lo);
+    const k = Math.max(2, Math.round(f * n));
+    let pts = '';
+    for (let i = 0; i < k; i++) pts += `${(i / (n - 1) * 600).toFixed(1)},${(70 - (look.obs[i] - lo) / span * 60).toFixed(1)} `;
+    $('hm-line').setAttribute('points', pts);
+  }
+  if (f < 1 || !look.res) return;
+  const r = look.res, card = $('hm-card');
+  $('hm-status').textContent = '';
+  $('hm-title').textContent = r.fix ? (r.applied ? 'You are here' : 'Not applied') : r.reason === 'dust' ? 'Too dusty to see the hills' : 'No clear match';
+  $('hm-sub').textContent = r.fix
+    ? (r.applied ? `Position reset to ±${r.uncertaintyM} m (it had drifted to ±${r.drM} m without GPS).`
+      : `The hills say ${r.gapM} m from where your step count puts you. Check a landmark before moving.`)
+    : r.reason === 'dust' ? 'Use the Lost in dust steps on the map: stay put or follow your own tracks.' : 'The hills here look alike from several spots. Walk a little and try again.';
+  card.dataset.ok = String(!!(r.fix && r.applied));
+  card.hidden = false;
+  $('hm-btn').disabled = false;
+  look = null;
+  setTimeout(() => { $('hm-strip').hidden = true; }, 6000);
+  setTimeout(() => { card.hidden = true; }, 7000);
+}
+
 function receive(m) {
   pending = m; haveState = true;
   if (terrain && meta) { try { apply(m); } catch (e) { console.error('helmet apply failed', e); note('Display error: ' + e.message); } }
@@ -1120,6 +1165,8 @@ function receive(m) {
 window.addEventListener('message', (e) => {
   if (e.origin !== location.origin || e.source !== window.parent) return;
   const m = e.data;
+  if (m?.type === 'sightline:hm-auto') { startLook(); return; }
+  if (m?.type === 'sightline:hm-result') { lookResult(m); return; }
   if (!m || m.type !== 'sightline:state' || m.v !== STATE_V || !m.inputs || !m.derived) return;
   if (!validState(m)) { console.warn('helmet: ignoring malformed state message'); return; }
   receive(m);
@@ -1180,7 +1227,7 @@ async function boot() {
   setupZoom();
   setupPause();
   sceneEl.setAttribute('helmet-tick', '');
-  const onLoaded = () => { setupGfx(); setupShow(); setupSettings(); warnSoftwareGL(); };
+  const onLoaded = () => { setupGfx(); setupShow(); setupSettings(); warnSoftwareGL(); $('hm-btn')?.addEventListener('click', startLook); if (!inIframe) $('hm-btn').hidden = true; };
   if (sceneEl.hasLoaded) onLoaded(); else sceneEl.addEventListener('loaded', onLoaded, { once: true });
 
   try { meta = await fetchJSON('../data/meta.json'); }
