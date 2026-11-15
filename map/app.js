@@ -25,7 +25,7 @@ const CAPTIONS = {
   skyline_fix: () => 'No GPS: after kilometres of counting steps, the suit\'s position guess has drifted (the ring). Horizon Match reads the hills and shrinks it back.',
   sep_onset: () => 'Solar storm, replay of May 2024 (about 30 chest X-rays of dose). Turn back to shelter now to keep the radiation low.',
   return_home: () => 'The astronaut turns back to the habitat.',
-  eva_end: () => 'Back at the habitat. The walk budget kept the astronaut safe.'
+  eva_end: () => 'Safe inside the habitat. Dust devils still pass outside; Perseverance has filmed many in Jezero.'
 };
 
 async function optionalModule(path) {
