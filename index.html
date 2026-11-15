@@ -53,6 +53,7 @@
           <div title="Local true solar time on Mars"><dt>LTST</dt><dd id="clk-ltst">–</dd></div>
           <div title="Minutes since the walk outside began"><dt>EVA</dt><dd id="clk-eva">–</dd></div>
         </dl>
+        <button type="button" id="btn-howto" class="howto-btn" title="How it works: what the colours mean and how everything is measured">How it works</button>
       </header>
 
       <div class="layers" id="layers">
@@ -303,6 +304,10 @@
     <p id="pl-msg" class="pl-msg" role="status"></p>
     <ol id="pl-stops" class="pl-stops" aria-label="Stops, in order"></ol>
     <div class="pl-foot"><b id="pl-verdict" class="m-chip"></b><button type="button" id="pl-go" class="btn btn-accent">Start</button></div>
+  </dialog>
+  <dialog id="dlg-howto" class="dlg howto" aria-labelledby="howto-h">
+    <form method="dialog" class="dlg-head"><h2 id="howto-h">How it works</h2><button class="icon-btn" aria-label="Close" title="Close"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button></form>
+    <div class="dlg-body" id="howto-body"></div>
   </dialog>
   <dialog id="dlg-sources" class="dlg">
     <form method="dialog" class="dlg-head"><h2>Sources for every number</h2><button class="icon-btn" aria-label="Close" title="Close"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button></form>
