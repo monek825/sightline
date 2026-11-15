@@ -89,6 +89,9 @@ h1, h2 { margin: 0; font-weight: 600; }
 .sw-amber { background: rgba(226, 167, 58, .5); }
 .sw-ring { border: 2px dashed #e0a36c; border-radius: 50%; }
 .sw-pos { border: 2px solid #ff8a3d; border-radius: 50%; }
+.sw-line { height: 4px; border-radius: 2px; align-self: center; }
+.sw-line-home { background: #fff4e0; }
+.sw-line-out { background: #ff8a3d; }
 body:not(.is-3d) .only-3d, body.is-3d .only-2d { display: none; }
 
 /* 3D */
@@ -373,7 +376,7 @@ body.video :is(.bar-left, .layers, .leaflet-control-container) { display: none; 
 .skyfix-compass .sweep { stroke: var(--cream); stroke-width: 2.5; stroke-linecap: round; }
 .skyfix-compass .lbl { fill: var(--muted); font: 600 12px var(--mono); }
 .skyfix-step { margin: 0; font-weight: 500; }
-.skyfix-chart { width: 100%; height: auto; background: rgba(0, 0, 0, .28); border-radius: var(--r-md); }
+.skyfix-chart { width: 100%; height: auto; aspect-ratio: 720 / 150; overflow: hidden; display: block; background: rgba(0, 0, 0, .28); border-radius: var(--r-md); }
 .skyfix-chart .zero { stroke: rgba(255, 244, 224, .15); stroke-dasharray: 4 4; }
 .skyfix-chart polyline { fill: none; stroke-width: 2; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
 .skyfix-chart .obs { stroke: #fff; }
@@ -673,11 +676,13 @@ body.intro-on { overflow: hidden; }
 /* ---------- status card can be hidden: a half-hexagon tab on its left edge slides it off to the right ---------- */
 .panel { transition: transform .6s cubic-bezier(.45, 0, .55, 1); }   /* quadratic ease in-out */
 .panel-hide {
-  position: absolute; top: 50%; left: -26px; z-index: 2; width: 26px; height: 64px; margin-top: -32px; padding: 0 0 0 4px; border: 0;
-  clip-path: polygon(100% 0, 0 25%, 0 75%, 100% 100%);   /* half hexagon, flat side against the card */
-  display: grid; place-items: center; background: var(--frost-strong); color: var(--text); cursor: pointer; transition: background-color .2s;
+  position: absolute; top: 50%; left: -24px; z-index: 2; width: 24px; height: 80px; margin-top: -40px; padding: 0 0 0 3px; border: 0;
+  /* half hexagon with rounded corners, flaring smoothly into the card edge (no hard corners) */
+  clip-path: path('M24 0 C24 7 21 9 17 11 L5 18 Q0 21 0 26 L0 54 Q0 59 5 62 L17 69 C21 71 24 73 24 80 Z');
+  display: grid; place-items: center; color: var(--text); cursor: pointer; transition: background-color .2s;
+  background: var(--frost); backdrop-filter: var(--blur); -webkit-backdrop-filter: var(--blur);   /* same glass as the card */
 }
-.panel-hide:hover { background: rgba(255, 138, 61, .45); }
+.panel-hide:hover { color: var(--accent); }
 .panel-hide:focus-visible { outline: none; background: var(--accent); color: var(--accent-ink); }
 .panel-hide svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; transition: transform .6s cubic-bezier(.45, 0, .55, 1); }
 body.panel-hidden .panel { transform: translateX(calc(100% + var(--s4))); pointer-events: none; }
@@ -812,3 +817,16 @@ body.is-3d .legend { bottom: calc(var(--notch-d) + 84px); } /* the 3D note below
 
 /* Clash Display only at 20px and up (round 2) */
 #verdict, .verdict, .more h2 { font-family: var(--font); font-weight: 600; }
+
+/* Horizon Match radar on the 2D map (skyline/radar.js) */
+.radar { overflow: visible; }
+.radar-ring { fill: none; stroke: rgba(255, 244, 224, .35); stroke-width: .6; stroke-dasharray: 2 3; }
+.radar-n { fill: #fff4e0; font: 600 9px var(--mono); }
+.radar-hills { fill: rgba(233, 179, 125, .18); stroke: #fff4e0; stroke-width: 1.4; stroke-linejoin: round; }
+.radar-beam { stroke: var(--accent); stroke-width: 1.8; stroke-linecap: round; filter: drop-shadow(0 0 3px rgba(255, 138, 61, .8)); }
+.radar-me { fill: var(--accent); stroke: #1a110c; stroke-width: 1.2; }
+
+/* 3D → 2D handoff for Horizon Match: the map fades in over the top-down 3D frame */
+#map.fade-in { z-index: 700; animation: map-fade .5s cubic-bezier(.45, 0, .55, 1) both; }
+@keyframes map-fade { from { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { #map.fade-in { animation: none; } }

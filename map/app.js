@@ -81,6 +81,7 @@ async function boot() {
   ({ retarget = null, setCondition = null, runHasSep = null, runEvents = null, setSpeed = null, getSpeed = null } = setupScenario(data, M, { skyline, skyResults, map: view.map }) ?? {});
   renderPanels(getStore()); // the run setting is known now: show it (a re-render, no state written)
   setupHelmet(data, view);
+  viewRef = view;
   setupSkyline(view.map, skyline, skyResults);
   setupWelcome();
   document.addEventListener('keydown', e => {
@@ -128,8 +129,8 @@ function setupScenario(data, M, sky) {
     if (fix) { // pause, play the Horizon Match, resume when the panel closes
       stop();
       caption.textContent = 'Close the Horizon Match panel to continue the demo.'; caption.hidden = false;
-      const restore = show2D(), id = pauseId;
-      sky.skyline.openSkylineFix(fix.site, sky.map, { applyFix: false, onClose: () => { restore(); if (id === pauseId) start(); } });
+      const id = pauseId;
+      show2D().then(restore => sky.skyline.openSkylineFix(fix.site, sky.map, { applyFix: false, onClose: () => { restore(); if (id === pauseId) start(); } }));
       return;
     }
     if (t >= prep.endT) { stop(); return; }
@@ -284,15 +285,20 @@ function setupHelmet(data, view) {
     dlg.showModal();
     // start loading after the dialog has painted, so its open animation is not starved
     if (ok && (!frame.getAttribute('src') || frame.getAttribute('src') === 'about:blank')) {
-      requestAnimationFrame(() => requestAnimationFrame(() => { frame.removeAttribute('srcdoc'); frame.src = 'helmet/index.html'; }));
+      setTimeout(() => { frame.removeAttribute('srcdoc'); frame.src = 'helmet/index.html'; }, 60);   // timer, not rAF: still loads in a background tab
     } else if (!ok) lift();
   });
 }
 
 // Skyline Fix draws its search heat map on the 2D map: switch to 2D for it, and back afterwards.
-function show2D() {
+// From 3D: the camera eases to a north-up view straight down first, then the 2D map fades in over it.
+let viewRef = null;
+async function show2D() {
   const b2 = document.getElementById('v-2d');
   if (b2.getAttribute('aria-pressed') === 'true') return () => {};
+  await viewRef?.flyTop?.();
+  const m = document.getElementById('map');
+  m.classList.remove('fade-in'); void m.offsetWidth; m.classList.add('fade-in');
   b2.click();
   return () => document.getElementById('v-3d').click();
 }
@@ -301,13 +307,12 @@ function setupSkyline(map, mod, results) {
   // Lost in dust: the astronaut cannot see the hills (local dust the app's τ model does not know about)
   document.getElementById('btn-lostdust')?.addEventListener('click', () => {
     if (!mod) return;
-    const restore = show2D();
-    mod.openSkylineFix(null, map, { onClose: restore, lost: true }).catch(err => console.error(err));
+    show2D().then(restore => mod.openSkylineFix(null, map, { onClose: restore, lost: true })).catch(err => console.error(err));
   });
   // the button matches the horizon where the astronaut actually is (live, skyline/livematch.js); the scripted demo
   // event still replays its precomputed site result
   document.getElementById('btn-skyline').addEventListener('click', () => {
-    if (mod) { const restore = show2D(); mod.openSkylineFix(null, map, { onClose: restore, live: true }).catch(err => console.error(err)); return; }
+    if (mod) { show2D().then(restore => mod.openSkylineFix(null, map, { onClose: restore, live: true })).catch(err => console.error(err)); return; }
     const banner = document.getElementById('banner');
     banner.textContent = 'Horizon Match panel is not built yet (skyline/skyline.js).';
     banner.hidden = false;

@@ -259,9 +259,21 @@ function registerOrbit() {
     },
     zoom(f) { this.o.dist = clamp(this.o.dist * f, this.data.minDist, this.data.maxDist); },
     zoomTo(d) { this.distT = clamp(d, this.data.minDist, this.data.maxDist); },
+    // ease to a pose (yaw, pitch, dist) over ms with quadratic in-out; resolves when done
+    flyTo(pose, ms) {
+      const from = { yaw: this.o.yaw, pitch: this.o.pitch, dist: this.o.dist };
+      const dy = ((pose.yaw - from.yaw + Math.PI) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI) - Math.PI;   // shortest turn
+      this.distT = null; this.lastInput = performance.now() + ms + IDLE_MS;   // no idle orbit during or right after
+      return new Promise(res => { this.fly = { from, to: { yaw: from.yaw + dy, pitch: pose.pitch, dist: pose.dist }, t0: performance.now(), ms, res }; });
+    },
     setTarget(x, y, z) { Object.assign(this.o, { x, y, z }); },
     tick(time, dt) {
       if (!this.reduced && time - this.lastInput > IDLE_MS && dt < 100) this.o.yaw += IDLE_YAW_PER_S * dt / 1000;
+      if (this.fly) {
+        const f = Math.min(1, (performance.now() - this.fly.t0) / this.fly.ms), e = f < 0.5 ? 2 * f * f : 1 - (-2 * f + 2) ** 2 / 2;
+        for (const k of ['yaw', 'pitch', 'dist']) this.o[k] = this.fly.from[k] + (this.fly.to[k] - this.fly.from[k]) * e;
+        if (f >= 1) { const r = this.fly.res; this.fly = null; r(); }
+      }
       if (this.distT !== null) {
         const k = this.reduced ? 1 : 1 - Math.exp(-Math.min(dt, 100) / 1000 / (ZOOM_EASE_S / 4));
         this.o.dist *= Math.pow(this.distT / this.o.dist, k);      // ease in log space: even feel from 140 m to 2.6 km
@@ -361,7 +373,7 @@ function trimRoute(s, name, p) {
   if (!t) return;
   let best = 0, bestD = Infinity;
   for (let i = 0; i < t.pts.length; i++) { const d = (t.pts[i].x - p.x) ** 2 + (t.pts[i].z - p.z) ** 2; if (d < bestD) { bestD = d; best = i; } }
-  const start = Math.sqrt(bestD) > TRIM_MAX_M ? 0 : Math.floor(best / (t.pts.length - 1) * t.segs);
+  const start = Math.sqrt(bestD) > TRIM_MAX_M ? 0 : Math.floor(Math.max(0, best - 1) / (t.pts.length - 1) * t.segs);   // one point behind: the line starts under the astronaut, no gap
   m.geometry.setDrawRange(start * t.radial * 6, Infinity);
 }
 
@@ -813,6 +825,13 @@ function createView3D(data, onPickTarget, devils) {
     hide() { host.hidden = true; if (s?.scene.hasLoaded) { s.scene.pause(); s.scene.renderer?.setAnimationLoop(null); } },   // pause() alone leaves three's loop drawing
     render(store) { last = store; update(); },
     setLayer(id, on) { show[id] = on; applyLayers(); },
+    // north-up, looking straight down (as the 2D map shows it), before switching to 2D
+    flyTop(ms = 900) {
+      const orbit = s?.cam.components['orbit-camera'];
+      if (!orbit || host.hidden || matchMedia('(prefers-reduced-motion: reduce)').matches) return Promise.resolve();
+      // the timeout keeps Horizon Match opening even if 3D frames stall (background tab)
+      return Promise.race([orbit.flyTo({ yaw: 0, pitch: PITCH_MAX, dist: Math.max(orbit.o.dist, 1800) }, ms), new Promise(r => setTimeout(r, ms + 400))]);
+    },
     // Helmet open: free this scene's GPU memory entirely (two live WebGL scenes made the helmet 4x slower).
     // show() rebuilds it afterwards from the browser cache, with the same camera.
     release() {
@@ -865,7 +884,13 @@ function setupToggle(map, view3d) {
     $('view-name').textContent = is3d ? '3D terrain' : '2D map';
     document.body.classList.toggle('is-3d', is3d);   // legend shows what this view draws
     $('map').hidden = is3d;
-    if (is3d) view3d.show(); else { view3d.hide(); map.invalidateSize(); }
+    if (is3d) view3d.show();
+    else {
+      map.invalidateSize();
+      // fading in over the 3D frame (Horizon Match handoff): hide 3D once the 2D map is opaque
+      if ($('map').classList.contains('fade-in')) setTimeout(() => { if ($('v-2d').getAttribute('aria-pressed') === 'true') view3d.hide(); $('map').classList.remove('fade-in'); }, 520);
+      else view3d.hide();
+    }
   };
   b2.addEventListener('click', () => set(false));
   b3.addEventListener('click', () => set(true));
@@ -936,5 +961,5 @@ export function createMapView(data, { onPickTarget }) {
     setRouteOut(derived.routeOut?.ok ? fromHere(derived.routeOut.points, a) : []);
     view3d.render(store);
   }
-  return { map, render, release3D: () => view3d.release(), show3D: () => { if (!$('view3d').hidden) view3d.show(); } };
+  return { map, render, flyTop: () => view3d.flyTop(), release3D: () => view3d.release(), show3D: () => { if (!$('view3d').hidden) view3d.show(); } };
 }

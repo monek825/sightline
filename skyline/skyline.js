@@ -5,11 +5,12 @@
 import { R, distM } from '../lib/geo.js';
 import { setInputs, getStore } from '../lib/store.js';
 import { topoScan, SCAN_MS } from './topo.js';
+import { radarSweep } from './radar.js';
 import { lostInDustPlan, compass8 } from './lostdust.js';
 import { visibilityArrays } from '../map/visibility.js';
 import { liveMatchSteps, deadReckoningPrior, seedOf } from './livematch.js';
 
-const SWEEP_MS = 4000;
+const SWEEP_MS = 5000;   // the radar look-around on the map
 const SEARCH_MS = SCAN_MS; // the topographic scan (skyline/topo.js)
 const MORPH_MS = 400; // 360° <-> 96° circle change
 const STEPS = ['Look around', 'Compare with the map', 'You are here'];
@@ -224,6 +225,7 @@ export function closeFix() {
   clearLostMap();
   if (ui.overlay) { ui.overlay.remove(); ui.overlay = null; }
   if (ui.scan) { ui.scan.then(c => c?.remove()); ui.scan = null; }
+  if (ui.radar) { ui.radar.remove(); ui.radar = null; }
   if (ui.dlg.open) ui.dlg.close();
   const cb = ui.onClose; ui.onClose = null;
   cb?.();
@@ -428,8 +430,13 @@ export async function openSkylineFix(siteId, map, opts = {}) {
   // 1. Turn 360°
   const dustTxt = dusty ? ` In this dust, only hills within about ${live ? s.visKm.toFixed(1) : dc.visKm} km show.` : '';
   setStep(0, (live ? `Where your step count puts you (±${Math.round(drM)} m).` : `Near ${s.name}.`) +
-    ' The astronaut turns slowly and the helmet camera traces the hills.' + dustTxt);
+    ' The astronaut stands still and turns once; the line sweeps round from north and traces the hills they see.' + dustTxt);
   const sweep = compass.querySelector('.sweep');
+  // radar on the map, centred on where the astronaut really stands (it does not move during the match)
+  const here = live ? store.inputs.astronaut : (s.truth ?? store.inputs.astronaut);
+  if (ui.radar) ui.radar.remove();
+  map.flyTo([here.lat, here.lon], Math.max(map.getZoom(), 15), { duration: reduced ? 0 : 0.6 });
+  ui.radar = radarSweep(map, here, s.observed, SWEEP_MS, reduced);
   const n = s.observed.length;
   if (reduced) {
     obs.setAttribute('points', points(s.observed, sc));
@@ -449,6 +456,7 @@ export async function openSkylineFix(siteId, map, opts = {}) {
   const later = (ms, fn) => ui.timers.push(setTimeout(fn, reduced ? 0 : ms));
   later(SWEEP_MS, () => {
     setStep(1, 'Scanning the NASA terrain map: every dot is a spot whose horizon is being compared.');
+    if (ui.radar) { ui.radar.remove(); ui.radar = null; }
     ui.scan = topoScan(map, s, { reduced }).catch(err => { console.error(err); return null; });
     map.flyToBounds(gridBounds(s.grid), { duration: reduced ? 0 : 0.8, padding: [40, 40] });
   });

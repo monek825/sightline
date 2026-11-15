@@ -175,3 +175,15 @@ a-scene { position:fixed; inset:0; }
 #show label { display:flex; align-items:center; gap:6px; cursor:pointer; }
 #show input { accent-color:#ff8a3d; margin:0; }
 @media (max-width:640px) { #show { display:none; } }
+
+/* settings: one button bottom right opens graphics + Show (was two panels stacked on the left edge) */
+.hud-btn { position:fixed; right:calc(var(--edge) + 68px); bottom:var(--edge); z-index:21; width:44px; height:44px; display:grid; place-items:center; border:0; border-radius:12px; color:#f6ebdf; cursor:pointer;
+  background:rgba(30,18,11,.46); -webkit-backdrop-filter:blur(22px) saturate(1.5); backdrop-filter:blur(22px) saturate(1.5); }
+.hud-btn:hover { background:rgba(255,138,61,.3); }
+.hud-btn[aria-expanded="true"] { background:#ff8a3d; color:#1a110c; }
+.hud-btn svg { width:20px; height:20px; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; }
+#view-menu { position:fixed; right:calc(var(--edge) + 68px); bottom:calc(var(--edge) + 54px); z-index:21; display:flex; gap:10px; align-items:flex-end; }
+#view-menu[hidden] { display:none; }
+#view-menu #gfx, #view-menu #show { position:static; transform:none; top:auto; left:auto; bottom:auto; }
+#view-menu #gfx { flex-direction:column; }
+@media (max-width:640px) { #view-menu #show { display:flex; } #view-menu { flex-direction:column; align-items:stretch; } #view-menu #gfx { flex-direction:row; flex-wrap:wrap; } }

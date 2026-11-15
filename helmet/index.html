@@ -78,22 +78,28 @@
 
     <div id="notes" class="notes"></div>
   </div>
-  <div id="gfx" role="group" aria-label="Graphics quality">
-    <span class="gfx-title">Graphics</span>
-    <button type="button" data-q="auto" aria-pressed="true">Auto</button>
-    <button type="button" data-q="low" aria-pressed="false">Low</button>
-    <button type="button" data-q="medium" aria-pressed="false">Med</button>
-    <button type="button" data-q="high" aria-pressed="false">High</button>
-    <span id="gfx-level" class="gfx-meta"></span>
-    <span id="gfx-fps" class="gfx-meta"></span>
+  <!-- one settings button (bottom right) holds graphics + what is shown, so the HUD edges stay clean -->
+  <button type="button" id="hud-settings" class="hud-btn" aria-expanded="false" aria-controls="view-menu" aria-label="View settings" title="View settings">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg>
+  </button>
+  <div id="view-menu" hidden>
+    <div id="gfx" role="group" aria-label="Graphics quality">
+      <span class="gfx-title">Graphics</span>
+      <button type="button" data-q="auto" aria-pressed="true">Auto</button>
+      <button type="button" data-q="low" aria-pressed="false">Low</button>
+      <button type="button" data-q="medium" aria-pressed="false">Med</button>
+      <button type="button" data-q="high" aria-pressed="false">High</button>
+      <span id="gfx-level" class="gfx-meta"></span>
+      <span id="gfx-fps" class="gfx-meta"></span>
+    </div>
+    <fieldset id="show" aria-label="Show in view">
+      <legend class="gfx-title"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>Show</legend>
+      <label><input type="checkbox" data-show="beacon" checked>Home beacon</label>
+      <label><input type="checkbox" data-show="route" checked>Route</label>
+      <label><input type="checkbox" data-show="landmarks" checked>Landmarks</label>
+      <label><input type="checkbox" data-show="dust" checked>Blowing dust</label>
+    </fieldset>
   </div>
-  <fieldset id="show" aria-label="Show in view">
-    <legend class="gfx-title"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>Show</legend>
-    <label><input type="checkbox" data-show="beacon" checked>Home beacon</label>
-    <label><input type="checkbox" data-show="route" checked>Route</label>
-    <label><input type="checkbox" data-show="landmarks" checked>Landmarks</label>
-    <label><input type="checkbox" data-show="dust" checked>Blowing dust</label>
-  </fieldset>
   <div id="fps" hidden></div>
   <div id="zoom" hidden></div>
 

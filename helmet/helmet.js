@@ -74,7 +74,7 @@ let homeInfo = { distM: 0, bearing: 0, hidden: false, beyondVis: false };
 const lmEls = [];                 // { lm, label, pole, ... }
 let lmOrder = [];                 // visible landmarks, nearest first (for label de-cluttering)
 // HUD panels landmark labels must not cover (rects re-read twice a second; cheap, and they only move on resize / text change)
-const HUD_BOX_IDS = ['strip', 'panel-time', 'panel-status', 'storm', 'panel-env', 'panel-factors', 'home-card', 'gfx'];
+const HUD_BOX_IDS = ['strip', 'panel-time', 'panel-status', 'storm', 'panel-env', 'panel-factors', 'home-card', 'hud-settings', 'view-menu'];
 const HUD_BOX_PAD = 4, HUD_BOX_EVERY_MS = 500;
 const hudBox = new Float32Array(HUD_BOX_IDS.length * 4);
 let hudBoxN = 0, hudBoxNext = 0;
@@ -618,6 +618,14 @@ function setupShow() {
     $('landmark-labels').hidden = !showH.landmarks;
     if (dust) dustLook(tauNow);
   });
+}
+function setupSettings() {
+  const btn = $('hud-settings'), menu = $('view-menu');
+  if (!btn || !menu) return;
+  const open = on => { menu.hidden = !on; btn.setAttribute('aria-expanded', String(on)); };
+  btn.addEventListener('click', () => open(menu.hidden));
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !menu.hidden) { open(false); btn.focus(); } });
+  document.addEventListener('pointerdown', (e) => { if (!menu.hidden && !menu.contains(e.target) && !btn.contains(e.target)) open(false); });
 }
 function setupGfx() {
   for (const b of document.querySelectorAll('#gfx [data-q]')) b.addEventListener('click', () => {
@@ -1172,7 +1180,7 @@ async function boot() {
   setupZoom();
   setupPause();
   sceneEl.setAttribute('helmet-tick', '');
-  const onLoaded = () => { setupGfx(); setupShow(); warnSoftwareGL(); };
+  const onLoaded = () => { setupGfx(); setupShow(); setupSettings(); warnSoftwareGL(); };
   if (sceneEl.hasLoaded) onLoaded(); else sceneEl.addEventListener('loaded', onLoaded, { once: true });
 
   try { meta = await fetchJSON('../data/meta.json'); }
