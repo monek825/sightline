@@ -276,6 +276,12 @@
       </div>
       <p id="p-info-text" class="plan-info-text" hidden>Random, but drawn from what Mars actually does: it picks a season, sets the normal dust for that season (measured at Jezero by Perseverance), then maybe adds a regional dust storm in the dusty season or, rarely, a global one, and maybe a solar storm. Every number is in Details → Sources. It is dice, not a forecast.</p>
       <p id="p-msg" class="plan-msg" role="status"></p>
+      <section class="mission" aria-labelledby="m-h">
+        <h3 id="m-h" class="plan-h3">Mission plan: several walks over the first weeks</h3>
+        <p class="sub">NASA plans walks day by day. Each row is checked for slopes, dust, solar storms and suit time on that sol, so you can see which walks the crew is ready for, and when.</p>
+        <ol id="m-rows" class="m-rows"></ol>
+        <div class="plan-actions"><button type="button" id="m-add" class="btn">Add a walk</button><span id="m-status" class="sub" role="status"></span></div>
+      </section>
     </div>
   </dialog>
   <dialog id="dlg-sources" class="dlg">

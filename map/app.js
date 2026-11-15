@@ -389,6 +389,7 @@ function setupScenario(data, M, sky) {
       fill(scenario.events, scenario.sol, scenario.startLtst, prep.target?.id ?? scenario.target);
       rows.forEach((r, i) => r.li.classList.toggle('focus', i === focusHour));
       if (!dlg.open) dlg.showModal();
+      if (!mDone) { mDone = true; renderRows(); checkAll(); }
       (rows[focusHour]?.sel ?? $('p-go')).focus();
     };
     $('w-plan')?.addEventListener('click', () => { $('w-close')?.click(); open(-1); });
@@ -396,6 +397,95 @@ function setupScenario(data, M, sky) {
     $('p-random').addEventListener('click', () => { kindOf(randomEvents()).forEach((k, i) => { rows[i].sel.value = k; }); $('p-msg').textContent = 'New random hours. Press Start, or Randomize again.'; });
     $('p-story').addEventListener('click', () => fill(data.scenario.events, data.scenario.sol, data.scenario.startLtst, data.scenario.target));
     $('p-info').addEventListener('click', () => { const tx = $('p-info-text'); tx.hidden = !tx.hidden; $('p-info').setAttribute('aria-expanded', String(!tx.hidden)); });
+    // ---- Mission plan: several walks on different sols, each with a verdict computed off-screen ----
+    const derive = createPipeline(M);
+    const WEATHER = [['calm', 'Calm day'], ['story', 'Story weather'], ['random', 'Random (Mars odds)']];
+    const calmEvents = () => [...fixed(data.scenario.events), { tMin: 5, type: 'tau', value: C.tau_typical }];
+    const mRows = [
+      { sol: 2, target: 'three_forks', start: 9, weather: 'calm' },
+      { sol: 3, target: 'delta_top', start: 9, weather: 'calm' },
+      { sol: 9, target: 'delta_top', start: 9, weather: 'calm' },
+      { sol: 12, target: 'cheyava_falls', start: 9, weather: 'story' },
+      { sol: 20, target: 'crater_rim', start: 8, weather: 'random' }
+    ].filter(r => data.targets.some(t => t.id === r.target));
+    const eventsFor = row => row.weather === 'story' ? data.scenario.events : row.weather === 'random' ? (row.events ??= randomEvents()) : calmEvents();
+    const sceneFor = row => {
+      const tg = data.targets.find(x => x.id === row.target);
+      const sc = { ...data.scenario, sol: row.sol, startLtst: row.start, events: eventsFor(row) };
+      const target = tg && row.target !== data.scenario.target ? { lat: tg.lat, lon: tg.lon, id: tg.id } : null;
+      return { sc, target, tg };
+    };
+    const RANK = { GREEN: 0, AMBER: 1, RED: 2 };
+    const verdictOf = row => {
+      const { sc, target } = sceneFor(row);
+      const pr = prepareScenario(sc, data, M, target, 'safest');
+      const limit = row.sol < C.sensorimotor_recovery_days ? C.max_slope_early_deg : C.max_slope_deg;
+      if (!pr.outOk) return { level: 'RED', word: 'NO-GO', why: `Too steep for sol ${row.sol}: every way has slopes over ${limit}°.` };
+      const tArr = Math.min(pr.outLen / pr.mPerMin, pr.endT);
+      let worst = null;
+      for (const tt of [tArr * 0.5, tArr, (tArr + pr.endT) / 2]) {
+        const inputs = { ...getStore().inputs, ...stateAt(pr, tt, sky.skyResults) };
+        const b = derive(inputs, data, {}).budget;
+        if (!worst || RANK[b.status] > RANK[worst.status]) worst = b;
+      }
+      const red = (worst.factors ?? []).find(f => f.level === worst.status);
+      const turned = pr.sepT !== null && pr.sepT < tArr - 1;
+      const level = turned ? 'AMBER' : worst.status;
+      const word = turned ? 'TURNS BACK' : level === 'GREEN' ? 'GO' : level === 'AMBER' ? 'CAUTION' : 'NO-GO';
+      const first = m => (m ?? '').split(/(?<=\.)\s/)[0];
+      const why = turned ? `Has to turn back before reaching it: ${red?.label?.toLowerCase() ?? 'conditions change'}.`
+        : level === 'GREEN' ? `${(pr.outLen / 1000).toFixed(1)} km out, about ${Math.round(tArr)} min.` : (red ? `${red.label}: ${first(red.message)}` : '');
+      return { level, word, why };
+    };
+    const mList = $('m-rows');
+    const renderRows = () => {
+      mList.replaceChildren(...mRows.map((row, i) => {
+        const li = document.createElement('li');
+        const mk = (tag, cls, txt) => Object.assign(document.createElement(tag), cls ? { className: cls } : {}, txt != null ? { textContent: txt } : {});
+        const sSol = mk('select'), sTg = mk('select'), sSt = mk('select'), sW = mk('select');
+        for (let d = 0; d <= 30; d++) opt(sSol, d, `Sol ${d}`);
+        for (const tg of data.targets) if (tg.id !== 'landing') opt(sTg, tg.id, tg.name.replace(/ \(approx\.\)/, ''));
+        for (let h = 6; h <= 15; h++) opt(sSt, h, hh(h));
+        for (const [v, l] of WEATHER) opt(sW, v, l);
+        sSol.value = row.sol; sTg.value = row.target; sSt.value = row.start; sW.value = row.weather;
+        for (const [sel, key, num] of [[sSol, 'sol', true], [sTg, 'target', false], [sSt, 'start', true], [sW, 'weather', false]]) {
+          sel.setAttribute('aria-label', key);
+          sel.addEventListener('change', () => { row[key] = num ? Number(sel.value) : sel.value; if (key === 'weather') row.events = null; check(i); });
+        }
+        const chip = mk('b', 'm-chip', '…'), why = mk('span', 'm-why', '');
+        const play = mk('button', 'btn btn-accent m-play', 'Play'); play.type = 'button';
+        play.addEventListener('click', () => {
+          const { sc, target } = sceneFor(row);
+          stop(); t = 0;
+          if (!swap(sc, target, 'safest', 'zero')) { why.textContent = 'No safe route on this sol.'; return; }
+          dlg.close(); start();
+        });
+        const del = mk('button', 'm-del', '×'); del.type = 'button'; del.setAttribute('aria-label', 'Remove this walk');
+        del.addEventListener('click', () => { mRows.splice(i, 1); renderRows(); checkAll(); });
+        li.append(sSol, sTg, sSt, sW, chip, play, del, why);
+        row.ui = { chip, why };
+        return li;
+      }));
+    };
+    const check = i => {
+      const row = mRows[i];
+      if (!row?.ui) return;
+      row.ui.chip.textContent = '…'; row.ui.chip.dataset.level = '';
+      setTimeout(() => {   // one row per tick, so the dialog stays responsive
+        let v;
+        try { v = verdictOf(row); } catch (err) { console.error(err); v = { level: 'AMBER', word: '?', why: 'Could not check this walk.' }; }
+        row.ui.chip.textContent = v.word; row.ui.chip.dataset.level = v.level; row.ui.why.textContent = v.why;
+      }, 30 * (i + 1));
+    };
+    const checkAll = () => mRows.forEach((_, i) => check(i));
+    $('m-add').addEventListener('click', () => {
+      const last = mRows[mRows.length - 1];
+      mRows.push({ sol: Math.min(30, (last?.sol ?? 0) + 2), target: last?.target ?? data.scenario.target, start: 9, weather: 'calm' });
+      renderRows(); checkAll();
+    });
+    let mDone = false;
+    dlg.addEventListener('toggle', () => { if (dlg.open && !mDone) { mDone = true; renderRows(); checkAll(); } });
+
     $('p-go').addEventListener('click', () => {
       const sol = Number($('p-sol').value), id = $('p-target').value;
       const tg = data.targets.find(x => x.id === id);
