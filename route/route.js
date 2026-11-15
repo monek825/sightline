@@ -208,6 +208,7 @@ export function planRoute(grid, bounds, vis, start, goal, opts) {
         const t = (hj - hi) / dist;
         const at = Math.abs(t);
         if (at > maxTan) return false;
+        if (cms && j !== gIdx && cms[j] > maxSlopeDeg) return false;   // same 40 m slope check as A*: a shortcut may not cut through a steep cell
         const minutes = dist / (mPerMin * tobler(t));
         acc.cost += minutes * penOf(j);
         if (acc.cost > limit) return false;

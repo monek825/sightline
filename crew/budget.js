@@ -151,7 +151,8 @@ export function computeBudget(inputs, limits, routeHomeKm, C) {
   // 10. bone
   if (sol < BONE_UNTIL_SOL) {
     factors.push({ id: 'bone', level: 'GREEN', label: 'Bone and fall risk',
-      message: `Bone loss in transit is ~${C.bone_loss_pct_per_month}% per month, so avoid falls. Max slope is lowered to ${C.max_slope_early_deg}° until sol ${C.sensorimotor_recovery_days}.`,
+      message: `Bone loss in transit is ~${C.bone_loss_pct_per_month}% per month, so avoid falls. ` +
+        (early ? `Max slope is lowered to ${C.max_slope_early_deg}° until sol ${C.sensorimotor_recovery_days}.` : `Max slope is back to ${C.max_slope_deg}°, but a fall still costs more than usual.`),
       keys: ['bone_loss_pct_per_month', 'max_slope_early_deg', 'sensorimotor_recovery_days'] });
   }
 
