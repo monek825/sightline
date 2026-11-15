@@ -867,3 +867,41 @@ body.is-3d .legend { bottom: calc(var(--notch-d) + 84px); } /* the 3D note below
 .coach-tip.show { opacity: 1; transform: translate(-50%, -100%); }
 .coach-tip.below.show { transform: translate(-50%, 0); }
 @media (prefers-reduced-motion: reduce) { .coach-on { animation: none; } .coach-tip { transition: none; } .story-fill { transition: none; } }
+
+/* warning countdown (10 s), then it shrinks to a pulsing rounded triangle at the top centre (click to reopen) */
+.banner { position: absolute; }
+.banner.counting::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: rgba(26, 17, 12, .45); transform-origin: left; animation: warn-count 10s linear forwards; }
+@keyframes warn-count { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+.banner.mini { cursor: pointer; padding: 0; background: transparent; box-shadow: none; overflow: visible; animation: warn-out .6s cubic-bezier(.45, 0, .55, 1) forwards, tri-pulse 1.6s ease-in-out .6s infinite !important; }
+.banner.mini::after { display: none; }
+.banner.mini::before { flex-basis: 40px; height: 36px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M10.3 3.6a2 2 0 0 1 3.4 0l8.1 14a2 2 0 0 1-1.7 3H3.9a2 2 0 0 1-1.7-3z' fill='%23ff5f56' stroke='%231a110c' stroke-width='.8'/%3E%3Cpath d='M12 9v4.5M12 16.8v.1' stroke='%231a110c' stroke-width='2.4' stroke-linecap='round'/%3E%3C/svg%3E"); filter: drop-shadow(0 2px 6px rgba(0, 0, 0, .4)); }
+@keyframes warn-out { from { max-width: 560px; max-height: 140px; color: inherit; } to { max-width: 40px; max-height: 36px; color: transparent; } }
+@keyframes tri-pulse { 0%, 100% { max-width: 40px; max-height: 36px; color: transparent; transform: translateX(-50%) scale(1); } 50% { max-width: 40px; max-height: 36px; color: transparent; transform: translateX(-50%) scale(1.14); } }
+@media (prefers-reduced-motion: reduce) { .banner.mini { animation: none !important; max-width: 40px; max-height: 36px; color: transparent; } .banner.counting::after { animation: none; } }
+
+/* Plan a walk */
+.plan-btn svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linejoin: round; }
+.plan { width: min(560px, 94vw); }
+.plan-body { display: grid; gap: var(--s4); }
+.plan-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s3) var(--s4); }
+.plan-grid label, .plan-hours label { display: grid; gap: 6px; font-size: 13px; color: var(--muted); }
+.plan-grid .wide { grid-column: 1 / -1; }
+.plan select { font: 15px var(--font); min-height: 40px; padding: 0 var(--s3); border: 0; border-radius: var(--r-sm); background: rgba(0, 0, 0, .3); color: var(--text); }
+.plan .sub { font-size: 12px; }
+.plan-h3 { margin: 0; font: 600 15px var(--font); color: var(--text); }
+.plan-hours { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--s3); }
+.plan-hours li { padding: var(--s2) var(--s3); border-radius: var(--r-md); background: rgba(255, 255, 255, .04); transition: background-color .3s; }
+.plan-hours li.focus { background: rgba(255, 138, 61, .16); box-shadow: inset 0 0 0 1px var(--accent); }
+.plan-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2); }
+.plan-actions #p-go { margin-left: auto; }
+.plan-info { width: 26px; height: 26px; border-radius: 50%; border: 1px solid var(--line); background: transparent; color: var(--muted); font: 600 13px var(--mono); cursor: pointer; }
+.plan-info:hover, .plan-info[aria-expanded="true"] { color: var(--accent-ink); background: var(--accent); border-color: var(--accent); }
+.plan-info-text { margin: 0; font-size: 13px; color: var(--muted); background: rgba(0, 0, 0, .22); padding: var(--s3); border-radius: var(--r-md); }
+.plan-msg { margin: 0; font-size: 13px; color: #f3c66c; min-height: 1em; }
+@media (max-width: 600px) { .plan-grid, .plan-hours { grid-template-columns: 1fr; } }
+/* timeline edit button */
+.story-row { display: flex; align-items: flex-start; gap: var(--s2); }
+.story-row .story-steps { flex: 1; }
+.story-edit { flex: none; height: 30px; padding: 0 10px 0 8px; margin-top: -3px; display: flex; align-items: center; gap: 5px; font: 600 12px var(--font); border: 0; border-radius: 8px; background: rgba(255, 255, 255, .08); color: var(--text); cursor: pointer; }
+.story-edit:hover { background: var(--accent); color: var(--accent-ink); }
+.story-edit svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linejoin: round; }

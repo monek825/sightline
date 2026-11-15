@@ -15,7 +15,7 @@ const SPEED_MIN_PER_SEC = 2; // demo clock: 1 real second = 2 EVA minutes
 // Story captions for the demo, one per scenario event type (plain-language narration for judges).
 const CAPTIONS = {
   eva_start: () => 'The astronaut walks out to the Three Forks sample depot. Green means there is plenty of time to get home.',
-  tau: (e, C) => e.value > (C?.tau_amber ?? 1)
+  tau: (e, C) => e.value <= (C?.tau_typical ?? 0.4) * 1.25 ? `Clear sky (τ ${e.value}): the hills are easy to see.` : e.value > (C?.tau_amber ?? 1)
     ? `Dust storm (τ ${e.value}, sped up: real storms build over days). Visibility drops and the red no-landmark zones grow.`
     : `Dust is rising (τ ${e.value}). Red areas have no landmark in sight, so it is easy to get lost there.`,
   skyline_fix: () => 'No GPS: after kilometres of counting steps, the suit\'s position guess has drifted (the ring). Horizon Match reads the hills and shrinks it back.',
@@ -79,10 +79,11 @@ async function boot() {
   initMotion();
   ({ retarget = null, setCondition = null, runHasSep = null, runEvents = null, setSpeed = null, getSpeed = null } = setupScenario(data, M, { skyline, skyResults, map: view.map }) ?? {});
   renderPanels(getStore()); // the run setting is known now: show it (a re-render, no state written)
-  setupHelmet(data, view);
+  helmetLook = setupHelmet(data, view, skyline);
   viewRef = view;
   setupSkyline(view.map, skyline, skyResults);
   setupWelcome();
+  setupBannerMini();
   document.addEventListener('keydown', e => {
     if (e.key === 'v' && !e.target.closest('input, select, textarea')) document.body.classList.toggle('video');
   });
@@ -93,6 +94,7 @@ const COACH = {
   'Walk out': ['#panel', 'Walk status: minutes left to get home, from NASA suit and body data.'],
   'Dust rises': ['#t-dust', 'Red on the map = no landmark in sight. Dust makes it grow.'],
   'Dust storm': ['#t-dust', 'Thick dust: the hills fade and the red zones spread.'],
+  'Clear sky': ['#t-dust', 'Clear air: you can see landmarks far away, so the red zones shrink.'],
   'Position fix': ['#t-pos', 'No GPS: the ring is how far off the position may be. Horizon Match shrinks it.'],
   'Solar storm': ['#panel', 'Radiation: the plan turns the astronaut home now.'],
   'Turn back': ['#panel', 'Heading home on the route that keeps landmarks in sight.'],
@@ -145,7 +147,7 @@ function setupScenario(data, M, sky) {
   const chapters = () => {
     const out = [];
     for (const e of prep.scenario.events ?? []) {
-      const name = e.type === 'tau' ? (e.value > (data.C?.tau_amber ?? 1) ? 'Dust storm' : 'Dust rises') : CH[e.type];
+      const name = e.type === 'tau' ? (e.value > (data.C?.tau_amber ?? 1) ? 'Dust storm' : e.value > (data.C?.tau_typical ?? 0.4) * 1.25 ? 'Dust rises' : 'Clear sky') : CH[e.type];
       if (!name || (out.length && out[out.length - 1].name === name)) continue;
       out.push({ name, t: e.tMin, ev: e });
     }
@@ -255,12 +257,15 @@ function setupScenario(data, M, sky) {
     const returning = clock === 'keep' && prep.sepT !== null && t > prep.sepT;
     const from = walking ? { prefix: pathUpTo(prep.outPts, Math.min(prep.mPerMin * t, prep.outLen)), tMin: t }
       : returning ? { prefix: prep.outPts, tMin: prep.sepT, backPrefix: pathUpTo(prep.back, Math.min(prep.mPerMin * (t - prep.sepT), prep.backLen)), backTMin: t } : null;
+    // a restart from minute 0 begins at the local time shown now (else a time set mid-walk jumped back: 7:00 -> 6:06)
+    const restart = clock === 'zero' || (clock === 'auto' && !from);
+    if (restart && t > 0) sc = { ...sc, startLtst: sc.startLtst + t / prep.hourMin };
     const next = prepareScenario(sc, data, M, target, mode, from);
     if (!next.outOk) return false;
     const wasPlaying = playing;
     stop();
     scenario = sc; prep = next; fixEvents = fixesOf(prep);
-    scrub.max = prep.endT; if (clock === 'zero' || (clock === 'auto' && !from)) t = 0; apply();
+    scrub.max = prep.endT; if (restart) t = 0; apply();
     if (wasPlaying) start();
     return true;
   };
@@ -321,7 +326,108 @@ function setupScenario(data, M, sky) {
   };
   for (const b of document.querySelectorAll('[data-event]')) b.addEventListener('click', () => triggerEvent(b.dataset.event));
   const setSpeed = k => { speed = Math.min(10, Math.max(1, Math.round(Number(k)) || 1)); }; // takes effect on the next frame; the clock does not jump
+  setupPlanner();
   return { retarget: target => replan(target, getStore().inputs.routeMode), setCondition, runHasSep, runEvents: () => scenario.events, setSpeed, getSpeed: () => speed };
+
+  // ---------- Plan a walk: day, start time, destination, what happens each hour (or Randomize) ----------
+  function setupPlanner() {
+    const dlg = document.getElementById('dlg-plan');
+    if (!dlg) return;
+    const $ = id => document.getElementById(id), C = data.C;
+    const evEnd = data.scenario.events.find(e => e.type === 'eva_end')?.tMin ?? 200;
+    const HOURS = Math.ceil(evEnd / 60);
+    const KINDS = [['none', 'No change'], ['clear', 'Clear'], ['dusty', 'Dusty'], ['storm', 'Dust storm'], ['solar', 'Solar storm']];
+    const tauFor = { clear: C.tau_typical, dusty: +((C.tau_typical + C.tau_dusty_season_max) / 2).toFixed(1), storm: C.tau_jan2022_storm };
+    const hh = v => { const H = Math.floor(v), M = Math.round((v - H) * 60); return `${String(H).padStart(2, '0')}:${String(M).padStart(2, '0')}`; };
+    const opt = (sel, value, label) => sel.append(Object.assign(document.createElement('option'), { value, textContent: label }));
+    for (let d = 0; d <= 30; d++) opt($('p-sol'), d, d === 0 ? 'Sol 0 (landing day)' : `Sol ${d}`);
+    for (let h = 6; h <= 15; h++) opt($('p-start'), h, hh(h));
+    for (const tg of data.targets ?? []) if (tg.id !== 'landing') opt($('p-target'), tg.id, tg.name);
+    const solHint = () => {
+      const d = Number($('p-sol').value);
+      $('p-sol-hint').textContent = d < C.sensorimotor_recovery_days
+        ? `Still recovering balance after landing: slopes up to ${C.max_slope_early_deg}°, slower walking.`
+        : `Balance recovered: slopes up to ${C.max_slope_deg}°.`;
+    };
+    $('p-sol').addEventListener('change', solHint);
+    // hour rows: each a select; labels follow the start time
+    const rows = [];
+    for (let i = 0; i < HOURS; i++) {
+      const li = document.createElement('li'), lab = document.createElement('label'), span = document.createElement('span'), sel = document.createElement('select');
+      for (const [v, l] of KINDS) opt(sel, v, l);
+      lab.append(span, sel); li.append(lab); $('p-hours').append(li);
+      rows.push({ li, span, sel });
+    }
+    const relabel = () => rows.forEach((r, i) => { const s0 = Number($('p-start').value); r.span.textContent = `Hour ${i + 1} · ${hh(s0 + i)}–${hh(s0 + i + 1)}`; });
+    $('p-start').addEventListener('change', relabel);
+    // events <-> hour choices
+    const kindOf = evs => {
+      const out = Array(HOURS).fill('none');
+      for (const e of evs) {
+        const i = Math.min(HOURS - 1, Math.floor(e.tMin / 60));
+        if (e.type === 'sep_onset') out[i] = 'solar';
+        else if (e.type === 'tau' && out[i] !== 'solar') out[i] = e.value > C.tau_amber ? 'storm' : e.value > C.tau_typical * 1.5 ? 'dusty' : 'clear';
+      }
+      return out;
+    };
+    const eventsOf = kinds => {
+      const evs = [...fixed(data.scenario.events)];
+      kinds.forEach((k, i) => {
+        const tMin = i * 60 + 5;
+        if (k === 'solar') evs.push({ ...data.scenario.events.find(e => e.type === 'sep_onset'), tMin });
+        else if (tauFor[k] != null) evs.push({ tMin, type: 'tau', value: tauFor[k] });
+      });
+      return evs.sort((a, b) => a.tMin - b.tMin);
+    };
+    const fill = (evs, sol, startH, targetId) => {
+      $('p-sol').value = sol; $('p-start').value = Math.min(15, Math.max(6, Math.round(startH)));
+      if (targetId) $('p-target').value = targetId;
+      kindOf(evs).forEach((k, i) => { rows[i].sel.value = k; });
+      solHint(); relabel(); $('p-msg').textContent = '';
+    };
+    const open = focusHour => {
+      fill(scenario.events, scenario.sol, scenario.startLtst, prep.target?.id ?? scenario.target);
+      rows.forEach((r, i) => r.li.classList.toggle('focus', i === focusHour));
+      if (!dlg.open) dlg.showModal();
+      (rows[focusHour]?.sel ?? $('p-go')).focus();
+    };
+    $('w-plan')?.addEventListener('click', () => { $('w-close')?.click(); open(-1); });
+    $('story-edit')?.addEventListener('click', () => open(Math.min(HOURS - 1, Math.floor(t / 60))));
+    $('p-random').addEventListener('click', () => { kindOf(randomEvents()).forEach((k, i) => { rows[i].sel.value = k; }); $('p-msg').textContent = 'New random hours. Press Start, or Randomize again.'; });
+    $('p-story').addEventListener('click', () => fill(data.scenario.events, data.scenario.sol, data.scenario.startLtst, data.scenario.target));
+    $('p-info').addEventListener('click', () => { const tx = $('p-info-text'); tx.hidden = !tx.hidden; $('p-info').setAttribute('aria-expanded', String(!tx.hidden)); });
+    $('p-go').addEventListener('click', () => {
+      const sol = Number($('p-sol').value), id = $('p-target').value;
+      const tg = data.targets.find(x => x.id === id);
+      const sc = { ...data.scenario, sol, startLtst: Number($('p-start').value), events: eventsOf(rows.map(r => r.sel.value)) };
+      stop(); t = 0;
+      const target = tg && id !== data.scenario.target ? { lat: tg.lat, lon: tg.lon, id } : null;
+      if (!swap(sc, target, 'safest', 'zero')) {
+        $('p-msg').textContent = `No safe route to ${tg?.name ?? 'there'} on sol ${sol}: every way has slopes over ${sol < C.sensorimotor_recovery_days ? C.max_slope_early_deg : C.max_slope_deg}°. Pick a later sol or a nearer place.`;
+        return;
+      }
+      dlg.close();
+      start();
+    });
+  }
+}
+
+// The warning shows in full for 10 s (a bar counts down), then shrinks to a pulsing triangle at the top centre so it
+// doesn't cover the map. Click the triangle to read it again. Any new warning text starts it over.
+function setupBannerMini() {
+  const b = document.getElementById('banner');
+  if (!b) return;
+  let timer = 0;
+  const full = () => {
+    clearTimeout(timer);
+    b.classList.remove('mini');
+    b.classList.remove('counting'); void b.offsetWidth; b.classList.add('counting');   // restart the countdown bar
+    timer = setTimeout(() => { if (!b.hidden) b.classList.add('mini'); }, 10000);
+  };
+  new MutationObserver(() => { if (!b.hidden) full(); else { clearTimeout(timer); b.classList.remove('mini', 'counting'); } })
+    .observe(b, { attributes: true, attributeFilter: ['hidden'], childList: true, characterData: true, subtree: true });
+  b.addEventListener('click', () => { if (b.classList.contains('mini')) full(); });
+  b.setAttribute('title', 'Warning (click to read it again when it shrinks)');
 }
 
 // First-visit card: what this is + one-click story. Shown once per browser session.
@@ -341,7 +447,8 @@ function setupWelcome() {
   document.getElementById('w-play').focus({ preventScroll: true });
 }
 
-function setupHelmet(data, view) {
+function setupHelmet(data, view, skyline) {
+  let wantLook = false;
   const dlg = document.getElementById('dlg-helmet');
   // the main 3D map is hidden behind the helmet window: free it completely (rebuilt on close)
   const pauseMain3D = paused => (paused ? view.release3D() : view.show3D());
@@ -363,7 +470,12 @@ function setupHelmet(data, view) {
   window.addEventListener('message', e => {
     if (e.origin !== location.origin || e.source !== frame.contentWindow) return;
     if (e.data?.type === 'sightline:hello') send();
-    if (e.data?.type === 'sightline:helmet-ready') lift();
+    if (e.data?.type === 'sightline:helmet-ready') { lift(); if (wantLook) { wantLook = false; frame.contentWindow.postMessage({ type: 'sightline:hm-auto' }, location.origin); } }
+    // Horizon Match from inside the helmet: the helmet turns, the map page matches (worker) and applies the fix
+    if (e.data?.type === 'sightline:hm-request' && skyline?.lookAroundFix) {
+      skyline.lookAroundFix().then(res => frame.contentWindow?.postMessage({ type: 'sightline:hm-result', ...res }, location.origin))
+        .catch(err => { console.error(err); frame.contentWindow?.postMessage({ type: 'sightline:hm-result', fix: false, observed: [], reason: 'error' }, location.origin); });
+    }
   });
   subscribe(() => send());
   document.getElementById('btn-helmet').addEventListener('click', async () => {
@@ -377,12 +489,18 @@ function setupHelmet(data, view) {
       setTimeout(() => { frame.removeAttribute('srcdoc'); frame.src = 'helmet/index.html'; }, 60);   // timer, not rAF: still loads in a background tab
     } else if (!ok) lift();
   });
+  // open the helmet and start the look-around (Position tab button); waits for the helmet to load the first time
+  return () => {
+    document.getElementById('btn-helmet').click();
+    if (helmetReady) frame.contentWindow?.postMessage({ type: 'sightline:hm-auto' }, location.origin);
+    else wantLook = true;
+  };
 }
 
 // Skyline Fix draws its search heat map on the 2D map: switch to 2D for it, and back afterwards.
 // Horizon Match stays in the view you are in (switching views mid-demo was confusing and slow).
 // ponytail: kept as a hook so callers don't change; returns the "restore" callback.
-let viewRef = null;
+let viewRef = null, helmetLook = null;
 async function show2D() { return () => {}; }
 
 function setupSkyline(map, mod, results) {
@@ -394,6 +512,7 @@ function setupSkyline(map, mod, results) {
   // the button matches the horizon where the astronaut actually is (live, skyline/livematch.js); the scripted demo
   // event still replays its precomputed site result
   document.getElementById('btn-skyline').addEventListener('click', () => {
+    if (mod && helmetLook) { helmetLook(); return; }   // the astronaut looks around in the helmet view
     if (mod) { show2D().then(restore => mod.openSkylineFix(null, map, { onClose: restore, live: true })).catch(err => console.error(err)); return; }
     const banner = document.getElementById('banner');
     banner.textContent = 'Horizon Match panel is not built yet (skyline/skyline.js).';

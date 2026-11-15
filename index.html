@@ -83,7 +83,10 @@
 
       <div id="banner" class="banner" role="alert" hidden></div>
       <div id="story" class="caption story frost">
-        <ol id="story-steps" class="story-steps" aria-label="Story chapters"></ol>
+        <div class="story-row">
+          <ol id="story-steps" class="story-steps" aria-label="Story chapters"></ol>
+          <button type="button" id="story-edit" class="story-edit" title="Plan your own walk: day, time, place and what happens each hour"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19h4L18.5 8.5a2.1 2.1 0 0 0-3-3L5 16v3Z"/></svg><span>Plan</span></button>
+        </div>
         <p id="caption" class="story-text" aria-live="polite" hidden></p>
       </div>
       <div id="coach" class="coach-tip" role="status" hidden></div>
@@ -97,6 +100,7 @@
         </ul>
         <div class="welcome-ctl">
           <button type="button" id="w-play" class="btn btn-accent">Play the 100-second demo</button>
+          <button type="button" id="w-plan" class="btn">Plan your own walk</button>
           <button type="button" id="w-close" class="btn">Explore the map</button>
         </div>
       </section>
@@ -249,6 +253,31 @@
     </section>
   </main>
 
+  <dialog id="dlg-plan" class="dlg plan" aria-labelledby="plan-h">
+    <form method="dialog" class="dlg-head"><h2 id="plan-h">Plan a walk</h2><button class="icon-btn" aria-label="Close" title="Close"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button></form>
+    <div class="dlg-body plan-body">
+      <div class="plan-grid">
+        <label>Day on Mars (sol)
+          <select id="p-sol"></select>
+          <span class="sub" id="p-sol-hint"></span></label>
+        <label>Start time (local Mars time)
+          <select id="p-start"></select></label>
+        <label class="wide">Go to
+          <select id="p-target"></select>
+          <span class="sub">Or close this and click anywhere on the map.</span></label>
+      </div>
+      <h3 class="plan-h3">What happens each hour</h3>
+      <ol id="p-hours" class="plan-hours"></ol>
+      <div class="plan-actions">
+        <button type="button" id="p-random" class="btn">Randomize</button>
+        <button type="button" id="p-info" class="plan-info" aria-expanded="false" aria-controls="p-info-text" aria-label="How Randomize works" title="How Randomize works">i</button>
+        <button type="button" id="p-story" class="btn">The story</button>
+        <button type="button" id="p-go" class="btn btn-accent">Start the walk</button>
+      </div>
+      <p id="p-info-text" class="plan-info-text" hidden>Random, but drawn from what Mars actually does: it picks a season, sets the normal dust for that season (measured at Jezero by Perseverance), then maybe adds a regional dust storm in the dusty season or, rarely, a global one, and maybe a solar storm. Every number is in Details → Sources. It is dice, not a forecast.</p>
+      <p id="p-msg" class="plan-msg" role="status"></p>
+    </div>
+  </dialog>
   <dialog id="dlg-sources" class="dlg">
     <form method="dialog" class="dlg-head"><h2>Sources for every number</h2><button class="icon-btn" aria-label="Close" title="Close"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button></form>
     <div class="dlg-body"><table class="src-table"><thead><tr><th>What</th><th>Value</th><th>Type</th><th>Source</th></tr></thead><tbody id="src-rows"></tbody></table></div>

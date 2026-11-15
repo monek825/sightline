@@ -78,6 +78,16 @@
 
     <div id="notes" class="notes"></div>
   </div>
+  <!-- Horizon Match from the astronaut's eyes: turn once, the hill outline draws, the fix appears -->
+  <button type="button" id="hm-btn" class="hud-btn hm-btn" title="Turn once and match the hills to NASA terrain">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17l5-6 4 4 3-3 6 5"/><circle cx="12" cy="12" r="10" opacity=".5"/></svg><span>Find position</span>
+  </button>
+  <div id="hm-strip" hidden aria-hidden="true">
+    <svg viewBox="0 0 600 76" preserveAspectRatio="none"><polyline id="hm-line" points=""/></svg>
+    <div class="hm-axis"><span>N</span><span>E</span><span>S</span><span>W</span><span>N</span></div>
+    <div id="hm-status"></div>
+  </div>
+  <div id="hm-card" role="status" aria-live="polite" hidden><div id="hm-title"></div><div id="hm-sub"></div></div>
   <!-- one settings button (bottom right) holds graphics + what is shown, so the HUD edges stay clean -->
   <button type="button" id="hud-settings" class="hud-btn" aria-expanded="false" aria-controls="view-menu" aria-label="View settings" title="View settings">
     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg>
