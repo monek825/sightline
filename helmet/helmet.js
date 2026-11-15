@@ -74,7 +74,7 @@ let homeInfo = { distM: 0, bearing: 0, hidden: false, beyondVis: false };
 const lmEls = [];                 // { lm, label, pole, ... }
 let lmOrder = [];                 // visible landmarks, nearest first (for label de-cluttering)
 // HUD panels landmark labels must not cover (rects re-read twice a second; cheap, and they only move on resize / text change)
-const HUD_BOX_IDS = ['strip', 'panel-time', 'panel-status', 'storm', 'panel-env', 'panel-factors', 'home-card', 'hud-settings', 'view-menu', 'hm-btn', 'hm-strip', 'map-btn', 'map-card'];
+const HUD_BOX_IDS = ['strip', 'panel-time', 'panel-status', 'storm', 'panel-env', 'panel-factors', 'home-card', 'hud-settings', 'view-menu', 'hm-btn', 'hud-play', 'hm-strip', 'map-btn', 'map-card'];
 const HUD_BOX_PAD = 4, HUD_BOX_EVERY_MS = 500;
 const hudBox = new Float32Array(HUD_BOX_IDS.length * 4);
 let hudBoxN = 0, hudBoxNext = 0;
@@ -1228,7 +1228,7 @@ async function boot() {
   setupZoom();
   setupPause();
   sceneEl.setAttribute('helmet-tick', '');
-  const onLoaded = () => { setupGfx(); setupShow(); setupSettings(); warnSoftwareGL(); $('hm-btn')?.addEventListener('click', startLook); if (!inIframe) $('hm-btn').hidden = true; };
+  const onLoaded = () => { setupGfx(); setupShow(); setupSettings(); warnSoftwareGL(); $('hm-btn')?.addEventListener('click', startLook); $('hud-play')?.addEventListener('click', () => window.parent.postMessage({ type: 'sightline:toggle-play' }, location.origin)); if (!inIframe && $('hud-play')) $('hud-play').hidden = true; if (!inIframe) $('hm-btn').hidden = true; };
   if (sceneEl.hasLoaded) onLoaded(); else sceneEl.addEventListener('loaded', onLoaded, { once: true });
 
   try { meta = await fetchJSON('../data/meta.json'); }

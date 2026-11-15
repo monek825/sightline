@@ -906,7 +906,7 @@ body.is-3d .legend { bottom: calc(var(--notch-d) + 84px); } /* the 3D note below
 @keyframes warn-count { from { transform: scaleX(1); } to { transform: scaleX(0); } }
 .banner.mini { cursor: pointer; padding: 0; background: transparent; box-shadow: none; overflow: visible; animation: warn-out .6s cubic-bezier(.45, 0, .55, 1) forwards, tri-pulse 1.6s ease-in-out .6s infinite !important; }
 .banner.mini::after { display: none; }
-.banner.mini::before { flex-basis: 40px; height: 36px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M10.3 3.6a2 2 0 0 1 3.4 0l8.1 14a2 2 0 0 1-1.7 3H3.9a2 2 0 0 1-1.7-3z' fill='%23ff5f56' stroke='%231a110c' stroke-width='.8'/%3E%3Cpath d='M12 9v4.5M12 16.8v.1' stroke='%231a110c' stroke-width='2.4' stroke-linecap='round'/%3E%3C/svg%3E"); filter: drop-shadow(0 2px 6px rgba(0, 0, 0, .4)); }
+.banner.mini::before { flex-basis: 40px; height: 36px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M10.3 3.6a2 2 0 0 1 3.4 0l8.1 14a2 2 0 0 1-1.7 3H3.9a2 2 0 0 1-1.7-3z' fill='%23ff5f56'/%3E%3Cpath d='M12 9v4.5M12 16.8v.1' stroke='%231a110c' stroke-width='2.4' stroke-linecap='round'/%3E%3C/svg%3E"); filter: drop-shadow(0 2px 6px rgba(0, 0, 0, .4)); }
 @keyframes warn-out { from { max-width: 560px; max-height: 140px; color: inherit; } to { max-width: 40px; max-height: 36px; color: transparent; } }
 @keyframes tri-pulse { 0%, 100% { max-width: 40px; max-height: 36px; color: transparent; transform: translateX(-50%) scale(1); } 50% { max-width: 40px; max-height: 36px; color: transparent; transform: translateX(-50%) scale(1.14); } }
 @media (prefers-reduced-motion: reduce) { .banner.mini { animation: none !important; max-width: 40px; max-height: 36px; color: transparent; } .banner.counting::after { animation: none; } }
@@ -1078,3 +1078,5 @@ body.is-3d .legend { bottom: calc(var(--notch-d) + 84px); } /* the 3D note below
 .legend .lg-stat { font-weight: 600; color: var(--text); }
 #story-narrate[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
 #story-narrate[hidden] { display: none; }
+.banner.mini { top: 18px; }
+.banner.mini::before { filter: drop-shadow(0 1px 4px rgba(0, 0, 0, .25)); }

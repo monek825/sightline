@@ -13,7 +13,6 @@ import { initMotion } from './motion.js';
 import { setupPlanner } from './planner.js';
 import { setupHowto } from './howto.js';
 
-const NARRATE_RATE = 1.0;   // speaking speed of the optional narration
 const FIX_AUTO_CLOSE_MS = 9000;   // demo: the scripted Horizon Match panel closes itself after the match plays (~5.5 s) plus time to read
 const SPEED_MIN_PER_SEC = 2; // demo clock: 1 real second = 2 EVA minutes
 // Story captions for the demo, one per scenario event type (plain-language narration for judges).
@@ -198,41 +197,34 @@ function setupScenario(data, M, sky) {
     steps.style.setProperty('--fill', n > 1 ? String(Math.min(1, (Math.max(0, k) + Math.min(1, f)) / (n - 1))) : '0');
     if (k !== lastCh) {
       [...steps.querySelectorAll('button')].forEach((b, i) => { b.classList.toggle('done', i < k); b.classList.toggle('now', i === k); });
-      if (playing && k > lastCh && k >= 0) coach(chs[k]);
+      if (playing && k > lastCh && k >= 0) { coach(chs[k]); narrateChapter(chs[k].name); }
       lastCh = k;
     }
   };
-  // Narration (optional): the browser's own text-to-speech reads each new caption while the story plays
-  const speech = 'speechSynthesis' in window ? window.speechSynthesis : null;
-  let narrateOn = false, spokenKey = '';
-  const narrate = text => {
-    if (!narrateOn || !speech || !text) return;
-    // the forecast counts down every demo minute (twice a second): the same line with a new number must not restart the voice
-    const key = text.replace(/~\d+ min/, '');
-    if (key === spokenKey) return;
-    spokenKey = key;
-    speech.cancel();
-    const u = new SpeechSynthesisUtterance(text);
-    u.lang = 'en-US'; u.rate = NARRATE_RATE;
-    const v = speech.getVoices().find(x => /en-(US|GB)/.test(x.lang) && /Samantha|Daniel|Google|Natural/i.test(x.name)) ?? speech.getVoices().find(x => x.lang.startsWith('en'));
-    if (v) u.voice = v;
-    speech.speak(u);
+  // Narration (optional): the team's recorded voice-over (ElevenLabs TTS, assets/voice/) plays as each story chapter starts
+  const VOICE = { 'Walk out': 'walk-out', 'Dust rises': 'dust-rises', 'Position fix': 'position-fix', 'Solar storm': 'solar-storm', 'Dust storm': 'dust-storm', 'Home': 'home' };
+  const voice = new Audio();
+  let narrateOn = false;
+  const narrateChapter = name => {
+    if (!narrateOn || !VOICE[name]) return;
+    voice.pause();
+    voice.src = `assets/voice/${VOICE[name]}.mp3`;
+    voice.play().catch(err => console.warn('narration could not play', err));
   };
   const narrBtn = document.getElementById('story-narrate');
-  if (narrBtn && speech) {
+  if (narrBtn) {
     narrBtn.hidden = false;
     narrBtn.addEventListener('click', () => {
       narrateOn = !narrateOn;
       narrBtn.setAttribute('aria-pressed', String(narrateOn));
-      spokenKey = '';
-      if (narrateOn) narrate(caption.textContent); else speech.cancel();
+      if (narrateOn) { const k = chapterAt(t); if (k >= 0) narrateChapter(chs[k].name); } else voice.pause();
     });
   }
   const apply = () => {
     setInputs(stateAt(prep, t, sky.skyResults));
     buildSteps(); showSteps(t);
     const text = t > 0 || playing ? captionAt(t) : 'Press play: the story shows every feature in 100 seconds.';
-    if (caption.textContent !== text) { caption.textContent = text; caption.hidden = !text; if (playing) narrate(text); }
+    if (caption.textContent !== text) { caption.textContent = text; caption.hidden = !text; }
     scrub.value = t;
     label.textContent = `t = ${Math.round(t)} min`;
     homeBtn.disabled = !(t > 0 && t < prep.sepT && t < prep.endT); // a press only acts on the outbound leg
@@ -268,8 +260,7 @@ function setupScenario(data, M, sky) {
   };
   function stop() {
     pauseId++; playing = false; cancelAnimationFrame(raf);
-    window.speechSynthesis?.cancel();   // narration stops with the story
-    spokenKey = '';                     // and the line is read again from the start when the story goes on
+    voice.pause();   // narration stops with the story
     play.dataset.state = 'paused'; play.setAttribute('aria-label', 'Play demo');
   }
   play.addEventListener('click', () => (playing ? stop() : start()));
@@ -435,6 +426,7 @@ function setupHelmet(data, view, skyline) {
   window.addEventListener('message', e => {
     if (e.origin !== location.origin || e.source !== frame.contentWindow) return;
     if (e.data?.type === 'sightline:hello') send();
+    if (e.data?.type === 'sightline:toggle-play') document.getElementById('t-play')?.click();   // Play / Pause from inside the helmet
     if (e.data?.type === 'sightline:helmet-ready') { lift(); if (wantLook) { wantLook = false; frame.contentWindow.postMessage({ type: 'sightline:hm-auto' }, location.origin); } }
     // Horizon Match from inside the helmet: the helmet turns, the map page matches (worker) and applies the fix
     if (e.data?.type === 'sightline:hm-request' && skyline?.lookAroundFix) {
