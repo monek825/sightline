@@ -3,8 +3,11 @@
 Hackathon rule: cite everything, including open-source code and AI tools. Sean keeps this list complete; paste it into the submission's References field.
 
 ## Challenge resources used
-_Sean: copy the exact names from the challenge "Resources" tab here and say how we used each._
-- TODO (Sean): not filled in. spaceappschallenge.org could not be reached on 14 Nov 2026, so the Resources tab was not read. Do not guess this list — copy it from the tab by hand.
+From the "Resources" tab of the challenge "Interplanetary Survival Guide: Martian Map" (https://www.spaceappschallenge.org/2026/challenges/interplanetary-survival-guide-martian-map/?tab=resources), read 15 Nov 2026. Only the ones the code or data really use are listed.
+- Jet Propulsion Laboratory's (JPL) Mars Trek. https://trek.nasa.gov/mars/ — the CTX 6 m and HiRISE 25 cm orthomosaics of Jezero: the 2D map tiles (`map/map.js`), the 3D ground image (`scripts/make_texture.py` → `data/terrain_texture.jpg`) and the HiRISE close-up patches (`scripts/make_hirise_patch.py`).
+- Mars Perseverance Raw Images Gallery. https://mars.nasa.gov/mars2020/multimedia/raw-images/ — the Navcam images behind the real-photo Horizon Match test, fetched through the same raw-images feed (`scripts/skyline_real.py` → `data/skyline_real/`).
+
+Listed on the tab but not used: USGS-NASA Planetary Geologic Mapping Program (we use the USGS-hosted CTX elevation model and the USGS Gazetteer, below, not the geologic map), the Curiosity route-map example, and NASA Worldview.
 
 ## NASA data
 - NASA Mars Trek WMTS — Jezero HiRISE 25 cm orthomosaic (`JEZ_hirise_soc_006_orthoMosaic_25cm_Eqc_latTs0_lon0_first_dd`) and CTX 6 m orthomosaic (`JEZ_ctx_B_soc_008_orthoMosaic_6m_Eqc_latTs0_lon0`). https://trek.nasa.gov/mars/
@@ -21,7 +24,7 @@ _Sean: copy the exact names from the challenge "Resources" tab here and say how 
 ## Science papers and NASA reports
 - Hassler et al. 2014, Mars' surface radiation environment measured by Curiosity RAD, Science. https://www.science.org/doi/10.1126/science.1244797
 - Zeitlin et al. 2013, Measurements of energetic particle radiation in transit to Mars, Science. https://www.science.org/doi/10.1126/science.1235989
-- NASA OCHMO Radiation Protection technical brief (NASA-STD-3001 Vol 1 Rev B [V1 4031], 250 mSv per design-reference solar particle event; career 600 mSv). https://www.nasa.gov/wp-content/uploads/2023/03/radiation-protection-technical-brief-ochmo.pdf
+- NASA-STD-3001 Volume 1 Revision C (2023), NASA Space Flight Human-System Standard: career effective dose limit 600 mSv [V1 4030] and short-term radiation limits. https://standards.nasa.gov/sites/default/files/standards/NASA/C//nasa-std-3001-vol-1-rev-c-signature.pdf
 - May 2024 solar storm at Mars (Curiosity RAD 8,100 µGy, as reported by NASA/JPL). NASA/JPL news release, June 2024. https://www.jpl.nasa.gov/news/nasa-watches-mars-light-up-during-epic-solar-storm/
 - NASA's first weather report from Jezero Crater (surface pressure). https://www.nasa.gov/feature/nasa-s-first-weather-report-from-jezero-crater-on-mars
 - SwRI release, first radiation measurements on the surface of Mars (GCR dose, 180-day transit). https://www.swri.org/press-release/swri-scientists-publish-first-radiation-measurements-surface-mars

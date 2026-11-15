@@ -18,7 +18,26 @@ const CHART = { w: 720, h: 150, pad: 8 };
 const LEAD = "Mars has no GPS, so the suit guesses its position by counting steps, and that guess drifts the further you walk. Horizon Match resets it: every spot in the crater has its own outline of hills, so the astronaut turns once and the outline is matched to NASA's 3D map.";
 
 const cache = new Map();
-let ui = null; // { dlg, overlay, timers, onClose, cmp: {circle, marker} | null, raf }
+
+// True vs estimated position. A fix writes its estimate into inputs.astronaut (the dot the app draws), but the simulated
+// horizon must always be taken at the true position. The store has no field for it, so remember the true position
+// captured when a fix is applied. It is used only while the astronaut still sits exactly on that estimate; as soon as the
+// simulation moves them (story, scrub, reset) inputs.astronaut is the truth again.
+const LOOK_TURN_MS = 4500;   // the helmet's one full turn (helmet/helmet.js LOOK_MS)
+let fixMark = null;   // { est: {lat, lon}, truth: {lat, lon, ...} }
+function truePosition() {
+  const a = getStore().inputs.astronaut;
+  if (fixMark && a.lat === fixMark.est.lat && a.lon === fixMark.est.lon) return fixMark.truth;
+  fixMark = null;
+  return a;
+}
+function applyEstimate(est, uncertaintyM) {
+  const truth = truePosition(), cur = getStore().inputs.astronaut;
+  setInputs({ astronaut: { ...cur, lat: est.lat, lon: est.lon }, distSinceFixM: 0, fixUncertaintyM: uncertaintyM });
+  const now = getStore().inputs.astronaut;
+  fixMark = now.lat === est.lat && now.lon === est.lon ? { est: { lat: est.lat, lon: est.lon }, truth } : null;
+}
+let ui = null; // { dlg, overlay, timers, onClose, opener, cmp: {circle, marker} | null, raf }
 
 async function loadSite(siteId) {
   if (!/^[a-z_]+$/.test(siteId)) throw new Error('bad site id');
@@ -106,7 +125,7 @@ function buildDialog() {
   for (const line of [
     'The horizon for every spot comes from the NASA CTX elevation model of Jezero (20 m per point), with MOLA for far hills.',
     'JPL reports horizon matching at typically about 100 m, at best about 10 m (Nash et al., ICRA 2024). Perseverance landed with a related idea. Its Lander Vision System matched camera images to an orbital map, a few metres off against a 40 m requirement.',
-    'Tested on real Perseverance Navcam panoramas, 4 of 5 positions were fixed within 51–143 m and one was 2.8 km off. So the app never claims better than ±100 m and checks every fix against your step count.',
+    'Tested on 5 real Perseverance panoramas (3 used while developing): 4 were within 51–143 m, one was 2.8 km off. Five is too few to quote an error rate.',
     'In dust (simulated on NASA terrain), the self-check never claimed a wrong position down to 1.5 km visibility. Below that, or when it finds no clear match, the app switches to "Lost in dust".'
   ]) how.append(el('p', null, line));
 
@@ -118,6 +137,8 @@ function buildDialog() {
   dlg.addEventListener('keydown', e => { if (e.key === 'Escape') { e.preventDefault(); closeFix(); } });
   return { dlg, step, status, compass, chart, result, how };
 }
+
+const focusClose = () => ui?.dlg.querySelector('.skyfix-head .icon-btn')?.focus();
 
 function chartScale(s) {
   const all = s.observed.concat(s.best);
@@ -227,6 +248,8 @@ export function closeFix() {
   if (ui.dlg.open) ui.dlg.close();
   const cb = ui.onClose; ui.onClose = null;
   cb?.();
+  const op = ui.opener; ui.opener = null; ui.lastOpener = op ?? ui.lastOpener;
+  if (op?.isConnected) op.focus();   // give focus back to what opened the panel
 }
 
 // ---------- Lost in dust (skyline/lostdust.js) ----------
@@ -330,7 +353,7 @@ function showLost(map, reason, visKm, minVisKm, siteName) {
   }
   box.append(list, el('p', 'skyfix-note', 'Plan from the app\'s map and dead-reckoning model. The dust test is simulated on NASA terrain (scripts/skyline_dust.py).'));
   result.append(box);
-  if (!dlg.open) dlg.show();
+  if (!dlg.open) { dlg.show(); focusClose(); }
   if (map) map.flyTo([inp.astronaut.lat, inp.astronaut.lon], Math.max(map.getZoom(), 13), { duration: matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 0.8 });
 }
 
@@ -397,10 +420,13 @@ async function runLive(o, isCurrent, onProgress) {
  */
 export async function openSkylineFix(siteId, map, opts = {}) {
   const live = !!opts.live, lost = !!opts.lost;
+  const from = opts.opener ?? document.activeElement;   // the button that asked for the panel (focus may have moved since)
   const [s0, dust] = await Promise.all([live || lost ? null : loadSite(siteId), loadDust()]);
-  if (!ui) ui = { ...buildDialog(), timers: [], overlay: null, onClose: null, cmp: null, raf: 0, lostLayers: null };
+  if (!ui) ui = { ...buildDialog(), timers: [], overlay: null, onClose: null, opener: null, lastOpener: null, cmp: null, raf: 0, lostLayers: null };
+  ui.onClose = null;   // a panel that is already open must not fire its old close handler: only the new opener's runs
   closeFix();
   resetDialog();
+  ui.opener = from && from !== document.body && !ui.dlg.contains(from) ? from : ui.lastOpener ?? null;
   ui.onClose = opts.onClose ?? null;
   const token = ui.token = {};
   const current = () => ui.token === token && ui.dlg.open;
@@ -419,14 +445,14 @@ export async function openSkylineFix(siteId, map, opts = {}) {
   chart.replaceChildren();
   result.replaceChildren();
   dlg.querySelector('.skyfix-head h2').textContent = 'Horizon Match';
-  if (!dlg.open) dlg.show();
+  if (!dlg.open) { dlg.show(); focusClose(); }
 
   // live: simulate the turn at the true position, search around the dead-reckoning position
   let s = s0, dc = null, ref = store.inputs.astronaut;
   const drM = store.derived?.posUncertaintyM ?? 0;
   if (live) {
     setStep(0, 'Reading the horizon…');
-    const truth = store.inputs.astronaut;
+    const truth = truePosition();
     const seed = seedOf(truth.lat, truth.lon) ^ Math.round((store.inputs.evaMin ?? 0) * 7);
     ref = deadReckoningPrior(truth, drM, seed);   // where the step count says you are
     const o = { bounds: store.data.meta.bounds, truth, prior: ref, eyeM: store.data.C?.eye_height_m ?? 1.7, visKm, seed };
@@ -457,7 +483,7 @@ export async function openSkylineFix(siteId, map, opts = {}) {
     ' The astronaut stands still and turns once; the line sweeps round from north and traces the hills they see.' + dustTxt);
   const sweep = compass.querySelector('.sweep');
   // radar on the map, centred on where the astronaut really stands (it does not move during the match)
-  const here = live ? store.inputs.astronaut : (s.truth ?? store.inputs.astronaut);
+  const here = live ? truePosition() : (s.truth ?? store.inputs.astronaut);
   if (ui.radar) ui.radar.remove();
   // ponytail: no map animation (it confused more than it showed); the panel's compass + outline chart tell the story
   const n = s.observed.length;
@@ -478,7 +504,7 @@ export async function openSkylineFix(siteId, map, opts = {}) {
   // 2. Search the map (the grid is centred on where the astronaut thinks they are)
   const later = (ms, fn) => ui.timers.push(setTimeout(fn, reduced ? 0 : ms));
   later(SWEEP_MS, () => {
-    setStep(1, 'Scanning the NASA terrain map: every dot is a spot whose horizon is being compared.');
+    setStep(1, 'Comparing the horizon with the NASA terrain map. The astronaut stands still: only the estimate dot appears, then locks.');
     // ponytail: no candidate-dot scan on the map any more (too busy); the radar outline stays until the result
   });
 
@@ -508,8 +534,7 @@ export async function openSkylineFix(siteId, map, opts = {}) {
     showResult(result, res, map, reduced, { applied, note });
     if (dc) result.append(el('p', 'skyfix-note', `Dust: matched with only the hills within ${dc.visKm} km (simulated dust test on NASA terrain). The chart shows the clear-day horizon.`));
     if (applied === true) {
-      const cur = st.inputs.astronaut;
-      setInputs({ astronaut: { ...cur, lat: res.estimate.lat, lon: res.estimate.lon }, distSinceFixM: 0, fixUncertaintyM: res.uncertaintyM });
+      applyEstimate(res.estimate, res.uncertaintyM);
     } else if (applied === false) {
       result.append(el('p', 'skyfix-warn', `The match is ${Math.round(gapM)} m from where your step count puts you (±${Math.round(drM)} m). ` +
         'One of them is wrong: stop, turn around once more, and compare with a landmark before moving.'));
@@ -524,8 +549,9 @@ export async function openSkylineFix(siteId, map, opts = {}) {
  * @returns {Promise<{observed:number[], fix:boolean, applied?:boolean, uncertaintyM?:number, gapM?:number, drM:number, reason?:string}>}
  */
 export async function lookAroundFix() {
+  const t0 = performance.now();
   const store = getStore(), C = store.data?.C ?? {};
-  const truth = store.inputs.astronaut, drM = store.derived?.posUncertaintyM ?? 0;
+  const truth = truePosition(), drM = store.derived?.posUncertaintyM ?? 0;
   const visKm = store.derived?.limits?.visibilityKm ?? Infinity;
   const dust = await loadDust();
   if (Number.isFinite(dust?.noFalseFixMinVisKm) && visKm < dust.noFalseFixMinVisKm) return { observed: [], fix: false, drM, reason: 'dust' };
@@ -540,6 +566,14 @@ export async function lookAroundFix() {
   const unc = Math.max(s.uncertaintyM, C.horizon_fix_min_uncertainty_m ?? 100);
   const gapM = distM(ref.lat, ref.lon, s.estimate.lat, s.estimate.lon);
   const applied = gapM <= drM + unc;
-  if (applied) setInputs({ astronaut: { ...getStore().inputs.astronaut, lat: s.estimate.lat, lon: s.estimate.lon }, distSinceFixM: 0, fixUncertaintyM: unc });
+  // the astronaut stands still while the helmet turns: move them to the estimate only when the turn has ended,
+  // and only if nothing else moved them meanwhile
+  if (applied) {
+    const at = getStore().inputs.astronaut, wait = Math.max(0, t0 + LOOK_TURN_MS - performance.now());
+    setTimeout(() => {
+      const now = getStore().inputs.astronaut;
+      if (now.lat === at.lat && now.lon === at.lon) applyEstimate(s.estimate, unc);
+    }, wait);
+  }
   return { observed, fix: true, applied, uncertaintyM: Math.round(unc), gapM: Math.round(gapM), drM: Math.round(drM) };
 }
