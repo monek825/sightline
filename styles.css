@@ -1063,4 +1063,12 @@ body.is-3d .legend { bottom: calc(var(--notch-d) + 84px); } /* the 3D note below
 .howto-rows dt { color: var(--muted); }
 .howto-rows dd { margin: 0; color: var(--text); font-weight: 600; text-align: right; }
 #howto-body > .btn { margin-top: var(--s3); }
-@media (max-width: 700px) { .howto-btn { margin-left: auto; padding: 0 10px; } }
+
+.clock dt { white-space: nowrap; }
+.clock .sm, .howto-btn .sm { display: none; }
+@media (max-width: 700px) {
+  .clock .lg, .howto-btn .lg { display: none; }
+  .clock .sm { display: inline; }
+  .howto-btn { position: absolute; top: 12px; right: 12px; margin: 0; width: 34px; height: 34px; min-height: 0; padding: 0; display: grid; place-items: center; }
+  .howto-btn .sm { display: inline; font-size: 16px; }
+}

@@ -49,11 +49,11 @@
       <header class="brandbar frost">
         <h1 class="brand"><span class="logo" aria-hidden="true"><img src="assets/logo.svg" alt="" width="142" height="142"></span>Sightline</h1>
         <dl class="clock">
-          <div title="Mars days since landing"><dt>Sol</dt><dd id="clk-sol">–</dd></div>
-          <div title="Local true solar time on Mars"><dt>LTST</dt><dd id="clk-ltst">–</dd></div>
-          <div title="Minutes since the walk outside began"><dt>EVA</dt><dd id="clk-eva">–</dd></div>
+          <div title="Mars days since landing"><dt><span class="lg">Mars day</span><span class="sm">Day</span></dt><dd id="clk-sol">–</dd></div>
+          <div title="Local true solar time on Mars"><dt><span class="lg">Mars time</span><span class="sm">Time</span></dt><dd id="clk-ltst">–</dd></div>
+          <div title="Minutes since the walk outside began"><dt><span class="lg">Outside</span><span class="sm">Out</span></dt><dd id="clk-eva">–</dd></div>
         </dl>
-        <button type="button" id="btn-howto" class="howto-btn" title="How it works: what the colours mean and how everything is measured">How it works</button>
+        <button type="button" id="btn-howto" class="howto-btn" aria-label="How it works" title="How it works: what the colours mean and how everything is measured"><span class="lg">How it works</span><span class="sm" aria-hidden="true">?</span></button>
       </header>
 
       <div class="layers" id="layers">
@@ -229,7 +229,7 @@
             <span class="sub" data-hint="c-sol"></span></label>
           <label class="check"><input type="checkbox" id="c-sep"> Solar storm during the walk</label>
           <details class="advanced">
-            <summary>Advanced</summary>
+            <summary>Simulation controls: trigger storms, new runs, crew details</summary>
             <label class="check"><input type="checkbox" id="c-sans"> Vision changes (SANS)</label>
             <div class="events" role="group" aria-labelledby="ev-h">
               <h3 id="ev-h">Make something happen now</h3>
