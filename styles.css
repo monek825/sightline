@@ -1072,3 +1072,7 @@ body.is-3d .legend { bottom: calc(var(--notch-d) + 84px); } /* the 3D note below
   .howto-btn { position: absolute; top: 12px; right: 12px; margin: 0; width: 34px; height: 34px; min-height: 0; padding: 0; display: grid; place-items: center; }
   .howto-btn .sm { display: inline; font-size: 16px; }
 }
+.v3-note { transition: opacity .5s, visibility .5s; }
+.v3-note.gone { opacity: 0; visibility: hidden; }
+.w-lead { font-weight: 600; color: var(--text); }
+.legend .lg-stat { font-weight: 600; color: var(--text); }

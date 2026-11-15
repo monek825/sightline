@@ -94,6 +94,7 @@
       <div id="coach" class="coach-tip" role="status" hidden></div>
       <section id="welcome" class="welcome frost" aria-labelledby="welcome-h" hidden>
         <h2 id="welcome-h">Getting home without GPS</h2>
+        <p id="w-lead" class="w-lead"></p>
         <p>Mars has no GPS. Sightline shows whether an astronaut walking in Jezero crater can still find the way back, on foot, even when the rover breaks down. It uses NASA terrain, dust and radiation data. The 200-minute walk plays at 2 EVA minutes per second.</p>
         <ul class="welcome-keys">
           <li><i class="sw sw-red"></i>Red: no landmark in sight</li>
@@ -108,6 +109,7 @@
       </section>
 
       <div class="legend frost" id="legend">
+        <span id="lg-hidden3" class="lg-stat" hidden></span>
         <span><i class="sw sw-red"></i>No landmark in sight</span>
         <span><i class="sw sw-amber"></i>Habitat hidden</span>
         <span class="only-2d"><i class="sw sw-ring"></i>Visibility range</span>
@@ -133,7 +135,7 @@
               <div><dt>Walking speed</dt><dd id="c-walk">–</dd></div>
               <div><dt>Steepest safe slope</dt><dd id="c-slope">–</dd></div>
             </dl>
-            <p class="hint"><span id="c-sol-v">–</span> on Mars, <span id="c-state">–</span></p>
+            <p class="hint"><span id="c-sol-v">–</span>: <span id="c-state">–</span></p>
             <ul class="factors" data-group="home"></ul>
           </section>
 

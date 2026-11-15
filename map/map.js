@@ -11,6 +11,7 @@ const MODELS_SRC = 'lib/models.js';
 const GROUND_SRC = 'lib/ground.js';
 // 3D is to scale: vertical ×1 (true), rover and habitat always true size. Terrain: 40 m cells, falls back to the 20 m grid.
 const TERRAIN_DATA = 'data/heightgrid40.json', TERRAIN_FALLBACK = 'data/heightgrid.json';
+const NOTE_SHOW_MS = 8000;  // the 3D scale note hides itself after this
 const LABEL_EDGE_PX = 12;  // 3D labels keep this gap from the screen edges
 const MIN_DIST_M = 25;  // closest zoom: about standing height above the astronaut's area
 // Close-up rocks (lib/ground.js), hidden once the camera is high enough that they would be sub-pixel.
@@ -506,7 +507,13 @@ function createView3D(data, onPickTarget, devils) {
   const noteBase = `Vertical scale ×${EXAGGERATE} (true). Rover and habitat are true size. The habitat is a concept, not a NASA design. The far rover is Perseverance at its latest traverse position.`;
   let noteDevils = null, dv3 = null, dvAff = null, dvT0 = performance.now();
   const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const setNote = on => { if (on === noteDevils) return; noteDevils = on; $('v3-note').textContent = on ? `${noteBase} ${DEVIL_NOTE}` : noteBase; };
+  let noteTimer = 0;
+  // the scale note shows for a few seconds (and again when the dust-devil line is added), then gets out of the way
+  const setNote = on => {
+    if (on === noteDevils) return; noteDevils = on;
+    const n = $('v3-note'); n.textContent = on ? `${noteBase} ${DEVIL_NOTE}` : noteBase;
+    n.classList.remove('gone'); clearTimeout(noteTimer); noteTimer = setTimeout(() => n.classList.add('gone'), NOTE_SHOW_MS);
+  };
   setNote(false);
 
   // Per frame: stand each column on the ground at the 2D map's devil position (affine lat/lon → world, no allocation).

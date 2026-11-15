@@ -383,10 +383,17 @@ export function createPanels(data, { setInputs, usingStubs, onCondition, runHasS
     los.hidden = !state;
     los.dataset.state = state;
     los.textContent = { home: 'Home in sight', landmark: 'Landmark only', blind: 'Blind' }[state] ?? '';
-    $('b-los3').hidden = !Number.isFinite(pct);
-    $('b-los3').textContent = Number.isFinite(pct) ? `Home visible from ${Math.round(pct)}% of ground within 3 km` : '';
+    // the 3 km share is a property of the place, not of where you are: shown once, at normal dust, in the welcome and the legend
+    if (!hiddenShown && Number.isFinite(pct)) {
+      hiddenShown = true;
+      const hid = Math.round(100 - pct);
+      const lead = $('w-lead'), lg = $('lg-hidden3');
+      if (lead) lead.textContent = `On Jezero's flat floor, home is hidden from ${hid}% of the ground within 3 km. Sightline shows where you lose sight of home.`;
+      if (lg) { lg.textContent = `Home hidden from ${hid}% of ground within 3 km`; lg.hidden = false; }
+    }
   }
 
+  let hiddenShown = false;
   function renderTabs(inputs, derived) {
     const bdg = derived.budget, C = data.C;
     document.querySelector('.panel').dataset.status = bdg.status;
@@ -410,7 +417,7 @@ export function createPanels(data, { setInputs, usingStubs, onCondition, runHasS
     $('p-acc').textContent = `± ${Math.round(inputs.fixUncertaintyM)} m`;
 
     const recovering = inputs.sol < C.sensorimotor_recovery_days;
-    $('c-sol-v').textContent = `Sol ${inputs.sol}`;
+    $('c-sol-v').textContent = `Mars day ${inputs.sol}`;
     $('c-state').textContent = `${recovering ? 'balance still recovering' : 'balance recovered'}${inputs.sansAffected ? ', vision changes' : ''}`;
     $('c-walk').textContent = fmtNum(derived.limits.speedKmh, 1, ' km/h');
     $('c-slope').textContent = fmtNum(derived.limits.maxSlopeDeg, 0, '°');
