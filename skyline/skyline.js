@@ -139,6 +139,13 @@ function buildDialog() {
 }
 
 const focusClose = () => ui?.dlg.querySelector('.skyfix-head .icon-btn')?.focus();
+// one panel at a time: the Details drawer and this panel overlap, so opening this one closes the drawer (map/panels.js does the reverse)
+function showPanel(dlg) {
+  const notch = document.getElementById('notch');
+  if (notch?.getAttribute('aria-expanded') === 'true') notch.click();
+  dlg.show();
+  focusClose();
+}
 
 function chartScale(s) {
   const all = s.observed.concat(s.best);
@@ -353,7 +360,7 @@ function showLost(map, reason, visKm, minVisKm, siteName) {
   }
   box.append(list, el('p', 'skyfix-note', 'Plan from the app\'s map and dead-reckoning model. The dust test is simulated on NASA terrain (scripts/skyline_dust.py).'));
   result.append(box);
-  if (!dlg.open) { dlg.show(); focusClose(); }
+  if (!dlg.open) showPanel(dlg);
   if (map) map.flyTo([inp.astronaut.lat, inp.astronaut.lon], Math.max(map.getZoom(), 13), { duration: matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 0.8 });
 }
 
@@ -445,7 +452,7 @@ export async function openSkylineFix(siteId, map, opts = {}) {
   chart.replaceChildren();
   result.replaceChildren();
   dlg.querySelector('.skyfix-head h2').textContent = 'Horizon Match';
-  if (!dlg.open) { dlg.show(); focusClose(); }
+  if (!dlg.open) showPanel(dlg);
 
   // live: simulate the turn at the true position, search around the dead-reckoning position
   let s = s0, dc = null, ref = store.inputs.astronaut;
