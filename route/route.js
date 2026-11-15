@@ -86,6 +86,9 @@ export function planRoute(grid, bounds, vis, start, goal, opts) {
     // neighbour table: dr, dc, ground distance (m)
     const NB = [[-1, 0, dy], [1, 0, dy], [0, -1, dx], [0, 1, dx], [-1, -1, dd], [-1, 1, dd], [1, -1, dd], [1, 1, dd]];
     const maxTan = Math.tan(maxSlopeDeg * Math.PI / 180);
+    // optional per-cell steepest local slope (40 m detail, data/slope80.json): never step into a cell steeper than the
+    // limit, except the goal itself (a sample site may sit on a slope; the walk still ends there)
+    const cms = opts.cellMaxSlopeDeg && opts.cellMaxSlopeDeg.length === W * H ? opts.cellMaxSlopeDeg : null;
 
     const ok = (v) => Number.isFinite(v);
     const stepAllowed = (i, j, dist) => {
@@ -163,6 +166,7 @@ export function planRoute(grid, bounds, vis, start, goal, opts) {
           const dist = NB[n][2];
           const t = (hn - hCur) / dist; // signed tan of slope, uphill positive
           if (Math.abs(t) > maxTan) continue;
+          if (cms && j !== gIdx && cms[j] > maxSlopeDeg) continue;
           const minutes = dist / (mPerMin * tobler(t));
           let pen = 1;
           if (penal) {

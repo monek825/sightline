@@ -355,6 +355,8 @@ function worldToLatLon(terrain, b, x, z) {
 }
 
 // k shrinks the tube and its lift when zoomed in close (1 = far view)
+// the planner's route starts at its cached (bucketed) start cell; draw it from the astronaut instead, like the 2D map
+const here = (route, a) => (route?.ok && a ? { ...route, points: fromHere(route.points, a) } : route);
 function setRoute(s, terrain, name, route, color, k = 1) {
   const old = s.routes.getObject3D(name);
   old?.geometry.dispose();
@@ -570,8 +572,9 @@ function createView3D(data, onPickTarget, devils) {
     const rk = Math.min(1, Math.pow(2, Math.round(Math.log2(Math.max(0.02, dist / 2500)))));   // power-of-2 steps: rebuild rarely
     if (rk !== routeK && last) {
       routeK = rk;
-      setRoute(s, terrain, 'home', last.derived.routeHome, CREAM, rk);
-      setRoute(s, terrain, 'out', last.derived.routeOut, ACCENT, rk);
+      const a0 = last.inputs.astronaut;
+      setRoute(s, terrain, 'home', here(last.derived.routeHome, a0), CREAM, rk);
+      setRoute(s, terrain, 'out', here(last.derived.routeOut, a0), ACCENT, rk);
       update();
     }
     const cam = s.scene.camera;
@@ -677,8 +680,8 @@ function createView3D(data, onPickTarget, devils) {
     const playing = last.inputs.scenarioT !== null;
     if (orbit && playing && !wasPlaying && orbit.o.dist < PLAY_DIST_M * 0.6) orbit.zoomTo(PLAY_DIST_M);
     wasPlaying = playing;
-    if (d.routeHome !== lastHome) { lastHome = d.routeHome; setRoute(s, terrain, 'home', d.routeHome, CREAM, routeK); }
-    if (d.routeOut !== lastOut) { lastOut = d.routeOut; setRoute(s, terrain, 'out', d.routeOut, ACCENT, routeK); }
+    if (d.routeHome !== lastHome) { lastHome = d.routeHome; setRoute(s, terrain, 'home', here(d.routeHome, a), CREAM, routeK); }
+    if (d.routeOut !== lastOut) { lastOut = d.routeOut; setRoute(s, terrain, 'out', here(d.routeOut, a), ACCENT, routeK); }
     const ltst = Math.round(last.inputs.ltst * 4) / 4;
     if (ltst !== lastSun) { lastSun = ltst; s.sun.setAttribute('position', sunPosition(ltst, data.meta.home.lat).map(Math.round).join(' ')); }
     const tau = Math.round(last.inputs.tau * 10) / 10;
