@@ -196,6 +196,25 @@ function tauWithRamp(scenario, tt, base) {
   return Math.round(tau * 100) / 100;
 }
 
+// Demo choice, not science: how many demo minutes before a dust storm starts the "orbiter forecast" caption appears.
+export const DUST_FORECAST_LEAD_MIN = 15;
+
+/** Pure: the next dust storm still ahead at time t, or null. A storm = a tau event above tauAmber that follows a calm
+ *  (<= tauAmber) level. It is announced from leadMin demo minutes before the event's tMin (where the dust ramp starts
+ *  rising) until the event starts. inMin = whole minutes left, rounded up (counts down 15, 14 ... 1). */
+export function nextDustForecast(scenario, t, tauAmber, leadMin = DUST_FORECAST_LEAD_MIN) {
+  const taus = (scenario?.events ?? []).filter(e => e.type === 'tau').sort((a, b) => a.tMin - b.tMin);
+  let before = null; // tau level in force just before each event (null = default sky, calm)
+  for (const e of taus) {
+    const calmBefore = before === null || before <= tauAmber;
+    before = e.value;
+    if (!calmBefore || !(e.value > tauAmber)) continue;
+    const ahead = e.tMin - t;
+    if (ahead > 0 && ahead <= leadMin) return { inMin: Math.ceil(ahead), tau: e.value };
+  }
+  return null;
+}
+
 // the stop the crew is walking to (or standing at) at time tt; the target when there are no planned stops
 function nextStop(prep, tt) {
   if (!prep.stops) return prep.target;

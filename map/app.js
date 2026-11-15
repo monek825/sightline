@@ -5,7 +5,7 @@ import { loadAll } from '../lib/data.js';
 import { createPipeline } from '../lib/pipeline.js';
 import { initStore, setInputs, subscribe, getStore, DEFAULT_INPUTS } from '../lib/store.js';
 import { initVisibility, visibilityArrays } from './visibility.js';
-import { prepareScenario, stateAt, pathUpTo, editScenario, walkedOutM } from './scenario.js';
+import { prepareScenario, stateAt, pathUpTo, editScenario, walkedOutM, nextDustForecast } from './scenario.js';
 import { createMapView } from './map.js';
 import { createPanels } from './panels.js';
 import * as stubs from './stubs.js';
@@ -178,9 +178,14 @@ function setupScenario(data, M, sky) {
   const chapterAt = tt => { let k = -1; chs.forEach((c, i) => { if (c.t <= tt) k = i; }); return k; };
   const captionAt = tt => {
     const k = chapterAt(tt);
-    if (k < 0) return '';
-    const ev = chs[k].ev;
-    return CAPTIONS[ev.type] ? CAPTIONS[ev.type](ev, data.C) : '';
+    // Orbiter forecast: shown before a dust storm starts; the storm's own caption takes over at the event.
+    // During a solar storm both are shown, the solar storm first (more urgent).
+    const fc = nextDustForecast(prep.scenario, tt, data.C?.tau_amber ?? 1);
+    const fcText = fc ? `Orbiter forecast: dust storm in ~${fc.inMin} min.` : '';
+    const ev = k < 0 ? null : chs[k].ev;
+    if (ev?.type === 'sep_onset') return [CAPTIONS.sep_onset(ev, data.C), fcText].filter(Boolean).join(' ');
+    if (fc) return `${fcText} Plan the way home now.`;
+    return ev && CAPTIONS[ev.type] ? CAPTIONS[ev.type](ev, data.C) : '';
   };
   const showSteps = tt => {
     const k = chapterAt(tt), n = chs.length;

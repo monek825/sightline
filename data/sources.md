@@ -28,6 +28,7 @@ Listed on the tab but not used: USGS-NASA Planetary Geologic Mapping Program (we
 - IAU / USGS Gazetteer of Planetary Nomenclature — used to check landmark names (no match; landmarks keep auto-picked names). https://planetarynames.wr.usgs.gov/
 - Perseverance MEDA, PDS Atmospheres Node. https://atmos.nmsu.edu/PDS/data/PDS4/Mars2020/mars2020_meda/
 - Mars24 sunclock algorithm (NASA GISS). https://www.giss.nasa.gov/tools/mars24/help/algorithm.html
+- Mars Reconnaissance Orbiter Mars Color Imager (MARCI) daily global weather maps (Malin Space Science Systems) — the idea for the "Orbiter forecast: dust storm in ~X min" caption. The app does not use MARCI data at runtime; the forecast in the demo is scripted from the scenario events. https://www.msss.com/msss_images/subject/weather_reports.html
 
 ## Science papers and NASA reports
 - Hassler et al. 2014, Mars' surface radiation environment measured by Curiosity RAD, Science. https://www.science.org/doi/10.1126/science.1244797
