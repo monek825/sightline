@@ -291,17 +291,10 @@ function setupHelmet(data, view) {
 }
 
 // Skyline Fix draws its search heat map on the 2D map: switch to 2D for it, and back afterwards.
-// From 3D: the camera eases to a north-up view straight down first, then the 2D map fades in over it.
+// Horizon Match stays in the view you are in (switching views mid-demo was confusing and slow).
+// ponytail: kept as a hook so callers don't change; returns the "restore" callback.
 let viewRef = null;
-async function show2D() {
-  const b2 = document.getElementById('v-2d');
-  if (b2.getAttribute('aria-pressed') === 'true') return () => {};
-  await viewRef?.flyTop?.();
-  const m = document.getElementById('map');
-  m.classList.remove('fade-in'); void m.offsetWidth; m.classList.add('fade-in');
-  b2.click();
-  return () => document.getElementById('v-3d').click();
-}
+async function show2D() { return () => {}; }
 
 function setupSkyline(map, mod, results) {
   // Lost in dust: the astronaut cannot see the hills (local dust the app's τ model does not know about)

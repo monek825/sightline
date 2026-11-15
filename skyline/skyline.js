@@ -4,14 +4,13 @@
 
 import { R, distM } from '../lib/geo.js';
 import { setInputs, getStore } from '../lib/store.js';
-import { topoScan, SCAN_MS } from './topo.js';
 import { radarSweep } from './radar.js';
 import { lostInDustPlan, compass8 } from './lostdust.js';
 import { visibilityArrays } from '../map/visibility.js';
 import { liveMatchSteps, deadReckoningPrior, seedOf } from './livematch.js';
 
 const SWEEP_MS = 5000;   // the radar look-around on the map
-const SEARCH_MS = SCAN_MS; // the topographic scan (skyline/topo.js)
+const SEARCH_MS = 1500;   // short pause on "Compare with the map" before the result
 const MORPH_MS = 400; // 360° <-> 96° circle change
 const STEPS = ['Look around', 'Compare with the map', 'You are here'];
 const M_PER_DEG = 2 * Math.PI * R / 360;
@@ -435,8 +434,11 @@ export async function openSkylineFix(siteId, map, opts = {}) {
   // radar on the map, centred on where the astronaut really stands (it does not move during the match)
   const here = live ? store.inputs.astronaut : (s.truth ?? store.inputs.astronaut);
   if (ui.radar) ui.radar.remove();
-  map.flyTo([here.lat, here.lon], Math.max(map.getZoom(), 15), { duration: reduced ? 0 : 0.6 });
-  ui.radar = radarSweep(map, here, s.observed, SWEEP_MS, reduced);
+  const on2D = !document.getElementById('map')?.hidden;   // radar only on the 2D map; in 3D the panel animation is enough
+  if (on2D) {
+    map.flyTo([here.lat, here.lon], Math.max(map.getZoom(), 15), { duration: reduced ? 0 : 0.6 });
+    ui.radar = radarSweep(map, here, s.observed, SWEEP_MS, reduced);
+  }
   const n = s.observed.length;
   if (reduced) {
     obs.setAttribute('points', points(s.observed, sc));
@@ -456,9 +458,7 @@ export async function openSkylineFix(siteId, map, opts = {}) {
   const later = (ms, fn) => ui.timers.push(setTimeout(fn, reduced ? 0 : ms));
   later(SWEEP_MS, () => {
     setStep(1, 'Scanning the NASA terrain map: every dot is a spot whose horizon is being compared.');
-    if (ui.radar) { ui.radar.remove(); ui.radar = null; }
-    ui.scan = topoScan(map, s, { reduced }).catch(err => { console.error(err); return null; });
-    map.flyToBounds(gridBounds(s.grid), { duration: reduced ? 0 : 0.8, padding: [40, 40] });
+    // ponytail: no candidate-dot scan on the map any more (too busy); the radar outline stays until the result
   });
 
   // 3. Fix, or no fix: the self-check decides (rule from scripts/skyline_dust.py)
