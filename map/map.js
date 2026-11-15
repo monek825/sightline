@@ -247,7 +247,8 @@ function registerOrbit() {
       const scene = this.el.sceneEl, pts = new Map();
       let pinch = 0;
       const span = () => { const [a, b] = [...pts.values()]; return Math.hypot(a[0] - b[0], a[1] - b[1]); };
-      const touched = () => { this.lastInput = performance.now(); this.distT = null; };
+      // any touch hands the camera to the user: stop the fly-in and the zoom ease, and never auto-zoom again
+      const touched = () => { this.lastInput = performance.now(); this.distT = null; this.userMoved = true; if (this.fly) { const r = this.fly.res; this.fly = null; r(); } };
       for (const ev of ['pointerdown', 'wheel']) scene.addEventListener(ev, touched, { passive: true });
       scene.addEventListener('pointerdown', e => {
         pts.set(e.pointerId, [e.clientX, e.clientY]);
@@ -259,6 +260,7 @@ function registerOrbit() {
         if (!p) return;
         const dx = e.clientX - p[0], dy = e.clientY - p[1];
         pts.set(e.pointerId, [e.clientX, e.clientY]);
+        this.lastInput = performance.now();   // dragging counts as input: no idle orbit mid-drag
         if (pts.size === 2) { const d = span(); this.zoom(pinch / d); pinch = d; return; }
         this.o.yaw -= dx * 0.005;
         this.o.pitch = clamp(this.o.pitch + dy * 0.005, PITCH_MIN, PITCH_MAX);
@@ -704,7 +706,7 @@ function createView3D(data, onPickTarget, devils) {
     const orbit = s.cam.components['orbit-camera'];
     if (orbit) { orbit.setTarget(p.x, p.y, p.z); orbit.heightAt = (x, z) => terrain.heightAt(x, z); }
     const playing = last.inputs.scenarioT !== null;
-    if (orbit && playing && !wasPlaying && orbit.o.dist < PLAY_DIST_M * 0.6) orbit.zoomTo(PLAY_DIST_M);
+    if (orbit && playing && !wasPlaying && !orbit.userMoved && orbit.o.dist < PLAY_DIST_M * 0.6) orbit.zoomTo(PLAY_DIST_M);   // only until the user takes the camera
     wasPlaying = playing;
     if (d.routeHome !== lastHome) { lastHome = d.routeHome; setRoute(s, terrain, 'home', here(d.routeHome, a), CREAM, routeK); }
     if (d.routeOut !== lastOut) { lastOut = d.routeOut; setRoute(s, terrain, 'out', here(d.routeOut, a), ACCENT, routeK); }
