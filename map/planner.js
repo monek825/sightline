@@ -23,7 +23,7 @@ export function setupPlanner(ctx) {
   const { data, M } = ctx, C = data.C, $ = id => document.getElementById(id);
   const derive = createPipeline(M);
   const places = data.targets.filter(t => t.id !== 'landing').map(t => ({ ...t, name: t.name.replace(/ \(approx\.\)| sample (depot|area)/g, '') }));
-  const st = { sol: 9, start: 9, end: 12, weather: 'calm', stops: places[0] ? [{ id: places[0].id, stay: 30 }] : [], randomEvs: null, center: 10.5 };
+  const st = { sol: 9, start: 9, end: 12, weather: 'calm', stops: places[0] ? [{ id: places[0].id, stay: 30 }] : [], randomEvs: null, center: 10.5, vehicle: 'walk' };
   const nameOf = id => places.find(p => p.id === id)?.name ?? id;
 
   // ---------- map: basemap + pins + route, tilted; drag pans, wheel / pinch zooms ----------
@@ -44,8 +44,10 @@ export function setupPlanner(ctx) {
   places.forEach(p => addPin(p));
   let view = { x: 0, y: 0, s: 1 };
   const paint = () => {   // pins sit in an unscaled layer so their text stays sharp at any zoom
-    world.style.transform = `translate(${view.x}px, ${view.y}px) scale(${view.s})`;
     const W = world.offsetWidth, H = world.offsetHeight;
+    const mx = W * (view.s - 1) / 2 + W * 0.2, my = H * (view.s - 1) / 2 + H * 0.2;   // keep the map under the box (no empty edge)
+    view = { ...view, x: Math.min(mx, Math.max(-mx, view.x)), y: Math.min(my, Math.max(-my, view.y)) };
+    world.style.transform = `translate(${view.x}px, ${view.y}px) scale(${view.s})`;
     for (const p of pinLayer.children) {
       p.style.left = `${W / 2 + (p.dataset.x - 0.5) * W * view.s + view.x}px`;
       p.style.top = `${H / 2 + (p.dataset.y - 0.5) * H * view.s + view.y}px`;
@@ -75,16 +77,27 @@ export function setupPlanner(ctx) {
   mapEl.addEventListener('wheel', e => { e.preventDefault(); zoomBy(e.deltaY < 0 ? 1.15 : 1 / 1.15); }, { passive: false });
 
   // ---------- plan: legs + verdict from the story engine ----------
-  const evaMin = () => Math.min((st.end - st.start), C.eva_design_hours) * (C.mars_hour_min ?? 61.65);
-  const eventsFor = () => {
-    const base = st.weather === 'story' ? data.scenario.events : st.weather === 'random' ? (st.randomEvs ??= ctx.randomEvents())
-      : [...ctx.fixed(data.scenario.events), { tMin: 5, type: 'tau', value: C.tau_typical }];
-    return [...base.filter(e => e.type !== 'eva_end'), { tMin: Math.round(evaMin()), type: 'eva_end' }].sort((a, c) => a.tMin - c.tMin);
+  const HM = C.mars_hour_min ?? 61.65;
+  // Weather is pinned to the Mars clock: a storm at 10:30 stays at 10:30 whatever time you leave. Event times are minutes
+  // after `anchor` (the leave time they were made for); weather already under way at the leave time starts at minute 0.
+  const weatherNow = () => st.weather === 'story' ? { evs: data.scenario.events, anchor: data.scenario.startLtst }
+    : st.weather === 'random' ? (st.randomEvs ??= { evs: ctx.randomEvents(), anchor: st.start })
+    : { evs: [...ctx.fixed(data.scenario.events), { tMin: 5, type: 'tau', value: C.tau_typical }], anchor: st.start };
+  const eventsFor = (start, end) => {
+    const { evs, anchor } = weatherNow(), shift = (start - anchor) * HM;
+    const weather = e => e.type === 'tau' || e.type === 'sep_onset' || e.type === 'sep_end';
+    const moved = evs.filter(e => e.type !== 'eva_end').map(e => (weather(e) ? { ...e, tMin: e.tMin - shift } : e));
+    const before = moved.filter(e => weather(e) && e.tMin < 0);
+    const lastTau = before.filter(e => e.type === 'tau').pop();
+    const sepOn = before.filter(e => e.type.startsWith('sep_')).pop();
+    const carried = [lastTau && { ...lastTau, tMin: 0, rampMin: 0 }, sepOn?.type === 'sep_onset' && { ...sepOn, tMin: 0 }].filter(Boolean);
+    const evaEnd = Math.round(Math.min(end - start, C.eva_design_hours) * HM);
+    return [...moved.filter(e => !(weather(e) && e.tMin < 0)), ...carried, { tMin: evaEnd, type: 'eva_end' }].sort((a, c) => a.tMin - c.tMin);
   };
-  const sceneFor = stops => {
+  const sceneFor = (stops, start = st.start, end = st.end) => {
     const pts = stops.map(s => { const p = places.find(q => q.id === s.id); return { lat: p.lat, lon: p.lon, id: p.id, stayMin: s.stay }; });
     const last = pts.at(-1);
-    return { sc: { ...data.scenario, sol: st.sol, startLtst: st.start, events: eventsFor() }, target: { lat: last.lat, lon: last.lon, id: 'plan', stops: pts } };
+    return { sc: { ...data.scenario, sol: st.sol, startLtst: start, events: eventsFor(start, end) }, target: { lat: last.lat, lon: last.lon, id: 'plan', stops: pts, vehicle: st.vehicle } };
   };
   const toggleStop = id => {
     const i = st.stops.findIndex(s => s.id === id);
@@ -177,16 +190,59 @@ export function setupPlanner(ctx) {
   $('pl-start').addEventListener('change', e => { st.start = Number(e.target.value); fillEnd(); update(); });
   $('pl-end').addEventListener('change', e => { st.end = Number(e.target.value); update(); });
   for (const w of document.querySelectorAll('[data-weather]')) w.addEventListener('click', () => {
-    st.weather = w.dataset.weather; if (st.weather === 'random') st.randomEvs = null; update();
+    st.weather = w.dataset.weather;
+    if (st.weather === 'random') { st.randomEvs = null; flash = 'New weather rolled.'; }
+    update(w);
+  });
+  for (const v of document.querySelectorAll('[data-vehicle]')) v.addEventListener('click', () => { st.vehicle = v.dataset.vehicle; update(v); });
+  // Best time: try every leave hour with the same stops and weather (pinned to the clock) and keep the safest, earliest
+  $('pl-best').addEventListener('click', () => {
+    if (!st.stops.length) return;
+    const btn = $('pl-best'), score = r => (!r.pr.outOk ? 99 : r.late ? 50 : r.turned ? 30 : RANK[r.v.level] * 10) + r.home / 1000;
+    btn.classList.add('busy'); btn.disabled = true;
+    const hours = []; for (let h = 6; h <= 15; h++) hours.push(h);
+    let best = null;
+    const step = () => {   // one leave hour per tick, so the spinner keeps turning
+      const h = hours.shift();
+      if (h !== undefined) {
+        const r = evaluate(h, h + C.eva_design_hours);
+        if (!best || score(r) < score(best.r)) best = { h, r };
+        setTimeout(step, 0); return;
+      }
+      btn.classList.remove('busy'); btn.disabled = false;
+      if (!best?.r.pr.outOk) { flash = 'No leave time works for these stops on this sol.'; update(); return; }
+      st.start = best.h; st.end = Math.min(st.start + C.eva_design_hours, Math.ceil(st.start + best.r.home / HM + 0.25));
+      $('pl-start').value = st.start; fillEnd();
+      flash = best.r.late || best.r.turned || best.r.v.level === 'RED' ? 'Best leave time found, but no hour is fully safe.' : `Best: leave ${hh(st.start)}, back by ${hh(st.end)}.`;
+      update();
+    };
+    setTimeout(step, 30);
   });
 
   // ---------- update: lock steep places, draw route + knob, verdict ----------
-  let preps = new Map(), timer = 0;
-  const update = () => {
+  let timer = 0, flash = '';
+  const MIN_SPIN_MS = 350;   // the pressed button spins at least this long, so a quick re-plan still shows it worked
+  const update = busyBtn => {
     $('pl-sol').textContent = `Sol ${st.sol}`;
     for (const w of document.querySelectorAll('[data-weather]')) w.setAttribute('aria-pressed', String(w.dataset.weather === st.weather));
+    for (const v of document.querySelectorAll('[data-vehicle]')) v.setAttribute('aria-pressed', String(v.dataset.vehicle === st.vehicle));
+    const t0 = performance.now();
+    busyBtn?.classList?.add('busy');
     clearTimeout(timer);
-    timer = setTimeout(compute, 0);   // let the click paint first; planning 4 routes takes a moment
+    timer = setTimeout(() => {   // let the click paint first; planning the routes takes a moment
+      compute();
+      if (busyBtn?.classList) setTimeout(() => busyBtn.classList.remove('busy'), Math.max(0, MIN_SPIN_MS - (performance.now() - t0)));
+    }, 30);
+  };
+  // one plan, fully checked: legs, times, turn-back, too late, verdict
+  const evaluate = (start, end) => {
+    const { sc, target } = sceneFor(st.stops, start, end);
+    const pr = prepareScenario(sc, data, M, target, 'safest');
+    if (!pr.outOk) return { pr };
+    const tArr = pr.outLen / pr.mPerMin + pr.waits.reduce((a, w) => a + w.min, 0), home = pr.sepT + pr.backLen / pr.mPerMin;
+    const turned = pr.sepT < tArr - 1, late = home > pr.endT + 1;
+    const v = late ? { level: 'RED', word: 'TOO FAR' } : verdict(pr, Math.min(tArr, pr.endT));
+    return { pr, tArr, home, turned, late, v };
   };
   const renderStops = () => {   // the stop chips: order, name, stay with - / +, remove
     const list = $('pl-stops');
@@ -214,8 +270,7 @@ export function setupPlanner(ctx) {
     const go = $('pl-go'), chip = $('pl-verdict');
     plan.replaceChildren(); route.replaceChildren();
     if (!st.stops.length) { chip.textContent = ''; chip.dataset.level = ''; go.disabled = true; $('pl-msg').textContent = ''; turn(); return; }
-    const { sc, target } = sceneFor(st.stops);
-    const pr = prepareScenario(sc, data, M, target, 'safest');
+    const ev = evaluate(st.start, st.end), pr = ev.pr;
     if (!pr.outOk) {
       const lim = st.sol < C.sensorimotor_recovery_days ? C.max_slope_early_deg : C.max_slope_deg;
       chip.textContent = 'NO-GO'; chip.dataset.level = 'RED'; go.disabled = true;
@@ -223,10 +278,10 @@ export function setupPlanner(ctx) {
       turn(); return;
     }
     const hm = pr.hourMin, H = m => st.start + m / hm;
-    const tArr = pr.outLen / pr.mPerMin + pr.waits.reduce((a, w) => a + w.min, 0), home = pr.sepT + pr.backLen / pr.mPerMin;
-    const turned = pr.sepT < tArr - 1, late = home > pr.endT + 1;
+    const { tArr, home, turned, late, v } = ev;
     // route on the map: walked part of the way out, then the way home
     const line = (pts, cls) => { const n = sv('polyline', { points: pts.map(([la, lo]) => xy(la, lo).map(v => v * 1000).join(',')).join(' ') }); n.setAttribute('class', cls); route.append(n); };
+    line(pr.outPts, 'plan');   // the whole planned way out, faint, so a turn-back never hides the plan
     line(turned ? pr.outPts.slice(0, Math.max(2, Math.round(pr.outPts.length * walkedOutM(pr, pr.sepT) / pr.outLen))) : pr.outPts, 'out');
     line(pr.back, 'back');
     // knob: walk, stay, walk, stay ... walk home; cut at the turn-back
@@ -251,9 +306,10 @@ export function setupPlanner(ctx) {
       grp.forEach((s, i) => storm(s.h, ''));
       text((grp[0].h + grp.at(-1).h) / 2, KNOB.r - 88, 'pl-stormlab', kinds.length > 1 ? 'Solar + dust storm' : `${kinds[0]} storm`);
     }
-    const v = late ? { level: 'RED', word: 'TOO FAR' } : verdict(pr, Math.min(tArr, pr.endT));
     chip.textContent = v.word; chip.dataset.level = v.level; go.disabled = late;
-    $('pl-msg').textContent = `${hh(st.start)} leave · ${turned ? `${hh(H(pr.sepT))} turn back` : `${st.stops.length} stop${st.stops.length > 1 ? 's' : ''}`} · ${hh(H(home))} home${late ? `, after ${hh(H(pr.endT))}` : ''}${v.why ? ` · ${v.why}` : ''}`;
+    $('pl-msg').textContent = `${hh(st.start)} leave · ${turned ? `${hh(H(pr.sepT))} turn back` : `${st.stops.length} stop${st.stops.length > 1 ? 's' : ''}`} · ${hh(H(home))} home${late ? `, after ${hh(H(pr.endT))}` : ''}${v.why ? ` · ${st.vehicle === 'rover' && v.why === 'Suit time' ? 'walk back if the rover breaks' : v.why}` : ''}`;
+    if (flash) { $('pl-msg').textContent = `${flash} ${$('pl-msg').textContent}`; flash = ''; }
+    $('pl-msg').classList.remove('pop'); void $('pl-msg').offsetWidth; $('pl-msg').classList.add('pop');
     st.center = Math.round((st.start + (home / hm) / 2) * 4) / 4; turn();
   };
 

@@ -147,7 +147,9 @@ export function prepareScenario(scenario, data, M, targetOverride = null, outMod
     const fresh = out.ok ? out.points : [[start.lat, start.lon], [target.lat, target.lon]];
     outPts = from ? [...from.prefix, ...(fresh[0][0] === here[0] && fresh[0][1] === here[1] ? fresh.slice(1) : fresh)] : fresh;
   }
-  const mPerMin = lim0.speedKmh * 1000 / 60;
+  // a planned rover ride drives at rover speed both ways; the suit-time check (pipeline) still assumes a walk home
+  const vehicle = targetOverride?.vehicle === 'rover' && C.rover_speed_kmh ? 'rover' : 'walk';
+  const mPerMin = (vehicle === 'rover' ? C.rover_speed_kmh : lim0.speedKmh) * 1000 / 60;
   const outLen = legLengthM(outPts), waitMin = waits.reduce((a, w) => a + w.min, 0);
   const wp = { waits, mPerMin, outLen };
 
@@ -170,7 +172,7 @@ export function prepareScenario(scenario, data, M, targetOverride = null, outMod
     sepT = stops ? arrT : Math.max(arrT, end - legLengthM(back) / mPerMin);   // planned stays: head home right after the last
   }
   return Object.freeze({
-    scenario, mPerMin, outPts, outOk: out.ok, custom: Boolean(targetOverride), target: targetOverride || null, outLen, waits: Object.freeze(waits), stops, back, backLen: legLengthM(back), sepT, endT: end,
+    scenario, mPerMin, outPts, outOk: out.ok, custom: Boolean(targetOverride), target: targetOverride || null, outLen, waits: Object.freeze(waits), stops, vehicle, back, backLen: legLengthM(back), sepT, endT: end,
     hourMin: C.mars_hour_min ?? MARS_HOUR_MIN
   });
 }
@@ -213,7 +215,7 @@ export function stateAt(prep, t, skylineResults = {}) {
   const patch = {
     scenarioT: tt, evaMin: tt, sol: scenario.sol,
     ltst: scenario.startLtst + tt / prep.hourMin,
-    tau: DEFAULT_INPUTS.tau, sepActive: false, fixUncertaintyM: DEFAULT_INPUTS.fixUncertaintyM
+    tau: DEFAULT_INPUTS.tau, sepActive: false, fixUncertaintyM: DEFAULT_INPUTS.fixUncertaintyM, vehicle: prep.vehicle ?? 'walk'
   };
   patch.tau = tauWithRamp(scenario, tt, DEFAULT_INPUTS.tau);
   let fixT = 0;

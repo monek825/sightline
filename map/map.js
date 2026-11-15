@@ -119,7 +119,14 @@ const $ = id => document.getElementById(id);
 
 // ---------- 2D (Leaflet) ----------
 
-function astronautIcon(heading) {
+function astronautIcon(heading, vehicle = 'walk') {
+  if (vehicle === 'rover') return L.divIcon({   // planned rover ride: a small rover from above (body, deck, six wheels)
+    className: 'astro-icon', iconSize: [30, 30], iconAnchor: [15, 15],
+    html: `<svg width="30" height="30" viewBox="-15 -15 30 30" aria-hidden="true"><g transform="rotate(${Math.round(heading)})">
+      <g fill="${INK}">${[-9, 0, 9].map(y => `<rect x="-12" y="${y - 3}" width="5" height="6" rx="1.5"/><rect x="7" y="${y - 3}" width="5" height="6" rx="1.5"/>`).join('')}</g>
+      <rect x="-7" y="-12" width="14" height="24" rx="3" fill="${CREAM}" stroke="${INK}" stroke-width="1.5"/>
+      <path d="M0,-10 L4,-4 L-4,-4 Z" fill="${INK}"/></g></svg>`
+  });
   return L.divIcon({
     className: 'astro-icon', iconSize: [28, 28], iconAnchor: [14, 14],
     html: `<svg width="28" height="28" viewBox="-14 -14 28 28" aria-hidden="true">
@@ -322,7 +329,9 @@ function buildScene() {
   const astro = mk('a-entity', {}, scene);
   mk('a-cone', { 'radius-bottom': 0, 'radius-top': ASTRO_R, height: ASTRO_R * 2.4, position: `0 ${ASTRO_R * 1.2} 0`, material: flat(ACCENT) }, astro);
   mk('a-sphere', { radius: ASTRO_R * 0.9, position: `0 ${ASTRO_R * 3} 0`, material: flat(ACCENT) }, astro);
+  const astroRover = mk('a-entity', { 'mars-rover': 'scale: 1', visible: false }, scene);   // shown instead of the cone on a rover ride
   return {
+    astroRover,
     scene, hemi, sun, sky, landmarks: mk('a-entity', {}, scene), sites: mk('a-entity', {}, scene),
     terrain: mk('a-entity', { 'heightgrid-terrain': terrainAttr(TERRAIN_DATA) }, scene),
     cam: mk('a-entity', { camera: 'fov: 55; near: 0.5; far: 80000', 'orbit-camera': '' }, scene),
@@ -568,6 +577,7 @@ function createView3D(data, onPickTarget, devils) {
     }
     const a = Math.min(1, Math.max(0.016, dist / 5200));      // astronaut cone 25 m tall from afar, ~0.4 m up close
     s.astro.object3D.scale.setScalar(a);
+    s.astroRover.object3D.scale.setScalar(Math.max(1, dist / 400));   // true size up close, still visible from afar
     s.home.object3D.scale.set(a, 1, a);
     const rk = Math.min(1, Math.pow(2, Math.round(Math.log2(Math.max(0.02, dist / 2500)))));   // power-of-2 steps: rebuild rarely
     if (rk !== routeK && last) {
@@ -656,6 +666,10 @@ function createView3D(data, onPickTarget, devils) {
     const { inputs: { astronaut: a }, derived: d } = last;
     const p = terrain.toWorld(a.lat, a.lon);
     s.astro.object3D.position.set(p.x, p.y, p.z);
+    const riding = last.inputs.vehicle === 'rover';
+    s.astro.object3D.visible = !riding;
+    s.astroRover.object3D.visible = riding;
+    if (riding) { s.astroRover.object3D.position.set(p.x, p.y, p.z); s.astroRover.object3D.rotation.y = -a.headingDeg * Math.PI / 180; }
     trimRoute(s, 'home', p); trimRoute(s, 'out', p);
     s.ring.object3D.position.set(p.x, p.y + Math.max(0.1, LIFT_M * routeK), p.z);
     if (!uncLabel) {
@@ -972,8 +986,8 @@ export function createMapView(data, { onPickTarget }) {
     astro.setLatLng([a.lat, a.lon]);
     // keep the astronaut in view while the demo plays (view change only, no state write)
     if (inputs.scenarioT !== null && !$('map').hidden) map.panInside([a.lat, a.lon], { padding: [120, 120], animate: false });
-    const h = Math.round(a.headingDeg / 5) * 5;
-    if (h !== lastHeading) { astro.setIcon(astronautIcon(h)); lastHeading = h; }
+    const h = Math.round(a.headingDeg / 5) * 5, iconKey = `${h}|${inputs.vehicle}`;
+    if (iconKey !== lastHeading) { astro.setIcon(astronautIcon(h, inputs.vehicle)); lastHeading = iconKey; }
     uncertainty.setLatLng([a.lat, a.lon]).setRadius(derived.posUncertaintyM);
     const ur = Math.round(derived.posUncertaintyM);
     if (ur !== lastUnc) { lastUnc = ur; uncertainty.setTooltipContent(`Position guess ±${ur} m (no GPS)`); }
