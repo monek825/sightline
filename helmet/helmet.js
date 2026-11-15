@@ -848,7 +848,7 @@ function hud(inputs, derived) {
   const panel = $('panel-status');
   const sub = $('hud-sub'), turnRow = $('row-turn');
   if (b) {
-    panel.dataset.level = b.status;
+    panel.dataset.level = b.headline === 'AT SHELTER' ? 'GREEN' : b.status;   // safe inside: green
     if (lastLevel !== null && lastLevel !== b.status) {      // short pop when GO / TURN BACK / RETURN NOW changes
       const hl = $('hud-headline');
       hl.classList.remove('pop'); void hl.offsetWidth; hl.classList.add('pop');

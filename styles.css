@@ -1076,3 +1076,5 @@ body.is-3d .legend { bottom: calc(var(--notch-d) + 84px); } /* the 3D note below
 .v3-note.gone { opacity: 0; visibility: hidden; }
 .w-lead { font-weight: 600; color: var(--text); }
 .legend .lg-stat { font-weight: 600; color: var(--text); }
+#story-narrate[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+#story-narrate[hidden] { display: none; }

@@ -13,6 +13,7 @@ import { initMotion } from './motion.js';
 import { setupPlanner } from './planner.js';
 import { setupHowto } from './howto.js';
 
+const NARRATE_RATE = 1.0;   // speaking speed of the optional narration
 const FIX_AUTO_CLOSE_MS = 9000;   // demo: the scripted Horizon Match panel closes itself after the match plays (~5.5 s) plus time to read
 const SPEED_MIN_PER_SEC = 2; // demo clock: 1 real second = 2 EVA minutes
 // Story captions for the demo, one per scenario event type (plain-language narration for judges).
@@ -201,11 +202,32 @@ function setupScenario(data, M, sky) {
       lastCh = k;
     }
   };
+  // Narration (optional): the browser's own text-to-speech reads each new caption while the story plays
+  const speech = 'speechSynthesis' in window ? window.speechSynthesis : null;
+  let narrateOn = false;
+  const narrate = text => {
+    if (!narrateOn || !speech || !text) return;
+    speech.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = 'en-US'; u.rate = NARRATE_RATE;
+    const v = speech.getVoices().find(x => /en-(US|GB)/.test(x.lang) && /Samantha|Daniel|Google|Natural/i.test(x.name)) ?? speech.getVoices().find(x => x.lang.startsWith('en'));
+    if (v) u.voice = v;
+    speech.speak(u);
+  };
+  const narrBtn = document.getElementById('story-narrate');
+  if (narrBtn && speech) {
+    narrBtn.hidden = false;
+    narrBtn.addEventListener('click', () => {
+      narrateOn = !narrateOn;
+      narrBtn.setAttribute('aria-pressed', String(narrateOn));
+      if (narrateOn) narrate(caption.textContent); else speech.cancel();
+    });
+  }
   const apply = () => {
     setInputs(stateAt(prep, t, sky.skyResults));
     buildSteps(); showSteps(t);
     const text = t > 0 || playing ? captionAt(t) : 'Press play: the story shows every feature in 100 seconds.';
-    if (caption.textContent !== text) { caption.textContent = text; caption.hidden = !text; }
+    if (caption.textContent !== text) { caption.textContent = text; caption.hidden = !text; if (playing) narrate(text); }
     scrub.value = t;
     label.textContent = `t = ${Math.round(t)} min`;
     homeBtn.disabled = !(t > 0 && t < prep.sepT && t < prep.endT); // a press only acts on the outbound leg
@@ -241,6 +263,7 @@ function setupScenario(data, M, sky) {
   };
   function stop() {
     pauseId++; playing = false; cancelAnimationFrame(raf);
+    window.speechSynthesis?.cancel();   // narration stops with the story
     play.dataset.state = 'paused'; play.setAttribute('aria-label', 'Play demo');
   }
   play.addEventListener('click', () => (playing ? stop() : start()));

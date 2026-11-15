@@ -396,7 +396,7 @@ export function createPanels(data, { setInputs, usingStubs, onCondition, runHasS
   let hiddenShown = false;
   function renderTabs(inputs, derived) {
     const bdg = derived.budget, C = data.C;
-    document.querySelector('.panel').dataset.status = bdg.status;
+    document.querySelector('.panel').dataset.status = bdg.headline === 'AT SHELTER' ? 'GREEN' : bdg.status;   // safe inside: green, not danger red
     $('b-headline').textContent = bdg.headline;
     $('b-return').textContent = fmtMin(bdg.returnMin);
     $('b-km').textContent = fmtKm(derived.routeHomeKm);
@@ -434,7 +434,7 @@ export function createPanels(data, { setInputs, usingStubs, onCondition, runHasS
     renderTabs(inputs, derived);
     renderFactors(derived.budget, derived, inputs);
     $('verdict').textContent = verdictSentence(derived.budget);
-    $('verdict').dataset.status = derived.budget.status;
+    $('verdict').dataset.status = derived.budget.headline === 'AT SHELTER' ? 'GREEN' : derived.budget.status;
     const events = eventsNow();
     if (events !== builtFor) { builtFor = events; checkpoints = buildTimeline(events); } // the run changed: rebuild the markers (DOM only)
     markCheckpoints(checkpoints, inputs.scenarioT);
