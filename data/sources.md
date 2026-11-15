@@ -7,6 +7,14 @@ From the "Resources" tab of the challenge "Interplanetary Survival Guide: Martia
 - Jet Propulsion Laboratory's (JPL) Mars Trek. https://trek.nasa.gov/mars/ — the CTX 6 m and HiRISE 25 cm orthomosaics of Jezero: the 2D map tiles (`map/map.js`), the 3D ground image (`scripts/make_texture.py` → `data/terrain_texture.jpg`) and the HiRISE close-up patches (`scripts/make_hirise_patch.py`).
 - Mars Perseverance Raw Images Gallery. https://mars.nasa.gov/mars2020/multimedia/raw-images/ — the Navcam images behind the real-photo Horizon Match test, fetched through the same raw-images feed (`scripts/skyline_real.py` → `data/skyline_real/`).
 
+NASA data the app is built on (full links in "NASA data" below):
+- CTX DTM, 20 m (Mars 2020 TRN, USGS Astrogeology / NASA): the height grid, slopes, line-of-sight and the Horizon Match skylines (`data/heightgrid.json`, `data/slope80.json`, `data/skyline/`).
+- HiRISE 25 cm orthomosaic (NASA/JPL-Caltech/UArizona via Mars Trek): map tiles and the close-up ground patches in 3D (`data/hirise_*.jpg`).
+- MOLA MEGDR (MGS, PDS Geosciences): far-away terrain beyond the DTM for the real-photo skyline tests (`data/skyline_real/`).
+- Perseverance waypoints (MMGIS): the rover traverse on the map and the true positions for the real-photo tests (`data/traverse.json`).
+- Perseverance MEDA and dust optical depth τ: Jezero pressure, temperature and dust-devil season (MEDA, PDS Atmospheres) and normal/storm τ measured by Perseverance (Lemmon et al. 2022) (`data/crew_constants.json`).
+- DONKI SEP (NASA CCMC): the May 2024 solar particle event replayed in the demo (`data/donki_sep_may2024.json`).
+
 Listed on the tab but not used: USGS-NASA Planetary Geologic Mapping Program (we use the USGS-hosted CTX elevation model and the USGS Gazetteer, below, not the geologic map), the Curiosity route-map example, and NASA Worldview.
 
 ## NASA data
