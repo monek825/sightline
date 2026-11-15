@@ -41,7 +41,7 @@ const ZENITH_CLEAR = [128, 86, 62], LANDMARK_H = 180, SITE_H = 90;
 // Pins are markers sized for the 2.6 km view; up close they shrink (never below 5%) so they don't tower over the base.
 const PIN_FULL_DIST_M = 2600, PIN_SKIP_HOME_M = 60;
 const PICK_SLOP_PX = 6, PICK_INSET_DEG = 1e-5; // 3D click-vs-drag threshold; keep picks just inside the bounds
-const COLORS = { blind: [248, 81, 73, 120], homeHidden: [210, 153, 34, 32] };
+const COLORS = { blind: [248, 81, 73, 150], homeHidden: [210, 153, 34, 90] };
 const CREAM = '#fff4e0', INK = '#1a110c', ACCENT = '#ff8a3d', DUST = '#c98a55';
 // Dust look (visual only, driven by τ): haze opacity and sky colour. Not a measured haze map.
 const HAZE_PER_TAU = 0.06, HAZE_MAX = 0.6;
