@@ -56,6 +56,12 @@
 
       <div class="layers" id="layers">
         <div>
+          <button type="button" id="layers-btn" class="layers-btn frost" aria-expanded="false" aria-controls="layers-list" aria-label="Show or hide objects on the map" title="Show or hide objects">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+          <fieldset id="layers-list" class="pop layers-list frost" hidden><legend>Show</legend></fieldset>
+        </div>
+        <div>
           <button type="button" id="view-btn" class="view-btn frost" aria-expanded="false" aria-controls="view-menu" aria-label="Change view"><span id="view-name">3D terrain</span>
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
           <div id="view-menu" class="pop view-menu frost" role="group" aria-label="View" hidden>
@@ -72,12 +78,6 @@
               <span id="v3-gfx-info" class="v3-gfx-info"></span>
             </label>
           </div>
-        </div>
-        <div>
-          <button type="button" id="layers-btn" class="layers-btn frost" aria-expanded="false" aria-controls="layers-list" aria-label="Show or hide objects on the map" title="Show or hide objects">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>
-          </button>
-          <fieldset id="layers-list" class="pop layers-list frost" hidden><legend>Show</legend></fieldset>
         </div>
       </div>
 
@@ -105,7 +105,7 @@
       </div>
 
       <aside class="panel frost" id="panel" aria-label="Walk status">
-        <button type="button" class="panel-hide" id="panel-hide" aria-expanded="true" aria-controls="panel" aria-label="Hide status card">
+        <button type="button" class="panel-hide" id="panel-hide" aria-expanded="true" aria-controls="panel" aria-label="Hide status card" title="Hide or show the status card">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>
         </button>
         <div class="tab-body">

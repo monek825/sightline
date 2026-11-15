@@ -220,8 +220,9 @@ function wirePanelHide() {
   const set = hidden => {
     document.body.classList.toggle('panel-hidden', hidden);
     btn.setAttribute('aria-expanded', String(!hidden));
+    btn.setAttribute('aria-label', hidden ? 'Show status card' : 'Hide status card');
   };
-  btn.addEventListener('click', () => set(true));
+  btn.addEventListener('click', () => set(!document.body.classList.contains('panel-hidden')));
   for (const t of document.querySelectorAll('[role="tab"]')) t.addEventListener('click', () => set(false));
 }
 
