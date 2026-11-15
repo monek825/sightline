@@ -402,7 +402,7 @@ body.video :is(.bar-left, .layers, .leaflet-control-container) { display: none; 
 .lost-steps strong { color: var(--text); margin-right: 4px; }
 .skyfix.lost .skyfix-lead { color: var(--text); }
 #btn-lostdust { margin-top: var(--s2); }
-@media (max-width: 1023px) { .skyfix { left: var(--s2); right: var(--s2); top: 112px; width: auto; max-height: calc(100vh - 140px); max-height: calc(100dvh - 140px); overflow-y: auto; overscroll-behavior: contain; }
+@media (max-width: 1023px) { .skyfix { left: var(--s2); right: var(--s2); top: 152px; width: auto; max-height: calc(100vh - 176px); max-height: calc(100dvh - 176px); overflow-y: auto; overscroll-behavior: contain; }
   .skyfix > * { min-width: 0; } }
 
 /* type: Clash Display headers, Switzer text, Geist Mono numbers */
