@@ -18,7 +18,7 @@ const FIX_AUTO_CLOSE_MS = 9000;   // demo: the scripted Horizon Match panel clos
 const SPEED_MIN_PER_SEC = 2; // demo clock: 1 real second = 2 EVA minutes
 // Story captions for the demo, one per scenario event type (plain-language narration for judges).
 const CAPTIONS = {
-  eva_start: () => 'The astronaut walks out to the Three Forks sample depot. Green means there is plenty of time to get home.',
+  eva_start: (e, C, custom) => `The astronaut walks out ${custom ? 'on the planned walk' : 'to the Three Forks sample depot'}. Green means there is plenty of time to get home.`,
   tau: (e, C) => e.value <= (C?.tau_typical ?? 0.4) * 1.25 ? `Clear sky (τ ${e.value}): the hills are easy to see.` : e.value > (C?.tau_amber ?? 1)
     ? `Dust storm (τ ${e.value}, sped up: real storms build over days). Visibility drops and the red no-landmark zones grow.`
     : `Dust is rising (τ ${e.value}). Red areas have no landmark in sight, so it is easy to get lost there.`,
@@ -188,7 +188,7 @@ function setupScenario(data, M, sky) {
     const ev = k < 0 ? null : chs[k].ev;
     if (ev?.type === 'sep_onset') return [CAPTIONS.sep_onset(ev, data.C), fcText].filter(Boolean).join(' ');
     if (fc) return `${fcText} Plan the way home now.`;
-    return ev && CAPTIONS[ev.type] ? CAPTIONS[ev.type](ev, data.C) : '';
+    return ev && CAPTIONS[ev.type] ? CAPTIONS[ev.type](ev, data.C, prep.custom) : '';
   };
   const showSteps = tt => {
     const k = chapterAt(tt), n = chs.length;
