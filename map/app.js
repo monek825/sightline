@@ -11,6 +11,7 @@ import { createPanels } from './panels.js';
 import * as stubs from './stubs.js';
 import { initMotion } from './motion.js';
 import { setupPlanner } from './planner.js';
+import { setupHowto } from './howto.js';
 
 const FIX_AUTO_CLOSE_MS = 9000;   // demo: the scripted Horizon Match panel closes itself after the match plays (~5.5 s) plus time to read
 const SPEED_MIN_PER_SEC = 2; // demo clock: 1 real second = 2 EVA minutes
@@ -55,6 +56,7 @@ async function boot() {
     planRoute: route?.planRoute ?? (usingStubs.push('route planner'), stubs.planRoute),
     visibilityArrays
   };
+  setupHowto(data, M);
   if (crew?.REQUIRED_KEYS) {
     const missing = crew.REQUIRED_KEYS.filter(k => !(k in data.C));
     if (missing.length) data.warnings.push(`crew_constants.json is missing: ${missing.join(', ')}`);

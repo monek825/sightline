@@ -1050,3 +1050,17 @@ body.is-3d .legend { bottom: calc(var(--notch-d) + 84px); } /* the 3D note below
 }
 .pl-seg button .pl-kmh { display: block; font: 500 11px var(--mono); opacity: .75; }
 .pl-side .pl-seg[aria-label="How to travel"] button { min-height: 44px; line-height: 1.15; }
+
+/* How it works */
+.howto-btn { margin-left: var(--s3); min-height: 34px; padding: 0 var(--s3); border: 1px solid rgba(255, 255, 255, .25); border-radius: 999px; background: transparent; color: var(--text); font: 600 13px var(--font); cursor: pointer; white-space: nowrap; transition: background-color .2s, border-color .2s; }
+.howto-btn:hover, .howto-btn:focus-visible { background: rgba(255, 138, 61, .25); border-color: var(--accent); }
+.howto { width: min(720px, 94vw); }
+.howto-sec { padding: var(--s3) 0; border-bottom: 1px solid rgba(255, 255, 255, .08); }
+.howto-sec h3 { margin: 0 0 6px; font: 600 16px var(--font); color: var(--text); }
+.howto-sec p { margin: 0 0 8px; font-size: 14px; line-height: 1.5; color: var(--muted); }
+.howto-rows { display: grid; gap: 4px; margin: 0; }
+.howto-rows div { display: flex; justify-content: space-between; gap: var(--s3); font-size: 14px; }
+.howto-rows dt { color: var(--muted); }
+.howto-rows dd { margin: 0; color: var(--text); font-weight: 600; text-align: right; }
+#howto-body > .btn { margin-top: var(--s3); }
+@media (max-width: 700px) { .howto-btn { margin-left: auto; padding: 0 10px; } }

@@ -11,6 +11,7 @@ const MODELS_SRC = 'lib/models.js';
 const GROUND_SRC = 'lib/ground.js';
 // 3D is to scale: vertical ×1 (true), rover and habitat always true size. Terrain: 40 m cells, falls back to the 20 m grid.
 const TERRAIN_DATA = 'data/heightgrid40.json', TERRAIN_FALLBACK = 'data/heightgrid.json';
+const LABEL_EDGE_PX = 12;  // 3D labels keep this gap from the screen edges
 const MIN_DIST_M = 25;  // closest zoom: about standing height above the astronaut's area
 // Close-up rocks (lib/ground.js), hidden once the camera is high enough that they would be sub-pixel.
 const MAP_ROCK_LAYERS = [
@@ -613,12 +614,16 @@ function createView3D(data, onPickTarget, devils) {
     if (!on) return;
     tmpL ??= new AFRAME.THREE.Vector3();
     const w = host.clientWidth, h = host.clientHeight, cp = cam.getWorldPosition(tmpL).clone();
+    // labels stay fully on screen, and clear of the status card on desktop
+    const card = window.innerWidth >= 1024 && !document.body.classList.contains('panel-hidden') ? ($('panel')?.offsetWidth ?? 0) + LABEL_EDGE_PX : 0;
     for (const L of labels) { L.d = cp.distanceToSquared(L.p); if (!L.w && !L.el.hidden) { L.w = L.el.offsetWidth; L.h = L.el.offsetHeight; } }
     labels.sort((a, b) => a.d - b.d);              // nearest wins a collision
     const placed = [];
     for (const L of labels) {
       tmpL.copy(L.p).project(cam);
-      const x = (tmpL.x + 1) / 2 * w, y = (1 - tmpL.y) / 2 * h, lw = L.w || 120, lh = L.h || 22;
+      const lw = L.w || 120, lh = L.h || 22;
+      const x = Math.min(w - card - lw / 2 - LABEL_EDGE_PX, Math.max(lw / 2 + LABEL_EDGE_PX, (tmpL.x + 1) / 2 * w));
+      const y = Math.max(lh + LABEL_EDGE_PX, (1 - tmpL.y) / 2 * h);
       let show = vis(L.kind) && tmpL.z < 1 && Math.abs(tmpL.x) < 1.05 && Math.abs(tmpL.y) < 1.05;
       if (show) show = !placed.some(b => Math.abs(b.x - x) < (b.w + lw) / 2 + 4 && Math.abs(b.y - y) < (b.h + lh) / 2 + 2);
       if (L.el.hidden !== !show) L.el.hidden = !show;
