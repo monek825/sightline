@@ -25,6 +25,7 @@ Turn the page **Lock** on while one person edits. Save often. Test every link in
 > 1. **It shows where you lose sight of home.** Red zones, computed from NASA's Jezero elevation model, mark ground where no landmark is visible, and they grow live as dust rises.
 > 2. **It fixes your position from the hills.** With no GPS the suit's step-count position drifts. Horizon Match compares the outline of the hills the astronaut sees with outlines computed from NASA terrain and shrinks that drift back.
 > 3. **It knows the astronaut's body.** Balance and vision changes after landing, suit time and cooling limits, and solar-storm radiation (NASA measurements) set when to turn back.
+> Crews will drive rovers too, but rovers break and get stuck. Apollo had a rule for that: never drive further than you can walk back on your suit's supplies. Sightline is that walk back, on Mars, without GPS.
 > Today it is a planning tool for walks at Jezero. Next, the same answer belongs inside the helmet, and the same sight-line maps can choose where to put the habitat and radio beacons so no route has blind spots.
 
 ## 30-second video
