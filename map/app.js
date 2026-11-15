@@ -10,6 +10,7 @@ import { createMapView } from './map.js';
 import { createPanels } from './panels.js';
 import * as stubs from './stubs.js';
 import { initMotion } from './motion.js';
+import { setupPlanner } from './planner.js';
 
 const SPEED_MIN_PER_SEC = 2; // demo clock: 1 real second = 2 EVA minutes
 // Story captions for the demo, one per scenario event type (plain-language narration for judges).
@@ -326,180 +327,14 @@ function setupScenario(data, M, sky) {
   };
   for (const b of document.querySelectorAll('[data-event]')) b.addEventListener('click', () => triggerEvent(b.dataset.event));
   const setSpeed = k => { speed = Math.min(10, Math.max(1, Math.round(Number(k)) || 1)); }; // takes effect on the next frame; the clock does not jump
-  setupPlanner();
+  const openPlanner = setupPlanner({
+    data, M, getStore, sky, randomEvents, fixed,
+    current: () => ({ scenario, prep }),
+    run: (sc, target) => { stop(); t = 0; if (!swap(sc, target, 'safest', 'zero')) return false; start(); return true; }
+  });
+  document.getElementById('w-plan')?.addEventListener('click', () => { document.getElementById('w-close')?.click(); openPlanner(); });
+  document.getElementById('story-edit')?.addEventListener('click', () => openPlanner());
   return { retarget: target => replan(target, getStore().inputs.routeMode), setCondition, runHasSep, runEvents: () => scenario.events, setSpeed, getSpeed: () => speed };
-
-  // ---------- Plan a walk: day, start time, destination, what happens each hour (or Randomize) ----------
-  function setupPlanner() {
-    const dlg = document.getElementById('dlg-plan');
-    if (!dlg) return;
-    const $ = id => document.getElementById(id), C = data.C;
-    const evEnd = data.scenario.events.find(e => e.type === 'eva_end')?.tMin ?? 200;
-    const HOURS = Math.ceil(evEnd / 60);
-    const KINDS = [['none', 'No change'], ['clear', 'Clear'], ['dusty', 'Dusty'], ['storm', 'Dust storm'], ['solar', 'Solar storm']];
-    const tauFor = { clear: C.tau_typical, dusty: +((C.tau_typical + C.tau_dusty_season_max) / 2).toFixed(1), storm: C.tau_jan2022_storm };
-    const hh = v => { const H = Math.floor(v), M = Math.round((v - H) * 60); return `${String(H).padStart(2, '0')}:${String(M).padStart(2, '0')}`; };
-    const opt = (sel, value, label) => sel.append(Object.assign(document.createElement('option'), { value, textContent: label }));
-    for (let d = 0; d <= 30; d++) opt($('p-sol'), d, d === 0 ? 'Sol 0 (landing day)' : `Sol ${d}`);
-    for (let h = 6; h <= 15; h++) opt($('p-start'), h, hh(h));
-    for (const tg of data.targets ?? []) if (tg.id !== 'landing') opt($('p-target'), tg.id, tg.name);
-    const solHint = () => {
-      const d = Number($('p-sol').value);
-      $('p-sol-hint').textContent = d < C.sensorimotor_recovery_days
-        ? `Still recovering balance after landing: slopes up to ${C.max_slope_early_deg}°, slower walking.`
-        : `Balance recovered: slopes up to ${C.max_slope_deg}°.`;
-    };
-    $('p-sol').addEventListener('change', solHint);
-    // hour rows: each a select; labels follow the start time
-    const rows = [];
-    for (let i = 0; i < HOURS; i++) {
-      const li = document.createElement('li'), lab = document.createElement('label'), span = document.createElement('span'), sel = document.createElement('select');
-      for (const [v, l] of KINDS) opt(sel, v, l);
-      lab.append(span, sel); li.append(lab); $('p-hours').append(li);
-      rows.push({ li, span, sel });
-    }
-    const relabel = () => rows.forEach((r, i) => { const s0 = Number($('p-start').value); r.span.textContent = `Hour ${i + 1} · ${hh(s0 + i)}–${hh(s0 + i + 1)}`; });
-    $('p-start').addEventListener('change', relabel);
-    // events <-> hour choices
-    const kindOf = evs => {
-      const out = Array(HOURS).fill('none');
-      for (const e of evs) {
-        const i = Math.min(HOURS - 1, Math.floor(e.tMin / 60));
-        if (e.type === 'sep_onset') out[i] = 'solar';
-        else if (e.type === 'tau' && out[i] !== 'solar') out[i] = e.value > C.tau_amber ? 'storm' : e.value > C.tau_typical * 1.5 ? 'dusty' : 'clear';
-      }
-      return out;
-    };
-    const eventsOf = kinds => {
-      const evs = [...fixed(data.scenario.events)];
-      kinds.forEach((k, i) => {
-        const tMin = i * 60 + 5;
-        if (k === 'solar') evs.push({ ...data.scenario.events.find(e => e.type === 'sep_onset'), tMin });
-        else if (tauFor[k] != null) evs.push({ tMin, type: 'tau', value: tauFor[k] });
-      });
-      return evs.sort((a, b) => a.tMin - b.tMin);
-    };
-    const fill = (evs, sol, startH, targetId) => {
-      $('p-sol').value = sol; $('p-start').value = Math.min(15, Math.max(6, Math.round(startH)));
-      if (targetId) $('p-target').value = targetId;
-      kindOf(evs).forEach((k, i) => { rows[i].sel.value = k; });
-      solHint(); relabel(); $('p-msg').textContent = '';
-    };
-    const open = focusHour => {
-      fill(scenario.events, scenario.sol, scenario.startLtst, prep.target?.id ?? scenario.target);
-      rows.forEach((r, i) => r.li.classList.toggle('focus', i === focusHour));
-      if (!dlg.open) dlg.showModal();
-      if (!mDone) { mDone = true; renderRows(); checkAll(); }
-      (rows[focusHour]?.sel ?? $('p-go')).focus();
-    };
-    $('w-plan')?.addEventListener('click', () => { $('w-close')?.click(); open(-1); });
-    $('story-edit')?.addEventListener('click', () => open(Math.min(HOURS - 1, Math.floor(t / 60))));
-    $('p-random').addEventListener('click', () => { kindOf(randomEvents()).forEach((k, i) => { rows[i].sel.value = k; }); $('p-msg').textContent = 'New random hours. Press Start, or Randomize again.'; });
-    $('p-story').addEventListener('click', () => fill(data.scenario.events, data.scenario.sol, data.scenario.startLtst, data.scenario.target));
-    $('p-info').addEventListener('click', () => { const tx = $('p-info-text'); tx.hidden = !tx.hidden; $('p-info').setAttribute('aria-expanded', String(!tx.hidden)); });
-    // ---- Mission plan: several walks on different sols, each with a verdict computed off-screen ----
-    const derive = createPipeline(M);
-    const WEATHER = [['calm', 'Calm day'], ['story', 'Story weather'], ['random', 'Random (Mars odds)']];
-    const calmEvents = () => [...fixed(data.scenario.events), { tMin: 5, type: 'tau', value: C.tau_typical }];
-    const mRows = [
-      { sol: 2, target: 'three_forks', start: 9, weather: 'calm' },
-      { sol: 3, target: 'delta_top', start: 9, weather: 'calm' },
-      { sol: 9, target: 'delta_top', start: 9, weather: 'calm' },
-      { sol: 12, target: 'cheyava_falls', start: 9, weather: 'story' },
-      { sol: 20, target: 'crater_rim', start: 8, weather: 'random' }
-    ].filter(r => data.targets.some(t => t.id === r.target));
-    const eventsFor = row => row.weather === 'story' ? data.scenario.events : row.weather === 'random' ? (row.events ??= randomEvents()) : calmEvents();
-    const sceneFor = row => {
-      const tg = data.targets.find(x => x.id === row.target);
-      const sc = { ...data.scenario, sol: row.sol, startLtst: row.start, events: eventsFor(row) };
-      const target = tg && row.target !== data.scenario.target ? { lat: tg.lat, lon: tg.lon, id: tg.id } : null;
-      return { sc, target, tg };
-    };
-    const RANK = { GREEN: 0, AMBER: 1, RED: 2 };
-    const verdictOf = row => {
-      const { sc, target } = sceneFor(row);
-      const pr = prepareScenario(sc, data, M, target, 'safest');
-      const limit = row.sol < C.sensorimotor_recovery_days ? C.max_slope_early_deg : C.max_slope_deg;
-      if (!pr.outOk) return { level: 'RED', word: 'NO-GO', why: `Too steep for sol ${row.sol}: every way has slopes over ${limit}°.` };
-      const tArr = Math.min(pr.outLen / pr.mPerMin, pr.endT);
-      let worst = null;
-      for (const tt of [tArr * 0.5, tArr, (tArr + pr.endT) / 2]) {
-        const inputs = { ...getStore().inputs, ...stateAt(pr, tt, sky.skyResults) };
-        const b = derive(inputs, data, {}).budget;
-        if (!worst || RANK[b.status] > RANK[worst.status]) worst = b;
-      }
-      const red = (worst.factors ?? []).find(f => f.level === worst.status);
-      const turned = pr.sepT !== null && pr.sepT < tArr - 1;
-      const level = turned ? 'AMBER' : worst.status;
-      const word = turned ? 'TURNS BACK' : level === 'GREEN' ? 'GO' : level === 'AMBER' ? 'CAUTION' : 'NO-GO';
-      const first = m => (m ?? '').split(/(?<=\.)\s/)[0];
-      const why = turned ? `Has to turn back before reaching it: ${red?.label?.toLowerCase() ?? 'conditions change'}.`
-        : level === 'GREEN' ? `${(pr.outLen / 1000).toFixed(1)} km out, about ${Math.round(tArr)} min.` : (red ? `${red.label}: ${first(red.message)}` : '');
-      return { level, word, why };
-    };
-    const mList = $('m-rows');
-    const renderRows = () => {
-      mList.replaceChildren(...mRows.map((row, i) => {
-        const li = document.createElement('li');
-        const mk = (tag, cls, txt) => Object.assign(document.createElement(tag), cls ? { className: cls } : {}, txt != null ? { textContent: txt } : {});
-        const sSol = mk('select'), sTg = mk('select'), sSt = mk('select'), sW = mk('select');
-        for (let d = 0; d <= 30; d++) opt(sSol, d, `Sol ${d}`);
-        for (const tg of data.targets) if (tg.id !== 'landing') opt(sTg, tg.id, tg.name.replace(/ \(approx\.\)/, ''));
-        for (let h = 6; h <= 15; h++) opt(sSt, h, hh(h));
-        for (const [v, l] of WEATHER) opt(sW, v, l);
-        sSol.value = row.sol; sTg.value = row.target; sSt.value = row.start; sW.value = row.weather;
-        for (const [sel, key, num] of [[sSol, 'sol', true], [sTg, 'target', false], [sSt, 'start', true], [sW, 'weather', false]]) {
-          sel.setAttribute('aria-label', key);
-          sel.addEventListener('change', () => { row[key] = num ? Number(sel.value) : sel.value; if (key === 'weather') row.events = null; check(i); });
-        }
-        const chip = mk('b', 'm-chip', '…'), why = mk('span', 'm-why', '');
-        const play = mk('button', 'btn btn-accent m-play', 'Play'); play.type = 'button';
-        play.addEventListener('click', () => {
-          const { sc, target } = sceneFor(row);
-          stop(); t = 0;
-          if (!swap(sc, target, 'safest', 'zero')) { why.textContent = 'No safe route on this sol.'; return; }
-          dlg.close(); start();
-        });
-        const del = mk('button', 'm-del', '×'); del.type = 'button'; del.setAttribute('aria-label', 'Remove this walk');
-        del.addEventListener('click', () => { mRows.splice(i, 1); renderRows(); checkAll(); });
-        li.append(sSol, sTg, sSt, sW, chip, play, del, why);
-        row.ui = { chip, why };
-        return li;
-      }));
-    };
-    const check = i => {
-      const row = mRows[i];
-      if (!row?.ui) return;
-      row.ui.chip.textContent = '…'; row.ui.chip.dataset.level = '';
-      setTimeout(() => {   // one row per tick, so the dialog stays responsive
-        let v;
-        try { v = verdictOf(row); } catch (err) { console.error(err); v = { level: 'AMBER', word: '?', why: 'Could not check this walk.' }; }
-        row.ui.chip.textContent = v.word; row.ui.chip.dataset.level = v.level; row.ui.why.textContent = v.why;
-      }, 30 * (i + 1));
-    };
-    const checkAll = () => mRows.forEach((_, i) => check(i));
-    $('m-add').addEventListener('click', () => {
-      const last = mRows[mRows.length - 1];
-      mRows.push({ sol: Math.min(30, (last?.sol ?? 0) + 2), target: last?.target ?? data.scenario.target, start: 9, weather: 'calm' });
-      renderRows(); checkAll();
-    });
-    let mDone = false;
-    dlg.addEventListener('toggle', () => { if (dlg.open && !mDone) { mDone = true; renderRows(); checkAll(); } });
-
-    $('p-go').addEventListener('click', () => {
-      const sol = Number($('p-sol').value), id = $('p-target').value;
-      const tg = data.targets.find(x => x.id === id);
-      const sc = { ...data.scenario, sol, startLtst: Number($('p-start').value), events: eventsOf(rows.map(r => r.sel.value)) };
-      stop(); t = 0;
-      const target = tg && id !== data.scenario.target ? { lat: tg.lat, lon: tg.lon, id } : null;
-      if (!swap(sc, target, 'safest', 'zero')) {
-        $('p-msg').textContent = `No safe route to ${tg?.name ?? 'there'} on sol ${sol}: every way has slopes over ${sol < C.sensorimotor_recovery_days ? C.max_slope_early_deg : C.max_slope_deg}°. Pick a later sol or a nearer place.`;
-        return;
-      }
-      dlg.close();
-      start();
-    });
-  }
 }
 
 // The warning shows in full for 10 s (a bar counts down), then shrinks to a pulsing triangle at the top centre so it
