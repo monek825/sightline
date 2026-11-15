@@ -45,6 +45,18 @@ export function pathUpTo(points, m) {
   return out;
 }
 
+/** Metres walked along the outbound leg at time t (Earth min), holding still during each stop's stay (prep.waits). */
+export function walkedOutM(prep, t) {
+  let done = 0;   // minutes already spent standing at earlier stops
+  for (const w of prep.waits ?? []) {
+    const reach = w.atM / prep.mPerMin + done;
+    if (t <= reach) return Math.min(prep.mPerMin * (t - done), prep.outLen);
+    if (t <= reach + w.min) return w.atM;
+    done += w.min;
+  }
+  return Math.min(prep.mPerMin * Math.max(0, t - done), prep.outLen);
+}
+
 function eventsUpTo(scenario, t) {
   return scenario.events.filter(e => e.tMin <= t);
 }
@@ -112,14 +124,32 @@ export function prepareScenario(scenario, data, M, targetOverride = null, outMod
   const redT = C.tau_red == null ? [] : scenario.events.filter(e => e.type === 'tau' && e.value > C.tau_red).map(e => e.tMin);
   const swT = Math.min(...times('sep_onset'), ...times('return_home'), ...redT);
   const bk = from?.backPrefix && swT === from.tMin ? from : null; // already returning: outbound leg and walked part of `back` are kept
-  let out = { ok: true }, outPts = from?.prefix;
-  if (!bk) {
+  // planned stops (targetOverride.stops: [{lat, lon, stayMin}], last = the target): legs in order, a stay at each.
+  // A mid-walk re-plan (from) goes straight to the target.
+  const stops = !from && targetOverride?.stops?.length ? targetOverride.stops : null;
+  let out = { ok: true }, outPts = from?.prefix, waits = [];
+  if (!bk && stops) {
+    const vis0 = M.visibilityArrays(Math.max(1, Math.round(limF.visibilityKm)));
+    let at = start, m = 0;
+    outPts = [[start.lat, start.lon]];
+    for (const st of stops) {
+      const r = M.planRoute(data.grid, data.bounds, vis0, at, st, { ...opts, mode: outMode });
+      if (!r.ok) out = r;
+      const leg = r.ok ? r.points : [[at.lat, at.lon], [st.lat, st.lon]];
+      m += legLengthM(leg);
+      outPts.push(...leg.slice(1));
+      waits.push({ atM: m, min: Math.max(0, st.stayMin ?? 0), id: st.id });
+      at = st;
+    }
+  } else if (!bk) {
     const vis0 = M.visibilityArrays(Math.max(1, Math.round(limF.visibilityKm)));
     out = M.planRoute(data.grid, data.bounds, vis0, start, target, targetOverride ? { ...opts, mode: outMode } : opts);
     const fresh = out.ok ? out.points : [[start.lat, start.lon], [target.lat, target.lon]];
     outPts = from ? [...from.prefix, ...(fresh[0][0] === here[0] && fresh[0][1] === here[1] ? fresh.slice(1) : fresh)] : fresh;
   }
   const mPerMin = lim0.speedKmh * 1000 / 60;
+  const outLen = legLengthM(outPts), waitMin = waits.reduce((a, w) => a + w.min, 0);
+  const wp = { waits, mPerMin, outLen };
 
   const toHome = (at, lim) => {
     const vis = M.visibilityArrays(Math.max(1, Math.round(lim.visibilityKm)));
@@ -129,18 +159,18 @@ export function prepareScenario(scenario, data, M, targetOverride = null, outMod
   let back, sepT;
   if (swT < Infinity) { // storm, return_home and/or RED dust: turn back at the earliest
     const tl = bk ? from.backTMin : swT; // the rest of the way home is planned for the state now
-    const at = bk ? { lat: from.backPrefix.at(-1)[0], lon: from.backPrefix.at(-1)[1] } : pointAlong(outPts, mPerMin * swT);
+    const at = bk ? { lat: from.backPrefix.at(-1)[0], lon: from.backPrefix.at(-1)[1] } : pointAlong(outPts, walkedOutM(wp, swT));
     const fresh = toHome(at, M.computeLimits({ ...base, tau: tauAt(tl), sepActive: Boolean(sep) && sep.tMin <= tl }, C));
     back = bk ? [...from.backPrefix, ...(fresh[0][0] === at.lat && fresh[0][1] === at.lon ? fresh.slice(1) : fresh)] : fresh;
     sepT = swT;
   } else { // nothing triggers: walk out, wait at the target, turn back in time to be home at EVA end
-    const arrT = legLengthM(outPts) / mPerMin;
+    const arrT = outLen / mPerMin + waitMin;
     const [lat, lon] = outPts.at(-1);
     back = toHome({ lat, lon }, M.computeLimits({ ...base, tau: tauAt(arrT), sepActive: false }, C));
-    sepT = Math.max(arrT, end - legLengthM(back) / mPerMin);
+    sepT = stops ? arrT : Math.max(arrT, end - legLengthM(back) / mPerMin);   // planned stays: head home right after the last
   }
   return Object.freeze({
-    scenario, mPerMin, outPts, outOk: out.ok, custom: Boolean(targetOverride), target: targetOverride || null, outLen: legLengthM(outPts), back, backLen: legLengthM(back), sepT, endT: end,
+    scenario, mPerMin, outPts, outOk: out.ok, custom: Boolean(targetOverride), target: targetOverride || null, outLen, waits: Object.freeze(waits), stops, back, backLen: legLengthM(back), sepT, endT: end,
     hourMin: C.mars_hour_min ?? MARS_HOUR_MIN
   });
 }
@@ -164,6 +194,18 @@ function tauWithRamp(scenario, tt, base) {
   return Math.round(tau * 100) / 100;
 }
 
+// the stop the crew is walking to (or standing at) at time tt; the target when there are no planned stops
+function nextStop(prep, tt) {
+  if (!prep.stops) return prep.target;
+  let done = 0;
+  for (let i = 0; i < prep.waits.length; i++) {
+    const w = prep.waits[i], leave = w.atM / prep.mPerMin + done + w.min;
+    if (tt < leave) { const s = prep.stops[i]; return { lat: s.lat, lon: s.lon, id: s.id }; }
+    done += w.min;
+  }
+  return prep.target;
+}
+
 /** Pure: inputs patch for scenario time t (Earth minutes). */
 export function stateAt(prep, t, skylineResults = {}) {
   const { scenario, mPerMin, outPts, outLen, back, backLen, sepT } = prep;
@@ -185,15 +227,15 @@ export function stateAt(prep, t, skylineResults = {}) {
   }
   // distance walked is a pure function of time
   const walkedAt = time => {
-    if (sepT === null || time <= sepT) return Math.min(mPerMin * time, outLen);
-    return Math.min(mPerMin * sepT, outLen) + Math.min(mPerMin * (time - sepT), backLen);
+    if (sepT === null || time <= sepT) return walkedOutM(prep, time);
+    return walkedOutM(prep, sepT) + Math.min(mPerMin * (time - sepT), backLen);
   };
   const pos = (sepT === null || tt <= sepT)
-    ? pointAlong(outPts, mPerMin * tt)
+    ? pointAlong(outPts, walkedOutM(prep, tt))
     : pointAlong(back, mPerMin * (tt - sepT));
   patch.astronaut = pos;
   // custom target only: null = heading home, so no orange line to the abandoned target
-  if (prep.target) patch.target = (sepT === null || tt <= sepT) ? prep.target : null;
+  if (prep.target) patch.target = (sepT === null || tt <= sepT) ? nextStop(prep, tt) : null;
   patch.distSinceFixM = Math.max(0, walkedAt(tt) - walkedAt(fixT));
   return patch;
 }

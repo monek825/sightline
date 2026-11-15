@@ -5,7 +5,7 @@ import { loadAll } from '../lib/data.js';
 import { createPipeline } from '../lib/pipeline.js';
 import { initStore, setInputs, subscribe, getStore, DEFAULT_INPUTS } from '../lib/store.js';
 import { initVisibility, visibilityArrays } from './visibility.js';
-import { prepareScenario, stateAt, pathUpTo, editScenario } from './scenario.js';
+import { prepareScenario, stateAt, pathUpTo, editScenario, walkedOutM } from './scenario.js';
 import { createMapView } from './map.js';
 import { createPanels } from './panels.js';
 import * as stubs from './stubs.js';
@@ -256,7 +256,7 @@ function setupScenario(data, M, sky) {
     const walking = clock !== 'zero' && t > 0 && (prep.sepT === null || t <= prep.sepT) && t < prep.endT;
     // already heading home and only a condition changed: keep the whole outbound leg so the history does not move
     const returning = clock === 'keep' && prep.sepT !== null && t > prep.sepT;
-    const from = walking ? { prefix: pathUpTo(prep.outPts, Math.min(prep.mPerMin * t, prep.outLen)), tMin: t }
+    const from = walking ? { prefix: pathUpTo(prep.outPts, walkedOutM(prep, t)), tMin: t }
       : returning ? { prefix: prep.outPts, tMin: prep.sepT, backPrefix: pathUpTo(prep.back, Math.min(prep.mPerMin * (t - prep.sepT), prep.backLen)), backTMin: t } : null;
     // a restart from minute 0 begins at the local time shown now (else a time set mid-walk jumped back: 7:00 -> 6:06)
     const restart = clock === 'zero' || (clock === 'auto' && !from);
