@@ -671,15 +671,15 @@ body.intro-on { overflow: hidden; }
 .more .controls { gap: var(--s3); }
 /* factors: problems as highlighted cards on top; everything fine as a quiet label-and-number list with hairlines
    (pattern: component hub "clean dashboard kit", Wink label-and-number list: 55px rows, label left, number right, 1px line) */
-#alerts { display: grid; grid-template-columns: 1fr; gap: 0; }
-#alerts .tile {
+#alerts, #alerts-adv { display: grid; grid-template-columns: 1fr; gap: 0; }
+#alerts .tile, #alerts-adv .tile {
   display: grid; grid-template-columns: 20px 1fr auto; align-items: center; gap: 0 var(--s3);
   min-height: 46px; padding: 0 2px; border-radius: 0; background: none; cursor: default; font-size: 14px;
   border-bottom: 1px solid rgba(255, 244, 224, .09);
 }
-#alerts .tile:last-child { border-bottom: 0; }
-#alerts .tile:hover { transform: none; background: none; }
-#alerts .tile:focus-visible { outline-offset: -2px; }
+#alerts .tile:last-child, #alerts-adv .tile:last-child { border-bottom: 0; }
+#alerts .tile:hover, #alerts-adv .tile:hover { transform: none; background: none; }
+#alerts .tile:focus-visible, #alerts-adv .tile:focus-visible { outline-offset: -2px; }
 .tile-icon { color: var(--muted); display: grid; place-items: center; }
 .tile-icon svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
 .tile-head { min-width: 0; }
@@ -1030,3 +1030,21 @@ body.is-3d .legend { bottom: calc(var(--notch-d) + 84px); } /* the 3D note below
 .pl-stormdot { cursor: grab; pointer-events: all; }
 @media (max-width: 900px) { .pl-mid { grid-template-columns: 1fr 1fr; } .pl-mid .pl-dial { grid-column: 1 / -1; order: -1; } }
 @media (max-width: 700px) { .pl-foot #pl-go { flex: 1; } }
+
+/* line-of-sight status under the headline: the hero of the card (home = green, landmark = amber, blind = red) */
+.los { margin: calc(var(--s2) * -1) 0 0; font: 600 clamp(1.5rem, 2.4vw, 2rem)/1.1 var(--display); overflow-wrap: anywhere; }
+.los[hidden], .los-sub[hidden] { display: none; }
+.los[data-state="home"] { color: var(--green); }
+.los[data-state="landmark"] { color: var(--amber); }
+.los[data-state="blind"] { color: var(--red); }
+.los-sub { margin: calc(var(--s2) * -1) 0 0; color: var(--muted); font-size: 14px; }
+/* Details > Advanced */
+.advanced { display: grid; gap: var(--s3); }
+.advanced > summary { cursor: pointer; font: 600 13px var(--font); color: var(--muted); min-height: 34px; display: flex; align-items: center; }
+.advanced[open] > summary { color: var(--text); margin-bottom: var(--s2); }
+.advanced > * + * { margin-top: var(--s3); }
+/* phones: the long 3D disclaimer is one line (tap to read it all) instead of a box over the map */
+@media (max-width: 768px) {
+  .v3-note { left: 0; right: 0; bottom: 0; max-width: none; border-radius: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 11px; }
+  .v3-note:hover, .v3-note:active { white-space: normal; }
+}

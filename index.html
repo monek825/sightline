@@ -121,6 +121,8 @@
         <div class="tab-body">
           <section id="tab-home" class="tab" role="tabpanel" aria-labelledby="t-home">
             <h2 id="b-headline" class="headline">–</h2>
+            <p id="b-los" class="los" data-state="" hidden>–</p>
+            <p id="b-los3" class="los-sub" hidden></p>
             <p class="question">Walk status</p>
             <p class="hero-num"><span id="b-return">–</span> <small>walk home, <span id="b-km">–</span></small></p>
             <dl class="pairs">
@@ -223,23 +225,27 @@
           <label>Days on Mars <output id="o-sol"></output>
             <input type="range" id="c-sol" min="0" max="60" step="1">
             <span class="sub" data-hint="c-sol"></span></label>
-          <div class="events" role="group" aria-labelledby="ev-h">
-            <h3 id="ev-h">Make something happen now</h3>
-            <div class="event-btns">
-              <button type="button" class="btn ev" data-event="dust">Dust storm</button>
-              <button type="button" class="btn ev" data-event="clear">Dust clears</button>
-              <button type="button" class="btn ev" data-event="solar">Solar storm</button>
-              <button type="button" class="btn ev" data-event="lost">Find position</button>
-            </div>
-            <h3>Start a new run</h3>
-            <div class="event-btns">
-              <button type="button" class="btn ev" data-event="random">Random events</button>
-              <button type="button" class="btn ev" data-event="calm">Calm day</button>
-              <button type="button" class="btn ev" data-event="scripted">The story</button>
-            </div>
-          </div>
           <label class="check"><input type="checkbox" id="c-sep"> Solar storm during the walk</label>
-          <label class="check"><input type="checkbox" id="c-sans"> Vision changes (SANS)</label>
+          <details class="advanced">
+            <summary>Advanced</summary>
+            <label class="check"><input type="checkbox" id="c-sans"> Vision changes (SANS)</label>
+            <div class="events" role="group" aria-labelledby="ev-h">
+              <h3 id="ev-h">Make something happen now</h3>
+              <div class="event-btns">
+                <button type="button" class="btn ev" data-event="dust">Dust storm</button>
+                <button type="button" class="btn ev" data-event="clear">Dust clears</button>
+                <button type="button" class="btn ev" data-event="solar">Solar storm</button>
+                <button type="button" class="btn ev" data-event="lost">Find position</button>
+              </div>
+              <h3>Start a new run</h3>
+              <div class="event-btns">
+                <button type="button" class="btn ev" data-event="random">Random events</button>
+                <button type="button" class="btn ev" data-event="calm">Calm day</button>
+                <button type="button" class="btn ev" data-event="scripted">The story</button>
+              </div>
+            </div>
+            <ul id="alerts-adv" class="alerts" aria-label="Other factors that are fine"></ul>
+          </details>
           <label>Simulation speed <output id="o-speed"></output>
             <input type="range" id="c-speed" min="1" max="10" step="1" value="1">
             <span class="sub" data-hint="c-speed"></span></label>

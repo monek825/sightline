@@ -2,6 +2,8 @@
 // Panels: frosted category panel (3 question tabs), bottom drawer (timeline + details), clock, banner,
 // sources modal, data badge. Renders from the store; control events call setInputs (user actions only).
 
+import { toCell } from '../lib/geo.js';
+
 const $ = id => document.getElementById(id);
 
 function el(tag, cls, text) {
@@ -30,6 +32,7 @@ const GROUPS = [
   ['home', /.*/] // suit time, walking, radiation, body: all answer "can I get home?"
 ];
 const groupOf = f => GROUPS.find(([, re]) => re.test(f.id))[0];
+const ADVANCED_IDS = new Set(['vision', 'body_clock', 'bone', 'cooling']); // GREEN ones go in Details > Advanced
 const SEVERITY = { RED: 0, AMBER: 1, GREEN: 2 };
 
 const EVENT_LABELS = { eva_start: 'EVA start', sep_onset: 'Solar storm', return_home: 'Return home', skyline_fix: 'Horizon Match', eva_end: 'EVA end' };
@@ -317,9 +320,12 @@ export function createPanels(data, { setInputs, usingStubs, onCondition, runHasS
     }
     // Details sheet: every factor as an icon tile in a bento grid, worst first.
     // Amber/red tiles are wide and carry the full explanation; green tiles are compact (full text on hover/focus).
-    const tiles = sorted.map(f => factorTile(f, keyNumber(f, bdg, inputs), f.level !== 'GREEN'));
+    const quiet = f => f.level === 'GREEN' && ADVANCED_IDS.has(f.id); // fine, and not for the main list
+    const tile = f => factorTile(f, keyNumber(f, bdg, inputs), f.level !== 'GREEN');
+    const tiles = sorted.filter(f => !quiet(f)).map(tile);
     for (const w of derived.warnings) tiles.unshift(factorTile({ id: 'warning', level: 'AMBER', label: 'Data note', message: w }, '', true));
     $('alerts').replaceChildren(...tiles);
+    $('alerts-adv').replaceChildren(...sorted.filter(quiet).map(tile));
     // a coloured dot on each tab shows its worst factor, so trouble is visible without opening it
     for (const t of document.querySelectorAll('[role="tab"]')) {
       const g = t.getAttribute('aria-controls').replace('tab-', '');
@@ -364,6 +370,23 @@ export function createPanels(data, { setInputs, usingStubs, onCondition, runHasS
     $('r-cmp-note').hidden = !note;
   }
 
+  // Line of sight from the astronaut's grid cell: home in sight / a landmark only / blind (cell index as in lib/geo.js toCell)
+  function renderLos(inputs, derived, pct) {
+    const vis = derived.vis, b = data.meta?.bounds, a = inputs.astronaut;
+    let state = '';
+    if (vis?.homeHidden && vis.blind && b && a && vis.w > 0 && vis.h > 0) {
+      const { r, c } = toCell(vis, b, a.lat, a.lon);
+      const i = Math.min(vis.h - 1, Math.max(0, r)) * vis.w + Math.min(vis.w - 1, Math.max(0, c));
+      if (i < vis.homeHidden.length && i < vis.blind.length) state = vis.homeHidden[i] === 0 ? 'home' : vis.blind[i] === 0 ? 'landmark' : 'blind';
+    }
+    const los = $('b-los');
+    los.hidden = !state;
+    los.dataset.state = state;
+    los.textContent = { home: 'Home in sight', landmark: 'Landmark only', blind: 'Blind' }[state] ?? '';
+    $('b-los3').hidden = !Number.isFinite(pct);
+    $('b-los3').textContent = Number.isFinite(pct) ? `Home visible from ${Math.round(pct)}% of ground within 3 km` : '';
+  }
+
   function renderTabs(inputs, derived) {
     const bdg = derived.budget, C = data.C;
     document.querySelector('.panel').dataset.status = bdg.status;
@@ -379,6 +402,7 @@ export function createPanels(data, { setInputs, usingStubs, onCondition, runHasS
     const pct = derived.vis.homeVisiblePct3km;
     $('d-home').textContent = Number.isFinite(pct) ? `${Math.round(pct)}% within 3 km` : '–';
     $('vis-stat').textContent = Number.isFinite(pct) ? `Home is visible from ${Math.round(pct)}% of the ground within 3 km.` : '';
+    renderLos(inputs, derived, pct);
     $('now-devil').hidden = !(inputs.ltst >= C.dust_devil_peak_start_ltst && inputs.ltst <= C.dust_devil_peak_end_ltst);
 
     $('p-unc').textContent = Number.isFinite(derived.posUncertaintyM) ? `± ${Math.round(derived.posUncertaintyM)} m` : '–';
