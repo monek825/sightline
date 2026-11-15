@@ -262,31 +262,40 @@
         <svg id="pl-route" class="pl-route" viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-hidden="true"></svg>
       </div><div id="pl-pins" class="pl-pins"></div></div>
     </div>
-    <div class="pl-dial">
-      <svg id="pl-knob" class="pl-knob" viewBox="0 0 1000 320" tabindex="0" role="img" aria-label="The day: drag or use the arrow keys to look along the hours">
-        <g id="pl-face"></g><path class="pl-marker" d="M486 34h28l-14 22z"/>
-      </svg>
-      <b id="pl-now" class="pl-now"></b>
+    <div class="pl-mid">
+      <div class="pl-side">
+        <h3 class="pl-h"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>When</h3>
+        <div class="pl-step"><button type="button" id="pl-sol-dn" aria-label="Earlier sol">−</button><b id="pl-sol"></b><button type="button" id="pl-sol-up" aria-label="Later sol">+</button></div>
+        <label>Leave <select id="pl-start"></select></label>
+        <label>Back by <select id="pl-end"></select></label>
+        <button type="button" id="pl-best" class="pl-best" title="Try every leave hour with these stops and this weather, and pick the safest">Best time</button>
+      </div>
+      <div class="pl-dial">
+        <svg id="pl-knob" class="pl-knob" viewBox="0 0 1000 320" tabindex="0" role="img" aria-label="The day: drag to look along the hours; drag a red storm dot to move the storm">
+          <g id="pl-face"></g><path class="pl-marker" d="M486 34h28l-14 22z"/>
+        </svg>
+        <b id="pl-now" class="pl-now"></b>
+      </div>
+      <div class="pl-side">
+        <h3 class="pl-h"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="7" cy="17" r="2.5"/><circle cx="17" cy="17" r="2.5"/><path d="M4 14l2-6h9l3 6M9.5 17h5"/></svg>Travel</h3>
+        <div class="pl-seg" role="group" aria-label="How to travel">
+          <button type="button" data-vehicle="walk">Walk</button>
+          <button type="button" data-vehicle="rover" title="Drive the crew rover (8 km/h). Trips stay within walking distance home, in case it breaks.">Rover</button>
+        </div>
+        <h3 class="pl-h"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 18h10a4 4 0 0 0 .5-7.97A6 6 0 0 0 6 11a3.5 3.5 0 0 0 1 7z"/></svg>Weather</h3>
+        <div class="pl-seg pl-wx" role="group" aria-label="Weather">
+          <button type="button" data-weather="calm">Clear</button>
+          <button type="button" data-weather="story">Story</button>
+          <button type="button" data-weather="random" title="Random, drawn from what Mars does: season, normal dust (Perseverance at Jezero), maybe a dust storm or a solar storm. Sources in Details.">Random</button>
+          <button type="button" data-weather="custom" title="Your own storm: drag it on the dial and set how strong it is">Custom</button>
+        </div>
+        <div id="pl-tau-row" class="pl-step pl-tau" hidden><span>Storm τ</span><button type="button" id="pl-tau-dn" aria-label="Weaker storm">−</button><b id="pl-tau"></b><button type="button" id="pl-tau-up" aria-label="Stronger storm">+</button></div>
+        <p class="pl-rule" id="pl-rule"></p>
+      </div>
     </div>
     <p id="pl-msg" class="pl-msg" role="status"></p>
     <ol id="pl-stops" class="pl-stops" aria-label="Stops, in order"></ol>
-    <div class="pl-bar">
-      <div class="pl-step"><button type="button" id="pl-sol-dn" aria-label="Earlier sol">−</button><b id="pl-sol"></b><button type="button" id="pl-sol-up" aria-label="Later sol">+</button></div>
-      <label>Leave <select id="pl-start"></select></label>
-      <label>Back by <select id="pl-end"></select></label>
-      <button type="button" id="pl-best" class="pl-best" title="Try every leave hour with these stops and this weather, and pick the safest">Best time</button>
-      <div class="pl-seg" role="group" aria-label="How to travel">
-        <button type="button" data-vehicle="walk">Walk</button>
-        <button type="button" data-vehicle="rover" title="Drive the crew rover (8 km/h). Trips stay within walking distance home, in case it breaks.">Rover</button>
-      </div>
-      <div class="pl-seg" role="group" aria-label="Weather">
-        <button type="button" data-weather="calm">Calm</button>
-        <button type="button" data-weather="story">Story</button>
-        <button type="button" data-weather="random" title="Random, drawn from what Mars does: season, normal dust (Perseverance at Jezero), maybe a dust storm or a solar storm. Sources in Details.">Random</button>
-      </div>
-      <b id="pl-verdict" class="m-chip"></b>
-      <button type="button" id="pl-go" class="btn btn-accent">Start</button>
-    </div>
+    <div class="pl-foot"><b id="pl-verdict" class="m-chip"></b><button type="button" id="pl-go" class="btn btn-accent">Start</button></div>
   </dialog>
   <dialog id="dlg-sources" class="dlg">
     <form method="dialog" class="dlg-head"><h2>Sources for every number</h2><button class="icon-btn" aria-label="Close" title="Close"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button></form>

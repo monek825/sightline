@@ -23,7 +23,7 @@ export function setupPlanner(ctx) {
   const { data, M } = ctx, C = data.C, $ = id => document.getElementById(id);
   const derive = createPipeline(M);
   const places = data.targets.filter(t => t.id !== 'landing').map(t => ({ ...t, name: t.name.replace(/ \(approx\.\)| sample (depot|area)/g, '') }));
-  const st = { sol: 9, start: 9, end: 12, weather: 'calm', stops: places[0] ? [{ id: places[0].id, stay: 30 }] : [], randomEvs: null, center: 10.5, vehicle: 'walk' };
+  const st = { sol: 9, start: 9, end: 12, weather: 'calm', stops: places[0] ? [{ id: places[0].id, stay: 30 }] : [], randomEvs: null, center: 10.5, vehicle: 'walk', customEvs: null };
   const nameOf = id => places.find(p => p.id === id)?.name ?? id;
 
   // ---------- map: basemap + pins + route, tilted; drag pans, wheel / pinch zooms ----------
@@ -82,6 +82,7 @@ export function setupPlanner(ctx) {
   // after `anchor` (the leave time they were made for); weather already under way at the leave time starts at minute 0.
   const weatherNow = () => st.weather === 'story' ? { evs: data.scenario.events, anchor: data.scenario.startLtst }
     : st.weather === 'random' ? (st.randomEvs ??= { evs: ctx.randomEvents(), anchor: st.start })
+    : st.weather === 'custom' && st.customEvs ? st.customEvs
     : { evs: [...ctx.fixed(data.scenario.events), { tMin: 5, type: 'tau', value: C.tau_typical }], anchor: st.start };
   const eventsFor = (start, end) => {
     const { evs, anchor } = weatherNow(), shift = (start - anchor) * HM;
@@ -153,9 +154,10 @@ export function setupPlanner(ctx) {
     text(hm, KNOB.r - BAND - 76, 'pl-staylab', `${min} min`);
   };
   // storms sit above the band with a warning dot on it; turn-back is a white bar across the band
-  const storm = (h, label) => {
+  const storm = (h, label, ev) => {
     const r = KNOB.r - BAND + 22, [x, y] = polar(h, r);   // on the band's top edge, clear of the band labels
-    plan.append(sv('circle', { cx: x, cy: y, r: 13, class: 'pl-stormdot' }));
+    const dot = sv('circle', { cx: x, cy: y, r: 16, class: 'pl-stormdot' });
+    dot.ev = ev; plan.append(dot);
     text(h, r, 'pl-stormbang', '!');
     if (label) text(h, KNOB.r - 88, 'pl-stormlab', label);
   };
@@ -163,14 +165,38 @@ export function setupPlanner(ctx) {
     const [x0, y0] = polar(h, KNOB.r - BAND - 30), [x1, y1] = polar(h, KNOB.r - BAND + 30);
     plan.append(sv('line', { x1: x0, y1: y0, x2: x1, y2: y1, class: cls }));
   };
-  let drag = null;
-  knob.addEventListener('pointerdown', e => { e.preventDefault(); knob.setPointerCapture(e.pointerId); drag = { x: e.clientX, c: st.center }; });
+  let drag = null, lastPr = null;
+  // pointer -> hour on the dial (the face is turned by -center)
+  const hourAt = e => {
+    const p = new DOMPoint(e.clientX, e.clientY).matrixTransform(knob.getScreenCTM().inverse());
+    return st.center + Math.atan2(p.x - KNOB.cx, KNOB.cy - p.y) * 180 / Math.PI / DEG_PER_H;
+  };
+  knob.addEventListener('pointerdown', e => {
+    e.preventDefault(); knob.setPointerCapture(e.pointerId);
+    const dot = e.target.closest?.('.pl-stormdot');
+    drag = dot?.ev ? { dot, ev: dot.ev, h: hourAt(e) } : { x: e.clientX, c: st.center };
+  });
   knob.addEventListener('pointermove', e => {
     if (!drag) return;
+    if (drag.dot) {   // move the storm dot along the band; re-plan on release
+      drag.h = Math.min(st.end, Math.max(st.start, Math.round(hourAt(e) * 12) / 12));
+      const [x, y] = polar(drag.h, KNOB.r - BAND + 22);
+      drag.dot.setAttribute('cx', x); drag.dot.setAttribute('cy', y);
+      $('pl-now').textContent = hh(drag.h);
+      return;
+    }
     const pxPerH = knob.getBoundingClientRect().width * DEG_PER_H / 60;   // ~60° of the knob spans the box
     st.center = Math.round((drag.c - (e.clientX - drag.x) / pxPerH) * 4) / 4; turn();
   });
-  knob.addEventListener('pointerup', () => { drag = null; });
+  knob.addEventListener('pointerup', () => {
+    if (drag?.dot && lastPr) {   // a moved storm makes this a custom run, pinned to the clock from now on
+      const tMin = Math.round((drag.h - st.start) * HM);
+      st.customEvs = { evs: lastPr.scenario.events.filter(x => x.type !== 'eva_end').map(x => (x === drag.ev ? { ...x, tMin } : x)), anchor: st.start };
+      st.weather = 'custom'; flash = `Storm moved to ${hh(drag.h)}.`;
+      update();
+    }
+    drag = null;
+  });
   knob.addEventListener('pointercancel', () => { drag = null; });
   knob.addEventListener('keydown', e => {
     const k = { ArrowLeft: -0.25, ArrowRight: 0.25 }[e.key];
@@ -192,8 +218,23 @@ export function setupPlanner(ctx) {
   for (const w of document.querySelectorAll('[data-weather]')) w.addEventListener('click', () => {
     st.weather = w.dataset.weather;
     if (st.weather === 'random') { st.randomEvs = null; flash = 'New weather rolled.'; }
+    if (st.weather === 'custom' && !st.customEvs) {   // start from clear weather with one dust storm mid-trip, at the turn-back level
+      const mid = Math.round((st.end - st.start) * HM / 2);
+      st.customEvs = { evs: [...ctx.fixed(data.scenario.events), { tMin: 5, type: 'tau', value: C.tau_typical }, { tMin: mid, type: 'tau', value: C.tau_red }], anchor: st.start };
+      flash = 'Drag the red dot to move the storm; set its strength.';
+    }
     update(w);
   });
+  const TAU_STEP = 0.5, TAU_MAX = 10;
+  const stormTau = () => Math.max(0, ...(st.customEvs?.evs ?? []).filter(e => e.type === 'tau').map(e => e.value));
+  const setTau = d => {   // custom: change every storm-level dust event (above normal dust) together
+    if (!st.customEvs) return;
+    const evs = st.customEvs.evs.map(e => (e.type === 'tau' && e.value > C.tau_typical * 1.5 ? { ...e, value: Math.min(TAU_MAX, Math.max(C.tau_amber, +(e.value + d).toFixed(1))) } : e));
+    st.customEvs = { ...st.customEvs, evs }; update(d < 0 ? $('pl-tau-dn') : $('pl-tau-up'));
+  };
+  $('pl-tau-dn').addEventListener('click', () => setTau(-TAU_STEP));
+  $('pl-tau-up').addEventListener('click', () => setTau(TAU_STEP));
+  $('pl-rule').textContent = `Turn back if dust passes τ ${C.tau_red} or any solar storm starts. Normal dust here is about τ ${C.tau_typical}.`;
   for (const v of document.querySelectorAll('[data-vehicle]')) v.addEventListener('click', () => { st.vehicle = v.dataset.vehicle; update(v); });
   // Best time: try every leave hour with the same stops and weather (pinned to the clock) and keep the safest, earliest
   $('pl-best').addEventListener('click', () => {
@@ -226,6 +267,8 @@ export function setupPlanner(ctx) {
     $('pl-sol').textContent = `Sol ${st.sol}`;
     for (const w of document.querySelectorAll('[data-weather]')) w.setAttribute('aria-pressed', String(w.dataset.weather === st.weather));
     for (const v of document.querySelectorAll('[data-vehicle]')) v.setAttribute('aria-pressed', String(v.dataset.vehicle === st.vehicle));
+    $('pl-tau-row').hidden = st.weather !== 'custom';
+    if (st.weather === 'custom') $('pl-tau').textContent = stormTau().toFixed(1);
     const t0 = performance.now();
     busyBtn?.classList?.add('busy');
     clearTimeout(timer);
@@ -271,6 +314,7 @@ export function setupPlanner(ctx) {
     plan.replaceChildren(); route.replaceChildren();
     if (!st.stops.length) { chip.textContent = ''; chip.dataset.level = ''; go.disabled = true; $('pl-msg').textContent = ''; turn(); return; }
     const ev = evaluate(st.start, st.end), pr = ev.pr;
+    lastPr = pr;
     if (!pr.outOk) {
       const lim = st.sol < C.sensorimotor_recovery_days ? C.max_slope_early_deg : C.max_slope_deg;
       chip.textContent = 'NO-GO'; chip.dataset.level = 'RED'; go.disabled = true;
@@ -298,12 +342,12 @@ export function setupPlanner(ctx) {
     if (turned) bar(H(pr.sepT), 'pl-turn');
     bar(H(pr.endT), 'pl-limit');
     // storms within 45 min of each other share one label ("Solar + dust storm"), else the labels overlap
-    const storms = pr.scenario.events.filter(e => e.tMin <= pr.endT && (e.type === 'sep_onset' || (e.type === 'tau' && e.value > C.tau_amber)))
-      .map(e => ({ h: H(e.tMin), kind: e.type === 'sep_onset' ? 'Solar' : 'Dust' }));
+    const storms = pr.scenario.events.filter(e => e.tMin <= pr.endT && (e.type === 'sep_onset' || (e.type === 'tau' && e.value >= C.tau_amber)))
+      .map(e => ({ h: H(e.tMin), kind: e.type === 'sep_onset' ? 'Solar' : 'Dust', e }));
     const groups = storms.reduce((g, s) => { const last = g.at(-1); if (last && s.h - last.at(-1).h < 0.75) last.push(s); else g.push([s]); return g; }, []);
     for (const grp of groups) {
       const kinds = [...new Set(grp.map(s => s.kind))];
-      grp.forEach((s, i) => storm(s.h, ''));
+      grp.forEach(s => storm(s.h, '', s.e));
       text((grp[0].h + grp.at(-1).h) / 2, KNOB.r - 88, 'pl-stormlab', kinds.length > 1 ? 'Solar + dust storm' : `${kinds[0]} storm`);
     }
     chip.textContent = v.word; chip.dataset.level = v.level; go.disabled = late;
