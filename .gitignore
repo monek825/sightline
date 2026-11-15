@@ -8,3 +8,4 @@ raw/
 __pycache__/
 .DS_Store
 .claude/
+evals/slop-judge-shots/
