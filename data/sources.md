@@ -31,6 +31,7 @@ Listed on the tab but not used: USGS-NASA Planetary Geologic Mapping Program (we
 - Mars Reconnaissance Orbiter Mars Color Imager (MARCI) daily global weather maps (Malin Space Science Systems) — the idea for the "Orbiter forecast: dust storm in ~X min" caption. The app does not use MARCI data at runtime; the forecast in the demo is scripted from the scenario events. https://www.msss.com/msss_images/subject/weather_reports.html
 
 ## Science papers and NASA reports
+- NASA NSSDC, The Apollo Lunar Roving Vehicle (rover speed: Apollo 17 drove 35.9 km in 4 h 26 min, 8.1 km/h average): https://nssdc.gsfc.nasa.gov/planetary/lunar/apollo_lrv.html
 - Hassler et al. 2014, Mars' surface radiation environment measured by Curiosity RAD, Science. https://www.science.org/doi/10.1126/science.1244797
 - Zeitlin et al. 2013, Measurements of energetic particle radiation in transit to Mars, Science. https://www.science.org/doi/10.1126/science.1235989
 - NASA-STD-3001 Volume 1 Revision C (2023), NASA Space Flight Human-System Standard: career effective dose limit 600 mSv [V1 4030] and short-term radiation limits. https://standards.nasa.gov/sites/default/files/standards/NASA/C//nasa-std-3001-vol-1-rev-c-signature.pdf
