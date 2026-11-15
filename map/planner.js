@@ -236,6 +236,11 @@ export function setupPlanner(ctx) {
   $('pl-tau-dn').addEventListener('click', () => setTau(-TAU_STEP));
   $('pl-tau-up').addEventListener('click', () => setTau(TAU_STEP));
   $('pl-rule').textContent = `Turn back if dust passes τ ${C.tau_red} or any solar storm starts. Normal dust here is about τ ${C.tau_typical}.`;
+  // speeds on the buttons, from data/crew_constants.json (walking slows on early sols; this is the recovered pace)
+  for (const v of document.querySelectorAll('[data-vehicle]')) {
+    const kmh = v.dataset.vehicle === 'rover' ? C.rover_speed_kmh : C.walk_speed_kmh;
+    if (Number.isFinite(kmh)) v.append(el('small', { className: 'pl-kmh', textContent: `${kmh} km/h` }));
+  }
   for (const v of document.querySelectorAll('[data-vehicle]')) v.addEventListener('click', () => { st.vehicle = v.dataset.vehicle; update(v); });
   // Best time: try every leave hour with the same stops and weather (pinned to the clock) and keep the safest, earliest
   $('pl-best').addEventListener('click', () => {

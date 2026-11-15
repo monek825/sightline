@@ -1048,3 +1048,5 @@ body.is-3d .legend { bottom: calc(var(--notch-d) + 84px); } /* the 3D note below
   .v3-note { left: 0; right: 0; bottom: 0; max-width: none; border-radius: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 11px; }
   .v3-note:hover, .v3-note:active { white-space: normal; }
 }
+.pl-seg button .pl-kmh { display: block; font: 500 11px var(--mono); opacity: .75; }
+.pl-side .pl-seg[aria-label="How to travel"] button { min-height: 44px; line-height: 1.15; }
