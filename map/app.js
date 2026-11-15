@@ -12,11 +12,10 @@ import * as stubs from './stubs.js';
 import { initMotion } from './motion.js';
 
 const SPEED_MIN_PER_SEC = 2; // demo clock: 1 real second = 2 EVA minutes
-const TAU_STORM = 3; // a tau event at or above this is captioned as a dust storm
 // Story captions for the demo, one per scenario event type (plain-language narration for judges).
 const CAPTIONS = {
   eva_start: () => 'The astronaut walks out to the Three Forks sample depot. Green means there is plenty of time to get home.',
-  tau: e => e.value >= TAU_STORM
+  tau: (e, C) => e.value > (C?.tau_amber ?? 1)
     ? `Dust storm (τ ${e.value}, sped up: real storms build over days). Visibility drops and the red no-landmark zones grow.`
     : `Dust is rising (τ ${e.value}). Red areas have no landmark in sight, so it is easy to get lost there.`,
   skyline_fix: () => 'No GPS: after kilometres of counting steps, the suit\'s position guess has drifted (the ring). Horizon Match reads the hills and shrinks it back.',
@@ -89,6 +88,42 @@ async function boot() {
   });
 }
 
+// Guided story: when a chapter starts, the control that explains it glows and a short tip points at it (4.5 s).
+const COACH = {
+  'Walk out': ['#panel', 'Walk status: minutes left to get home, from NASA suit and body data.'],
+  'Dust rises': ['#t-dust', 'Red on the map = no landmark in sight. Dust makes it grow.'],
+  'Dust storm': ['#t-dust', 'Thick dust: the hills fade and the red zones spread.'],
+  'Position fix': ['#t-pos', 'No GPS: the ring is how far off the position may be. Horizon Match shrinks it.'],
+  'Solar storm': ['#panel', 'Radiation: the plan turns the astronaut home now.'],
+  'Turn back': ['#panel', 'Heading home on the route that keeps landmarks in sight.'],
+  'Home': ['#layers', 'Your turn: switch views, hide layers, or start your own storm in Details.']
+};
+let coachT = 0, coachEl = null;
+function coach(ch) {
+  const tip = document.getElementById('coach'), spec = COACH[ch.name];
+  if (!tip || !spec) return;
+  clearTimeout(coachT);
+  coachEl?.classList.remove('coach-on');
+  const target = document.querySelector(spec[0]);
+  const r = target?.getBoundingClientRect();
+  const visible = r && r.width > 0 && r.right > 0 && r.left < innerWidth && !document.body.classList.contains('panel-hidden');
+  tip.textContent = spec[1];
+  tip.hidden = false;
+  tip.classList.remove('show');
+  const tw = Math.min(280, innerWidth - 24);
+  let x = innerWidth / 2, y = innerHeight - 200, below = false;
+  if (visible) {
+    x = Math.min(innerWidth - tw / 2 - 12, Math.max(tw / 2 + 12, r.left + r.width / 2));
+    below = r.top < 140;
+    y = below ? r.bottom + 12 : r.top - 12;
+    coachEl = target; target.classList.add('coach-on');
+  }
+  tip.style.left = `${x}px`; tip.style.top = `${y}px`;
+  tip.classList.toggle('below', below);
+  requestAnimationFrame(() => tip.classList.add('show'));
+  coachT = setTimeout(() => { tip.classList.remove('show'); coachEl?.classList.remove('coach-on'); setTimeout(() => { tip.hidden = true; }, 300); }, 4500);
+}
+
 function setupScenario(data, M, sky) {
   if (!data.scenario) { document.getElementById('timeline').hidden = true; return null; }
   let scenario = data.scenario; // the user's condition edits make a new one; the data file is never touched
@@ -105,19 +140,67 @@ function setupScenario(data, M, sky) {
   const fixesOf = p => (p.scenario.events ?? []).filter(e => e.type === 'skyline_fix' && sky.skyResults[e.site]);
   let fixEvents = fixesOf(prep);
   const caption = document.getElementById('caption');
+  // Story chapters (the timeline in the bottom centre): from the run's events, plus "Home" when the astronaut arrives.
+  const CH = { eva_start: 'Walk out', skyline_fix: 'Position fix', sep_onset: 'Solar storm', return_home: 'Turn back' };
+  const chapters = () => {
+    const out = [];
+    for (const e of prep.scenario.events ?? []) {
+      const name = e.type === 'tau' ? (e.value > (data.C?.tau_amber ?? 1) ? 'Dust storm' : 'Dust rises') : CH[e.type];
+      if (!name || (out.length && out[out.length - 1].name === name)) continue;
+      out.push({ name, t: e.tMin, ev: e });
+    }
+    const home = prep.sepT !== null && prep.backLen ? prep.sepT + prep.backLen / prep.mPerMin : null;
+    if (home !== null && home < prep.endT) out.push({ name: 'Home', t: home, ev: { type: 'eva_end' } });
+    return out.sort((a, b) => a.t - b.t);
+  };
+  let chs = [], chKey = '', lastCh = -1;
+  const steps = document.getElementById('story-steps');
+  const buildSteps = () => {
+    chs = chapters();
+    const key = chs.map(c => c.name + c.t.toFixed(1)).join('|');
+    if (key === chKey) return;
+    chKey = key; lastCh = -1;
+    const fill = document.createElement('span'); fill.className = 'story-fill';
+    steps.replaceChildren(fill, ...chs.map((c, i) => {
+      const li = document.createElement('li'), b = document.createElement('button');
+      b.type = 'button'; b.dataset.i = i;
+      b.append(document.createElement('i'), Object.assign(document.createElement('span'), { textContent: c.name }));
+      b.setAttribute('aria-label', `Jump to ${c.name}`);
+      b.addEventListener('click', () => { t = Math.min(prep.endT, c.t + 0.01); apply(); });
+      li.append(b);
+      return li;
+    }));
+  };
+  const chapterAt = tt => { let k = -1; chs.forEach((c, i) => { if (c.t <= tt) k = i; }); return k; };
   const captionAt = tt => {
-    const ev = (prep.scenario.events ?? []).filter(e => e.tMin <= tt && CAPTIONS[e.type]).pop();
-    return ev ? CAPTIONS[ev.type](ev) : '';
+    const k = chapterAt(tt);
+    if (k < 0) return '';
+    const ev = chs[k].ev;
+    return CAPTIONS[ev.type] ? CAPTIONS[ev.type](ev, data.C) : '';
+  };
+  const showSteps = tt => {
+    const k = chapterAt(tt), n = chs.length;
+    // fill: evenly spaced steps, so the bar reaches step k and then moves toward step k+1 with time
+    const next = chs[k + 1], cur = chs[k];
+    const f = k < 0 ? 0 : next ? (tt - cur.t) / Math.max(0.01, next.t - cur.t) : 1;
+    steps.style.setProperty('--fill', n > 1 ? String(Math.min(1, (Math.max(0, k) + Math.min(1, f)) / (n - 1))) : '0');
+    if (k !== lastCh) {
+      [...steps.querySelectorAll('button')].forEach((b, i) => { b.classList.toggle('done', i < k); b.classList.toggle('now', i === k); });
+      if (playing && k > lastCh && k >= 0) coach(chs[k]);
+      lastCh = k;
+    }
   };
   const apply = () => {
     setInputs(stateAt(prep, t, sky.skyResults));
-    const text = t > 0 || playing ? captionAt(t) : 'Press play to start the 100-second demo.';
+    buildSteps(); showSteps(t);
+    const text = t > 0 || playing ? captionAt(t) : 'Press play: the story shows every feature in 100 seconds.';
     if (caption.textContent !== text) { caption.textContent = text; caption.hidden = !text; }
     scrub.value = t;
     label.textContent = `t = ${Math.round(t)} min`;
     homeBtn.disabled = !(t > 0 && t < prep.sepT && t < prep.endT); // a press only acts on the outbound leg
   };
-  caption.textContent = 'Press play to start the 100-second demo.';
+  caption.textContent = 'Press play: the story shows every feature in 100 seconds.';
+  buildSteps(); showSteps(0);
   caption.hidden = false;
   const frame = now => {
     if (!playing) return;
@@ -209,12 +292,18 @@ function setupScenario(data, M, sky) {
   // Events you control: trigger one now, or start a scripted / random / calm run.
   const mode0 = () => (prep.custom ? getStore().inputs.routeMode : 'safest');
   const fixed = evs => evs.filter(e => e.type === 'eva_start' || e.type === 'eva_end' || e.type === 'skyline_fix');
+  // Random run, drawn from what Mars does (data/crew_constants.json, all marked): a season, the normal dust for it,
+  // then maybe a regional storm (dusty season), rarely a global one, and maybe a solar storm. Dice, not a forecast.
   const randomEvents = () => {
-    const r = (a, b) => Math.round(a + Math.random() * (b - a));
+    const C = data.C, u = Math.random, r = (a, b) => Math.round(a + u() * (b - a)), f1 = v => +v.toFixed(1);
     const end = data.scenario.events.find(e => e.type === 'eva_end')?.tMin ?? 200;
-    const evs = [...fixed(data.scenario.events), { tMin: r(10, 45), type: 'tau', value: +(0.4 + Math.random()).toFixed(1) }];
-    if (Math.random() < 0.7) evs.push({ tMin: r(50, end - 60), type: 'tau', value: +(3 + Math.random() * 6).toFixed(1) });
-    if (Math.random() < 0.6) evs.push({ ...data.scenario.events.find(e => e.type === 'sep_onset'), tMin: r(35, end - 50) });
+    const dusty = u() < C.dusty_season_frac;
+    const base = dusty ? C.tau_typical + u() * (C.tau_dusty_season_max - C.tau_typical) : C.tau_typical * (0.75 + 0.5 * u());
+    const evs = [...fixed(data.scenario.events), { tMin: r(10, 45), type: 'tau', value: f1(base) }];
+    const roll = u();
+    if (dusty && roll < C.global_storm_chance) evs.push({ tMin: r(50, end - 60), type: 'tau', value: f1(C.global_storm_tau * (0.7 + 0.3 * u())) });
+    else if (dusty && roll < C.global_storm_chance + C.regional_storm_chance) evs.push({ tMin: r(50, end - 60), type: 'tau', value: f1(C.tau_amber + 0.2 + u() * (C.regional_storm_tau_max - C.tau_amber - 0.2)) });
+    if (u() < C.sep_chance) evs.push({ ...data.scenario.events.find(e => e.type === 'sep_onset'), tMin: r(35, end - 50) });
     return evs;
   };
   const triggerEvent = kind => {

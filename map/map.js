@@ -937,6 +937,7 @@ export function createMapView(data, { onPickTarget }) {
   const view3d = createView3D(data, onPickTarget, devils);
   setupToggle(map, view3d);
   for (const id of ['v-2d', 'v-3d']) $(id).addEventListener('click', () => devils.refresh()); // pause/resume the devil loop
+  $('v-2d').addEventListener('click', () => { if (lastStore) render(lastStore); });   // overlay catch-up
   const g2 = (...ls) => on => ls.forEach(l => (on ? l.addTo(map) : l.remove()));
   setupLayerMenu([
     { id: 'beacon', label: 'Home beacon', only: '3d' },
@@ -951,7 +952,7 @@ export function createMapView(data, { onPickTarget }) {
   ], view3d.setLayer);
   L2.setNames(true);
 
-  let lastVisKey = null, lastHeading = null;
+  let lastVisKey = null, lastHeading = null, lastStore = null;
   function renderWeather({ inputs, derived }) {
     const C = store0.data.C, a = inputs.astronaut;
     haze.setStyle({ fillOpacity: Math.min(HAZE_MAX, inputs.tau * HAZE_PER_TAU) });
@@ -961,7 +962,9 @@ export function createMapView(data, { onPickTarget }) {
   }
   function render(store) {
     const { inputs, derived } = store;
-    if (derived.visKey !== lastVisKey) { blindLayer.setUrl(drawOverlay(derived.vis)); lastVisKey = derived.visKey; }
+    lastStore = store;
+    // the 2D overlay is a PNG: only re-encode it while the 2D map is on screen (it catches up on the switch)
+    if (derived.visKey !== lastVisKey && !$('map').hidden) { blindLayer.setUrl(drawOverlay(derived.vis)); lastVisKey = derived.visKey; }
     const a = inputs.astronaut;
     astro.setLatLng([a.lat, a.lon]);
     // keep the astronaut in view while the demo plays (view change only, no state write)

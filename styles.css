@@ -842,3 +842,28 @@ body.is-3d .legend { bottom: calc(var(--notch-d) + 84px); } /* the 3D note below
 
 /* drift label on the position ring */
 .leaflet-tooltip.unc-tip, .v3-label.unc { color: #ffd3b0; }
+
+/* story timeline (bottom centre): evenly spaced chapters, a fill that follows the clock, click to jump */
+.story { display: grid; gap: 6px; }
+.story-steps { position: relative; display: flex; justify-content: space-between; list-style: none; margin: 0; padding: 0 4px; --fill: 0; }
+.story-steps::before, .story-fill { content: ""; position: absolute; left: 14px; right: 14px; top: 8px; height: 2px; border-radius: 1px; background: rgba(255, 244, 224, .18); }
+.story-fill { background: var(--accent); transform-origin: left; transform: scaleX(var(--fill)); transition: transform .25s linear; }
+.story-steps li { position: relative; z-index: 1; }
+.story-steps button { display: grid; justify-items: center; gap: 3px; background: none; border: 0; padding: 0 2px; color: var(--muted); font: 500 11px var(--font); cursor: pointer; }
+.story-steps i { width: 12px; height: 12px; margin-top: 3px; border-radius: 50%; background: #3a2a20; border: 2px solid rgba(255, 244, 224, .35); transition: background-color .3s, border-color .3s, transform .3s var(--ease-out); }
+.story-steps button.done i { background: var(--accent); border-color: var(--accent); }
+.story-steps button.now i { background: var(--cream, #fff4e0); border-color: var(--accent); transform: scale(1.3); }
+.story-steps button.now { color: var(--text); }
+.story-steps button:hover { color: var(--text); }
+.story-steps button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+.story-text { margin: 0; }
+/* guided story: the control that matters glows, a tip points at it */
+.coach-on { outline: 2px solid var(--accent); outline-offset: 4px; animation: coach-ring 1.2s ease-in-out 3; }
+@keyframes coach-ring { 50% { outline-offset: 9px; outline-color: rgba(255, 138, 61, .25); } }
+.coach-tip { position: fixed; z-index: 1300; width: max-content; max-width: min(280px, calc(100vw - 24px)); padding: 8px 12px; border-radius: 12px;
+  background: var(--accent); color: var(--accent-ink); font: 600 13px/1.35 var(--font); box-shadow: var(--shadow); pointer-events: none;
+  transform: translate(-50%, calc(-100% + 6px)); opacity: 0; transition: opacity .3s, transform .3s var(--ease-out); }
+.coach-tip.below { transform: translate(-50%, -6px); }
+.coach-tip.show { opacity: 1; transform: translate(-50%, -100%); }
+.coach-tip.below.show { transform: translate(-50%, 0); }
+@media (prefers-reduced-motion: reduce) { .coach-on { animation: none; } .coach-tip { transition: none; } .story-fill { transition: none; } }
