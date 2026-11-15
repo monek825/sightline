@@ -388,7 +388,7 @@ export function createPanels(data, { setInputs, usingStubs, onCondition, runHasS
       hiddenShown = true;
       const hid = Math.round(100 - pct);
       const lead = $('w-lead'), lg = $('lg-hidden3');
-      if (lead) lead.textContent = `On Jezero's flat floor, home is hidden from ${hid}% of the ground within 3 km. Sightline shows where you lose sight of home.`;
+      if (lead) lead.textContent = `On Jezero's flat floor, home is hidden from ${hid}% of the ground within 3 km, and Mars has no GPS. Sightline shows where you lose sight of home, and whether an astronaut on foot can still find the way back, even if the rover breaks down. Built on NASA terrain, dust and radiation data.`;
       if (lg) { lg.textContent = `Home hidden from ${hid}% of ground within 3 km`; lg.hidden = false; }
     }
   }
@@ -418,7 +418,7 @@ export function createPanels(data, { setInputs, usingStubs, onCondition, runHasS
 
     const recovering = inputs.sol < C.sensorimotor_recovery_days;
     $('c-sol-v').textContent = `Mars day ${inputs.sol}`;
-    $('c-state').textContent = `${recovering ? 'balance still recovering' : 'balance recovered'}${inputs.sansAffected ? ', vision changes' : ''}`;
+    $('c-state').textContent = `${recovering ? 'balance still recovering' : 'balance recovered'}`;
     $('c-walk').textContent = fmtNum(derived.limits.speedKmh, 1, ' km/h');
     $('c-slope').textContent = fmtNum(derived.limits.maxSlopeDeg, 0, '°');
 
