@@ -818,15 +818,24 @@ body.is-3d .legend { bottom: calc(var(--notch-d) + 84px); } /* the 3D note below
 /* Clash Display only at 20px and up (round 2) */
 #verdict, .verdict, .more h2 { font-family: var(--font); font-weight: 600; }
 
-/* Horizon Match radar on the 2D map (skyline/radar.js) */
-.radar { overflow: visible; }
-.radar-ring { fill: none; stroke: rgba(255, 244, 224, .35); stroke-width: .6; stroke-dasharray: 2 3; }
-.radar-n { fill: #fff4e0; font: 600 9px var(--mono); }
-.radar-hills { fill: rgba(233, 179, 125, .18); stroke: #fff4e0; stroke-width: 1.4; stroke-linejoin: round; }
-.radar-beam { stroke: var(--accent); stroke-width: 1.8; stroke-linecap: round; filter: drop-shadow(0 0 3px rgba(255, 138, 61, .8)); }
-.radar-me { fill: var(--accent); stroke: #1a110c; stroke-width: 1.2; }
 
 /* 3D → 2D handoff for Horizon Match: the map fades in over the top-down 3D frame */
 #map.fade-in { z-index: 700; animation: map-fade .5s cubic-bezier(.45, 0, .55, 1) both; }
 @keyframes map-fade { from { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { #map.fade-in { animation: none; } }
+
+/* Warning: a red triangle grows like liquid into a rounded red box at the top centre, then pulses while it lasts */
+.banner { display: flex; align-items: center; gap: 10px; text-align: left; overflow: hidden; border-radius: 22px; padding: 11px 18px 11px 14px; font-size: 14px; line-height: 1.35; }
+.banner::before { content: ""; flex: 0 0 22px; height: 22px; background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M10.3 3.6a2 2 0 0 1 3.4 0l8.1 14a2 2 0 0 1-1.7 3H3.9a2 2 0 0 1-1.7-3z' fill='%231a110c'/%3E%3Cpath d='M12 9v4.5M12 16.8v.1' stroke='%23ff5f56' stroke-width='2.4' stroke-linecap='round'/%3E%3C/svg%3E") center / contain no-repeat; }
+.banner:not([hidden]) { animation: warn-in .95s cubic-bezier(.34, 1.36, .64, 1) both, warn-pulse 1.8s ease-in-out .95s infinite; }
+@keyframes warn-in {
+  0%   { max-width: 50px; max-height: 44px; color: transparent; transform: translateX(-50%) scale(.2); }
+  30%  { max-width: 50px; max-height: 44px; color: transparent; transform: translateX(-50%) scale(1); }
+  100% { max-width: min(560px, calc(100vw - var(--panel-w) - 96px)); max-height: 140px; transform: translateX(-50%) scale(1); }
+}
+@keyframes warn-pulse { 0%, 100% { box-shadow: var(--shadow), 0 0 0 0 rgba(255, 95, 86, .55); } 50% { box-shadow: var(--shadow), 0 0 0 9px rgba(255, 95, 86, 0); } }
+@media (min-width: 1024px) { .map-wrap:has(.skyfix[open]) .banner:not([hidden]) { animation-name: warn-in-side, warn-pulse; } }
+@keyframes warn-in-side { 0% { max-width: 50px; max-height: 44px; color: transparent; } 30% { max-width: 50px; max-height: 44px; color: transparent; } 100% { max-width: 900px; max-height: 140px; } }
+@media (prefers-reduced-motion: reduce) { .banner:not([hidden]) { animation: none; } }
+@media (max-width: 1023px) { .banner:not([hidden]) { animation-name: warn-in-m, warn-pulse; } }
+@keyframes warn-in-m { 0%, 30% { max-width: 50px; max-height: 44px; color: transparent; transform: translateX(-50%); } 100% { max-width: calc(100vw - 32px); max-height: 160px; transform: translateX(-50%); } }

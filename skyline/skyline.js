@@ -4,19 +4,18 @@
 
 import { R, distM } from '../lib/geo.js';
 import { setInputs, getStore } from '../lib/store.js';
-import { radarSweep } from './radar.js';
 import { lostInDustPlan, compass8 } from './lostdust.js';
 import { visibilityArrays } from '../map/visibility.js';
 import { liveMatchSteps, deadReckoningPrior, seedOf } from './livematch.js';
 
-const SWEEP_MS = 5000;   // the radar look-around on the map
+const SWEEP_MS = 4000;   // the turn: compass sweep + outline drawing in the panel
 const SEARCH_MS = 1500;   // short pause on "Compare with the map" before the result
 const MORPH_MS = 400; // 360° <-> 96° circle change
 const STEPS = ['Look around', 'Compare with the map', 'You are here'];
 const M_PER_DEG = 2 * Math.PI * R / 360;
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const CHART = { w: 720, h: 150, pad: 8 };
-const LEAD = "Each spot in the crater has a different outline of hills on the horizon. The astronaut turns once, the outline is compared with NASA's 3D map, and the best match is the position.";
+const LEAD = "Mars has no GPS, so the suit guesses its position by counting steps, and that guess drifts the further you walk. Horizon Match resets it: every spot in the crater has its own outline of hills, so the astronaut turns once and the outline is matched to NASA's 3D map.";
 
 const cache = new Map();
 let ui = null; // { dlg, overlay, timers, onClose, cmp: {circle, marker} | null, raf }
@@ -434,11 +433,7 @@ export async function openSkylineFix(siteId, map, opts = {}) {
   // radar on the map, centred on where the astronaut really stands (it does not move during the match)
   const here = live ? store.inputs.astronaut : (s.truth ?? store.inputs.astronaut);
   if (ui.radar) ui.radar.remove();
-  const on2D = !document.getElementById('map')?.hidden;   // radar only on the 2D map; in 3D the panel animation is enough
-  if (on2D) {
-    map.flyTo([here.lat, here.lon], Math.max(map.getZoom(), 15), { duration: reduced ? 0 : 0.6 });
-    ui.radar = radarSweep(map, here, s.observed, SWEEP_MS, reduced);
-  }
+  // ponytail: no map animation (it confused more than it showed); the panel's compass + outline chart tell the story
   const n = s.observed.length;
   if (reduced) {
     obs.setAttribute('points', points(s.observed, sc));
