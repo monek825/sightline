@@ -104,7 +104,7 @@ export function prepareScenario(scenario, data, M, targetOverride = null, outMod
   const lim0 = M.computeLimits(base, C);
   const tauAt = tt => eventsUpTo(scenario, tt).filter(e => e.type === 'tau').pop()?.value ?? base.tau;
   const limF = from ? M.computeLimits({ ...base, tau: tauAt(from.tMin), sepActive: false }, C) : lim0;
-  const opts = { mode: 'safest', maxSlopeDeg: limF.maxSlopeDeg, speedKmh: limF.speedKmh };
+  const opts = { mode: 'safest', maxSlopeDeg: limF.maxSlopeDeg, speedKmh: limF.speedKmh, cellMaxSlopeDeg: data.slopeMax };   // same 40 m slope check as the live planner
   const sep = scenario.events.find(e => e.type === 'sep_onset');
   const end = scenario.events.find(e => e.type === 'eva_end')?.tMin ?? 200;
   // leg switch: the earliest of the storm, the return_home press and the first RED dust level (tau > tau_red)
