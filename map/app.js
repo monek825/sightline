@@ -204,9 +204,13 @@ function setupScenario(data, M, sky) {
   };
   // Narration (optional): the browser's own text-to-speech reads each new caption while the story plays
   const speech = 'speechSynthesis' in window ? window.speechSynthesis : null;
-  let narrateOn = false;
+  let narrateOn = false, spokenKey = '';
   const narrate = text => {
     if (!narrateOn || !speech || !text) return;
+    // the forecast counts down every demo minute (twice a second): the same line with a new number must not restart the voice
+    const key = text.replace(/~\d+ min/, '');
+    if (key === spokenKey) return;
+    spokenKey = key;
     speech.cancel();
     const u = new SpeechSynthesisUtterance(text);
     u.lang = 'en-US'; u.rate = NARRATE_RATE;
@@ -220,6 +224,7 @@ function setupScenario(data, M, sky) {
     narrBtn.addEventListener('click', () => {
       narrateOn = !narrateOn;
       narrBtn.setAttribute('aria-pressed', String(narrateOn));
+      spokenKey = '';
       if (narrateOn) narrate(caption.textContent); else speech.cancel();
     });
   }
@@ -264,6 +269,7 @@ function setupScenario(data, M, sky) {
   function stop() {
     pauseId++; playing = false; cancelAnimationFrame(raf);
     window.speechSynthesis?.cancel();   // narration stops with the story
+    spokenKey = '';                     // and the line is read again from the start when the story goes on
     play.dataset.state = 'paused'; play.setAttribute('aria-label', 'Play demo');
   }
   play.addEventListener('click', () => (playing ? stop() : start()));
