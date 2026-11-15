@@ -1080,3 +1080,4 @@ body.is-3d .legend { bottom: calc(var(--notch-d) + 84px); } /* the 3D note below
 #story-narrate[hidden] { display: none; }
 .banner.mini { top: 18px; }
 .banner.mini::before { filter: drop-shadow(0 1px 4px rgba(0, 0, 0, .25)); }
+@media (min-width: 1024px) { .banner.mini { top: 43px; left: 690px; transform: none; } }   /* the shrunk warning sits beside the top bar, not over it */

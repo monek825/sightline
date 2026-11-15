@@ -205,11 +205,19 @@ function setupScenario(data, M, sky) {
   const VOICE = { 'Walk out': 'walk-out', 'Dust rises': 'dust-rises', 'Position fix': 'position-fix', 'Solar storm': 'solar-storm', 'Dust storm': 'dust-storm', 'Home': 'home' };
   const voice = new Audio();
   let narrateOn = false;
+  // chapters come every few seconds but each line takes 4-10 s: the story waits for the line to finish, then goes on
+  let heldForVoice = false, pendingLine = null, lastLine = '';
+  const playLine = name => { lastLine = name; voice.src = `assets/voice/${VOICE[name]}.mp3`; voice.play().catch(err => console.warn('narration could not play', err)); };
+  voice.addEventListener('ended', () => {
+    if (!narrateOn) return;
+    if (pendingLine) { const n = pendingLine; pendingLine = null; playLine(n); return; }   // the next line waits its turn
+    if (heldForVoice) { heldForVoice = false; start(); }
+  });
   const narrateChapter = name => {
-    if (!narrateOn || !VOICE[name]) return;
-    voice.pause();
-    voice.src = `assets/voice/${VOICE[name]}.mp3`;
-    voice.play().catch(err => console.warn('narration could not play', err));
+    if (!narrateOn || !VOICE[name] || name === lastLine || name === pendingLine) return;   // the chapter list is rebuilt after a fix: never repeat a line
+    const busy = !voice.paused && !voice.ended;
+    if (busy) pendingLine = name; else playLine(name);
+    if (playing) { stop(true); heldForVoice = true; }
   };
   const narrBtn = document.getElementById('story-narrate');
   if (narrBtn) {
@@ -217,11 +225,18 @@ function setupScenario(data, M, sky) {
     narrBtn.addEventListener('click', () => {
       narrateOn = !narrateOn;
       narrBtn.setAttribute('aria-pressed', String(narrateOn));
+      lastLine = '';
       if (narrateOn) { const k = chapterAt(t); if (k >= 0) narrateChapter(chs[k].name); } else voice.pause();
     });
   }
   const apply = () => {
     setInputs(stateAt(prep, t, sky.skyResults));
+    // the recorded narration belongs to the scripted story only: hide Voice on planned or custom walks
+    if (narrBtn) {
+      const story = scenario === data.scenario && !prep.custom;
+      if (narrBtn.hidden === story) narrBtn.hidden = !story;
+      if (!story && narrateOn) { narrateOn = false; narrBtn.setAttribute('aria-pressed', 'false'); voice.pause(); }
+    }
     buildSteps(); showSteps(t);
     const text = t > 0 || playing ? captionAt(t) : 'Press play: the story shows every feature in 100 seconds.';
     if (caption.textContent !== text) { caption.textContent = text; caption.hidden = !text; }
@@ -240,7 +255,7 @@ function setupScenario(data, M, sky) {
     apply();
     const fix = fixEvents.find(e => prevT < e.tMin && e.tMin <= t);
     if (fix) { // pause, play the Horizon Match, resume when the panel closes
-      stop();
+      stop(true);   // keep the narration line playing over the match
       caption.textContent = 'Horizon Match: matching the hill outline. The demo goes on by itself.'; caption.hidden = false;
       const id = pauseId;
       show2D().then(restore => {
@@ -253,19 +268,21 @@ function setupScenario(data, M, sky) {
     raf = requestAnimationFrame(frame);
   };
   const start = () => {
-    if (t >= prep.endT) t = 0;
+    if (playing) return;   // already running (e.g. the narration and the Horizon Match panel both resume)
+    heldForVoice = false;
+    if (t >= prep.endT) { t = 0; lastLine = ''; }   // a fresh run reads every line again
     pauseId++; playing = true; last = performance.now();
     play.dataset.state = 'playing'; play.setAttribute('aria-label', 'Pause demo');
     raf = requestAnimationFrame(frame);
   };
-  function stop() {
+  function stop(keepVoice = false) {
     pauseId++; playing = false; cancelAnimationFrame(raf);
-    voice.pause();   // narration stops with the story
+    if (!keepVoice) { voice.pause(); heldForVoice = false; pendingLine = null; }
     play.dataset.state = 'paused'; play.setAttribute('aria-label', 'Play demo');
   }
   play.addEventListener('click', () => (playing ? stop() : start()));
   document.getElementById('t-reset').addEventListener('click', () => {
-    stop();
+    stop(); lastLine = '';
     sky.skyline?.closeFix();   // an open Horizon Match panel belongs to the run being reset
     // Reset = the original story again: scripted events, story target, default route and speed, default crew settings
     scenario = data.scenario; prep = prepareScenario(scenario, data, M); fixEvents = fixesOf(prep);
@@ -278,7 +295,7 @@ function setupScenario(data, M, sky) {
     }
     apply();
   });
-  scrub.addEventListener('input', () => { stop(); t = Number(scrub.value); apply(); });
+  scrub.addEventListener('input', () => { stop(); lastLine = ''; t = Number(scrub.value); apply(); });
   document.addEventListener('visibilitychange', () => { if (document.hidden) stop(); });
   // swap in a re-prepared walk for scenario `sc`; false (nothing changed) if the new one is unreachable.
   // clock: 'auto' = out walking keeps the clock and the walked prefix, else restart; 'keep' = keep the clock; 'zero' = restart
@@ -462,6 +479,7 @@ async function show2D() { return () => {}; }
 
 function setupSkyline(map, mod, results) {
   // the real-photo test: our skyline vs Perseverance's photos (skyline/realphoto.js), also at the top of the Horizon Match panel
+  document.getElementById('w-proof')?.addEventListener('click', () => { document.getElementById('w-close')?.click(); document.getElementById('btn-realphoto')?.click(); });
   document.getElementById('btn-realphoto')?.addEventListener('click', e => {
     const opener = e.currentTarget;
     import('../skyline/realphoto.js').then(m => m.openRealPhoto(opener)).catch(err => console.error(err));
